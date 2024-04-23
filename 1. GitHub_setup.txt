@@ -1,0 +1,38 @@
+Steps for project so far.
+
+SET UP REPOSITORY
+(created simple new repo on my github called LittleLemon, no special settings)
+
+    
+VS terminal:
+
+mkdir littleLemon
+cd littlelemon 
+git clone [https link of repo=https://github.com/zandra-handz/LittleLemon.git]
+
+enter repo and check list of files: (ok windows must need dif commands bc ls -la didn't work)
+
+cd littlelemon
+ls -la
+
+make new file newfile.txt and write 'Hello World' in it.
+
+check git status, add newfile.txt to the stage, and commit changes:
+
+git status 
+git add newfile.txt
+git commit -m "first commit"
+
+check status again and then push the changes (may need to enter username and password if not already set up):
+
+git status 
+git push origin main
+
+
+refresh gitub repo page and view.
+
+edit newfile.txt on github page, commit change.
+
+back in VS terminal, pull repo to update local repo:
+
+git pull

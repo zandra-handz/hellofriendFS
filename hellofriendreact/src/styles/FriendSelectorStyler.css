@@ -1,0 +1,45 @@
+/* style.css */
+.friend-selector-container {
+    max-width: 138px;
+    /* Style the container of the FriendSelector component */
+    
+    background-color: transparent;
+    position: relative; /* Ensure the container creates a stacking context */
+    z-index: 1; /* Set a z-index for the container */
+  }
+  
+  .friend-selector-container h1 {
+    /* Style the heading inside the container */
+    color: #333;
+  }
+  /* Style the react-select dropdown */
+  .react-select__control {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    position: relative; /* Ensure the control creates a stacking context */
+    z-index: 2; /* Set a higher z-index for the dropdown container */
+  }
+  
+  /* Style the dropdown menu */
+  .react-select__menu {
+    background-color: #fff;
+    min-width: 150px;
+    height: auto;
+    z-index: 3; /* Set an even higher z-index for the dropdown menu */
+  }
+  
+  /* Style each option in the dropdown */
+  .react-select__option {
+    color: black;
+  }
+  
+  .react-select__option--is-selected {
+    color: white;
+    background-color:aqua;
+  }
+  
+  .react-select__option--is-selected:hover {
+    background-color:aqua;
+    color: white;
+  }
+  

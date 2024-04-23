@@ -1,0 +1,90 @@
+in settings.py, add 'rest_framework' to INSTALLED_APPS
+
+EDIT: and add this to the bottom
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES' : [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer'
+    ],
+    
+    'DEFAULT_AUTHENTICATION_CLASSES' : [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication'
+    ]
+}
+
+
+in restaurant app folder, add serializers.py file (this works specifically with DRF) and put into it:
+
+
+from rest_framework import serializers
+from django.contrib.auth.models import User
+from .models import Booking, Menu 
+
+
+class BookingSerializer(serializers.ModelSerializer):
+
+    class Meta():
+        model = Booking
+        fields = '__all__'
+
+class MenuSerializer(serializers.ModelSerializer):
+
+    class Meta():
+        model = Menu
+        fields = ['id', 'title', 'price', 'inventory']
+
+
+in restaurant app folder, go to views.py and declare two class views (I had to add some things in addition to their 'tips'):
+from django.shortcuts import render
+from rest_framework import generics, viewsets
+from rest_framework.decorators import api_view
+from .models import MenuItem 
+from .serializers import MenuItemSerializer
+
+# Create your views here.
+def index(request):
+    return render(request, 'index.html', {})
+
+class MenuItemsView(generics.ListCreateView):
+
+    queryset = MenuItem.objects.all()
+    serializer_class = MenuItemSerializer
+    
+
+
+class SingleMenuItemView(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
+
+    queryset = MenuItem.objects.all()
+    serializer_class = MenuItemSerializer
+
+
+update restaurant app urls.py to:
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+    path('menu/', views.MenuItemsView.as_view()),
+    path('menu/<int:pk>', views.SingleMenuItemView.as_view(),)
+]
+
+
+
+and project urls.py to:
+
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('restaurant/', include('restaurant.urls')),
+    path('restaurant/menu/', include('restaurant.urls')),
+]
+
+(not sure if final comma is supposed to be there)
+
+http://127.0.0.1:8000/restaurant/menu/

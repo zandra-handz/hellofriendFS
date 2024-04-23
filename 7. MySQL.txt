@@ -1,0 +1,72 @@
+I had to use some work arounds
+
+manually put the zip archive file into 'mysql' folder in CodingSpace and navigated to bin
+.\mysqld --initialize-insecure 
+
+i had to make the name of the database Littlelemon but did nothing else (CREATE etc  ;)
+
+     (not strictly needed)
+
+in another terminal (if you want to open a new one)
+navigate to bin folder and run 
+
+mysql -u root -p     or 
+.\mysql -u root -p 
+
+to ensure it's running. this will activate the mysql shell
+
+in another terminal, navigate to root of Django project
+
+install MySQL extension 
+
+pip3 install mysqlclient
+
+
+update settings.py file with:
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'Littlelemon',
+        'USER': 'root',
+        'PASSWORD': 'root123',
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
+        'OPTIONS': {
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
+        }
+    }
+}
+
+
+in mysql (adding this later)
+
+    CREATE DATABASE your-database_name;
+
+
+EDIT: CUSTOM USER NEEDS TO BE CREATED HERE, BEFORE THE FIRST MIGRATION!
+i added user apps, wrote models.py file, wrote a managers.py file but haven't used it yet, create urls.py file but haven't
+put anything in it yet, then in settings:
+
+added 'users' to INSTALLED_APPS
+
+added this line (pretty sure can be anywhere), tho I put it before LANGUAGE_CODE:
+AUTH_USER_MODEL = 'users.BadRainbowzUser'
+
+
+
+
+python manage.py migrate 
+
+
+* i had to set the password because i was getting an ER AUTH error in the MySQL extension so went into shell and 
+
+ALTER USER 'root@localhost' IDENTIFIED WITH 'mysql_native_password' by 'root123';
+
+i didn't have to restart the SQL database or anything. i hopped back over to python terminal and 
+
+python manage.py runserver
+
+clicked on the plus sign in the MySQL extension in the left navbar, then typed in at the top: localhost, root, root123, port was auto entered, no ssl or whatever
+
+and then the database info populated under MySQL in the extension!

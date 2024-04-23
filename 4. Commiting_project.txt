@@ -1,0 +1,25 @@
+create local repo branch and stage project folder:
+
+git checkout -B <branch-name>
+git add .
+
+
+git status
+
+
+git commit -m "message"
+
+git push -u origin <branch-name>
+
+
+log in to Git, open repo, press GREEN Compare & pull request
+
+press GREEN Create pull request 
+
+press GREEN Merge pull request after reviewing changes
+
+
+
+git checkout main  (switches back to main branch!)
+
+git pull

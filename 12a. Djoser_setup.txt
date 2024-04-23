@@ -1,0 +1,52 @@
+in project env:
+
+pip3 install djoser
+
+in settings.py:
+
+add 'djoser' to INSTALLED_APPS  *MUST BE PLACED AFTER 'rest_framework'
+
+also add
+
+DJOSER={"USER_ID_FIELD":"username"}
+
+also make sure this has been added
+
+REST_FRAMEWORK = {
+    'DEFAULT_RENDERER_CLASSES' : [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer',
+        'rest_framework.renderers.XMLRenderer',
+    ],
+    
+    'DEFAULT_AUTHENTICATION_CLASSES' : [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication'
+    ]
+}
+
+
+
+in project urls.py, enable djoser endpoints by adding
+
+path('auth/', include('djoser.urls')),
+path('auth/', include('djoser.urls.authtoken'))
+
+
+run server and go to http://127.0.0.1:8000/auth/users/ to create new user (dummy, dummy@gmail.com, cat1234cat)
+
+then go to http://127.0.0.1:8000/auth/token/login to log in and get a token (result:
+
+    {
+        "auth_token": "e7f8d6bcbb42c5ce6b53a15f44394990d1484fd2"
+    }
+)
+
+yay!
+
+to log out, go to
+
+http://127.0.0.1:8000/auth/token/logout
+
+
+my dummy for ClimateTwin is GREGory@gmail.com, greg, greg1234

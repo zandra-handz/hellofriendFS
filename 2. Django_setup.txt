@@ -1,0 +1,29 @@
+Set up venv:
+
+python -m venv venv 
+.\venv\Scripts\Activate
+
+or (course's instruction)
+
+python -m venv D:\CodingSpace\workspace
+D:\CodingSpace\workspace>scripts\activate
+
+
+install Django and REST frameworks and install mysqlclient libary:
+
+pip3 install django
+pip3 install djangorestframework
+pip3 install mysqlclient
+
+
+create Django project:
+
+django-admin startproject littlelemon  (had to make it littlelemonroot)
+
+cd littlelemonroot 
+python manage.py runserver
+
+Open in browser:
+
+http://127.0.0.1:8000/
+

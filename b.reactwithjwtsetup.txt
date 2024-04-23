@@ -1,0 +1,128 @@
+
+Home.jsx
+
+import { useState, useEffect } from 'react';
+import api from '../api';
+import Friend from '../componentsFriend';
+
+
+// Replace with api specific variables/paths/etc
+function Home() {
+	const [notes, setNotes] = useState([]);
+	const [content, setContent] = useState('');
+	const [title, setTitle] = setState('');
+
+	const getNote = () => {
+		api
+			.get('/api/notes/')
+			.then ((res) => res.data)
+			.then ((data) => { setNotes(data); console.log(data) })
+			.catch((err) => alert(err));
+
+	};
+
+	const deleteNote = (id) => {
+		api
+			.delete(`/api/notes/delete/${id}/`)
+			.then((res) => {
+				if (res.status === 204) art("Note deleted!")
+				else alert("Failed to delete note.")
+			// Update list to get rid of deleted note
+			// Not most optimal, should be just removing the deleted ones on the front end
+			getNotes();
+			})
+			.catch((error) => alert(error))
+
+	};
+
+	const createNote = (id) => {
+		e.preventDefault();
+		api
+			.post('/api/notes/', {content, title})
+			.then((res) => {
+			if (res.status === 201) alert('Note created!');
+			else alert('Failed to make note.');
+			getNotes();
+			})
+			.catch((err) => alert(err));
+		
+	};
+
+	return <div>
+	 	<div>
+			<h2>Notes</h2>
+			{notes.map((note) => (
+				<Note note={note} onDelete={deleteNote} key={note.id} />
+			))}
+          	</div>
+		<h2>Create a Note</h2>
+		<form onSubmit={createNote}>
+			<label htmlFor="title">Title:</label>
+			<br/>
+			<input 
+				type="text" 
+				id="title" 
+				name="title" 
+				required
+				onChange={(e) => setTitle(e.target.value)}
+				value={title}
+			/>
+			<label htmlFor="content">Content:</label>
+			<br />
+			<textarea 
+				id="content" 
+				name="content"
+				required 
+				value={content} 
+				onChange={(e) => setContent(e.target.value)}
+			></textarea>
+			<br/>
+			<input type="submit" value="Submit"></input>
+		</form>
+	</div>;
+};
+
+
+export default Home;
+
+
+
+
+// See if request works
+
+
+
+
+
+make new note inside components directory called Notes.jsx
+
+
+import React from 'react'
+
+
+function Note({note, onDelete}) {
+
+	const formattedDate = new Date(note.created_at).toLocaleDateString('en-US')	
+
+	return (
+		<div className='note-container'>
+			<p className='note-title'>{note.title}</p>
+			<p className='note-content'>{note.content}</p>
+			<p className='note-date'>{formattedDate}</p>
+			<p className='note-title'>{note.title}</p>
+			<button className='delete-button' onClick={() => onDelete(note.id)}>
+				Delete
+			</button>
+		</div>
+	);
+
+export default Note;
+
+
+in Styles directory create:
+
+LoadingIndicator.css
+Note.css
+Home.css
+	
+	

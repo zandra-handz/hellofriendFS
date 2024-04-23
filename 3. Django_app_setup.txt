@@ -1,0 +1,24 @@
+in littlelemonroot directory:
+
+python manage.py startapp restaurant
+
+in settings.py file:
+
+add restaurant app to INSTALLED_APPS list
+
+check in browser:
+
+python manage.py runserver
+
+
+ADDED: custom users app
+
+python manage.py startapp users
+
+create static/users folders
+
+create urls.py and managers.py
+
+add to settings: 
+
+AUTH_USER_MODEL = 'users.BadRainbowzUser'    # = users.[name of your model]

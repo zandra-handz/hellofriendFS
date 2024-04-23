@@ -1,0 +1,14 @@
+inside app folder:
+
+delete test.py file 
+
+
+in package folder (same level as apps, manage.py, templates, etc):
+
+create new folder called tests 
+
+*ALSO, NOT INCLUDING IN THE LESSON FOR SOME REASON BUT YOU NEED A 
+
+__init__.py  file in the tests folder too
+
+and create new file in this called test_models.py

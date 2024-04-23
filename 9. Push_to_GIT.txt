@@ -1,0 +1,9 @@
+this is what i did:
+
+git add .
+
+git status (to view)
+
+git commit -m "added booking and menu models, db config, and superuser"
+
+git

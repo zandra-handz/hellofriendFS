@@ -1,0 +1,5 @@
+add     
+
+path('restaurant/', include('restaurant.urls')),
+
+to root urls.py

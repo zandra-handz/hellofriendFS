@@ -1,0 +1,37 @@
+in settings.py:
+
+add rest_framework.authtoken to INSTALLED_APPS
+
+and run migrate command
+
+
+notes: "Django framework provides a basic session-based authentication. Certain middleware components are needed for django's auth
+backends authentication requests.
+
+Django REST framework presents different other authentication schemes other than session-based authentication.
+
+Token-based authentication is the most suited one when the web application interacts with desktop and mobile clients."
+
+Jump to Djoser section, do that one first and then come back!
+
+
+in views.py file, add:
+
+from rest_framework.permissions import IsAuthenticated
+
+and add to BookingViewSet:
+
+permission_classes = [IsAuthenticated]
+
+
+in restaurant urls.py:
+
+from rest_framework.authtoken.views import obtain_auth_token  (this may have gotten done in Djoser or earlier in other instructions)
+
+
+and add:
+
+path('api-token-auth/', obtain_auth_token)
+
+
+it's unclear whether they want me do to this for the Menu view too?

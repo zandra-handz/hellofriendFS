@@ -1,0 +1,121 @@
+# Added while making hellofriend
+
+pip install djangorestframework-simplejwt 
+pip install djangocorsheaders
+
+pip install python-dotenv (?)
+
+
+added to settings:
+
+import datetime
+from dotenv import load_dotenv (?)
+
+import os (already there)
+import sys (already there)
+
+#load_dotenv()  (?)
+
+
+add or modify to make it this:
+
+ALLOWED_HOSTS = ['*']
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # 'rest_framework.authentication.TokenAuthentication',
+        # 'rest_framework.authentication.SessionAuthentication'
+    ),
+    'DEFAULT_RENDERER_CLASSES' : [
+        'rest_framework.renderers.JSONRenderer',
+        'rest_framework.renderers.BrowsableAPIRenderer'
+    ],
+    'DEFAULT_PERMISSIONS_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": datetime.timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": datetime.timedelta(days=1),
+}
+
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    '[app names here]',
+    ADD --> 'rest_framework',
+    ADD --> 'corsheaders'
+]
+
+
+added to very end of file:
+
+# Typically would just allow a specific origin; change later to make more secure
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
+
+
+in users app, create serializers.py:
+
+from . import models
+from rest_framework import serializers
+
+
+
+class BadRainbowzUserSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = models.BadRainbowzUser
+
+        fields = ['id', 'username', 'password', 'email', 'phone_number', 'addresses'] 
+        extra_kwargs = {"password": {"write_only": True}}
+
+    def create(self, validated_data):
+        user = models.BadRainbowzUser.objects.create_user(**validated_data)
+        return user
+
+
+in user views.py:
+
+from . import models
+from . import serializers
+from django.shortcuts import render
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated, AllowAny
+
+# Create your views here.
+
+class CreateUserView(generics.CreateAPIView):
+
+    queryset = models.BadRainbowzUser.objects.all()
+    serializer_class = serializers.BadRainbowzUserSerializer
+    permission_classes = [AllowAny]
+    
+
+in root urls.py:
+
+from django.contrib import admin
+from django.urls import include, path
+import users.views
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('friends/', include('friends.urls')),
+    path('users/', include('users.urls')),
+    path('users/sign-up/', users.views.CreateUserView.as_view(), name='sign_up'),
+    path('users/token/', TokenObtainPairView.as_view(), name='get_token'),
+    path('users/token/refresh/', TokenRefreshView.as_view(), name='refresh_token'),
+    path('api-auth/', include('rest_framework.urls')),
+]
+
+
+makemigrations and migrate

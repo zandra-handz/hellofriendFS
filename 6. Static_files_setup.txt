@@ -1,0 +1,45 @@
+create templates directory:
+
+(outer folder is identified as BASE_DIR) inside BASE_DIR, create a template folder called templates
+
+Go to TEMPLATES in settings.py and make sure/add 'templates' inside brackets of 'DIRS':['templates'],
+
+Create index.html:
+
+inside templates folder, create index.html with this code in it:
+
+<html>
+    <head>
+        <title>Capstone Project</title>
+    </head>
+    <body>
+        <h1 style="text-align:center;">Welcome To Little Lemon Restaurant</h1>
+    </body>
+</html>
+
+
+Define index view. open views.py from restaurant app and add:
+
+def index(request):
+    return render(request, 'index.html', {})
+
+
+Create urls.py from restaurant app and put this code in it:
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index')
+]
+
+
+Update URLConf. open urls.py file from root folder and make sure it has url patterns of restaurant app:
+
+path('restaurant/', include('restaurant.urls')),
+
+Visit home page to make sure it works 
+
+Save littlelemon.png (this isn't in the zip, so do they mean logo.png?) to restaurant/static/restaurant (okay guess I'll make these folders!)
+
+add the static tag to index.html 

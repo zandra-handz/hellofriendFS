@@ -1,0 +1,844 @@
+
+
+can add input invalid
+	(red border)
+
+to CSS for invalid data
+
+
+// ConsiderTheDrive.jsx
+import React, { useState } from 'react';
+import axios from '../api/axios';
+import Card from './Card';
+import PlacesCard from './PlacesCard';
+import PlacesCardWide from './PlacesCardWide';
+import ValidateAddress from './ValidateAddress';
+import ValidateFriendAddress from './ValidateFriendAddress';
+import ValidateDestination from './ValidateDestination';
+import useSelectedFriend from '../hooks/useSelectedFriend';
+import useAuth from '../hooks/useAuth';
+
+
+const ConsiderTheDrive = () => {
+  const { auth } = useAuth();
+
+  const [addressA, setAddressA] = useState(null);
+  const [addressB, setAddressB] = useState(null);
+  const [destinationAddress, setDestinationAddress] = useState(null);
+  const [searchKeyword, setSearchKeyword] = useState('restaurants');
+  const [searchRadius, setSearchRadius] = useState(5000);
+  const [searchLength, setSearchLength] = useState(8);
+  const [considerTheDriveData, setConsiderTheDriveData] = useState(null);
+  const { selectedFriend } = useSelectedFriend();
+
+  const handleValidationChange = (isValid, address, latitude, longitude, addressKey) => {
+    if (isValid) {
+      if (addressKey === 'A') {
+        setAddressA({ address, latitude, longitude });
+      } else if (addressKey === 'B') {
+        setAddressB({ address, latitude, longitude });
+      } else if (addressKey === 'Destination') {
+        setDestinationAddress({ address, latitude, longitude });
+        setConsiderTheDriveData('');
+      }
+    } else {
+      // Handle invalid address if needed
+    }
+  };
+
+  const handleSubmit = async () => {
+    console.log('State before submission:', { addressA, addressB, destinationAddress });
+
+    if (addressA && addressB && destinationAddress) {
+      try {
+        const response = await axios.post('/friends/api/consider_the_drive/', {
+          address_a_address: addressA.address,
+          address_a_lat: addressA.latitude,
+          address_a_long: addressA.longitude,
+          address_b_address: addressB.address,
+          address_b_lat: addressB.latitude,
+          address_b_long: addressB.longitude,
+          destination_address: destinationAddress.address,
+          destination_lat: destinationAddress.latitude,
+          destination_long: destinationAddress.longitude,
+          search: searchKeyword,
+          radius: searchRadius,
+          length: searchLength,
+          user: { auth }, // Replace 'user' with the actual user data
+        });
+
+        // Update the state with the response data
+        setConsiderTheDriveData(response.data);
+        console.log(JSON.stringify(considerTheDriveData, null, 2));
+        console.log('Consider the Drive Response:', response.data);
+      } catch (error) {
+        console.error('Error submitting addresses:', error);
+      }
+    } else {
+      console.warn('Please enter and validate all addresses.');
+    }
+  };
+
+
+  return (
+    <div>
+      <PlacesCard> 
+        <div className="places-card-content">
+          <div className="places-restrictor">
+            <div className="places-card-indv"> 
+              <ValidateAddress onValidationChange={(isValid, address, lat, long) => handleValidationChange(isValid, address, lat, long, 'A')} />
+            </div>
+            <div className="places-card-indv"> 
+              <ValidateFriendAddress onValidationChange={(isValid, address, lat, long) => handleValidationChange(isValid, address, lat, long, 'B')} />
+            </div>
+            <div className="places-card-indv"> 
+              <ValidateDestination onValidationChange={(isValid, address, lat, long) => handleValidationChange(isValid, address, lat, long, 'Destination')} />
+            </div>
+          </div>
+        </div> 
+        <div className="places-card-content">
+          <div className="places-restrictor">
+            <button className="submit-button" onClick={handleSubmit} disabled={!addressA || !addressB || !destinationAddress}>
+              Get travel times
+            </button>
+          </div>
+        </div>
+        <div className="places-card-content">
+          <div className="places-restrictor">
+            <h2>Travel times to destination</h2>
+            {considerTheDriveData && (
+              <div>
+                <h1>Me</h1>
+                <pre>{String(considerTheDriveData.compare_directions.Me.distance)}</pre>
+                <pre>{String(considerTheDriveData.compare_directions.Me.duration)}</pre>
+
+                <h1>Friend</h1> 
+                  <pre>{String(considerTheDriveData.compare_directions.friend.distance)}</pre>
+                  <pre>{String(considerTheDriveData.compare_directions.friend.duration)}</pre>
+              </div>
+            )}
+          </div>
+        </div>
+      </PlacesCard>
+      <PlacesCardWide>
+
+        <div className="places-card-content">
+
+          <label htmlFor="searchKeyword">Keyword: </label>
+          <input
+            type="text"
+            id="searchKeyword"
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+          />
+        </div>
+
+        <div className="places-card-content">
+          <label htmlFor="searchRadius">Radius: </label>
+            <input
+              type="text"
+              id="searchRadius"
+              value={searchRadius}
+              onChange={(e) => setSearchRadius(e.target.value)}
+          />
+      </div>
+
+      <div className="places-card-content">
+          <label htmlFor="searchLength">Length: </label>
+            <input
+              type="text"
+              id="searchLength"
+              value={searchLength}
+              onChange={(e) => setSearchLength(e.target.value)}
+          />
+      </div>
+
+      </PlacesCardWide>
+      {/*}
+      <PlacesCard> 
+      {considerTheDriveData && (
+        <div>
+          <h2>Travel times to destination</h2>
+          <h1>Me</h1>
+          <pre>{String(considerTheDriveData.compare_directions.Me.distance)}</pre>
+          <pre>{String(considerTheDriveData.compare_directions.Me.duration)}</pre>
+
+          <h1>Friend</h1> 
+          <pre>{String(considerTheDriveData.compare_directions.friend.distance)}</pre>
+          <pre>{String(considerTheDriveData.compare_directions.friend.duration)}</pre>
+            
+        </div>
+      
+      )}
+      
+      </PlacesCard>  */}
+
+      {considerTheDriveData && considerTheDriveData.suggested_places && (
+        <div>
+            {considerTheDriveData.suggested_places.map((place, index) => (
+              <Card>
+                <div key={index}>
+                  <h3>{place.name}</h3>
+                  <p>{place.address}</p>
+                  <p>{place.formatted_phone_number} | {place.website && (
+                      <a href={place.website} target="_blank" rel="noopener noreferrer">
+                         More info
+                      </a>
+
+                  )}
+                  </p>
+                  <p>{place.opening_hours.open_now}</p>
+
+                  {/* Display distances and travel times */}
+                  {place.distances.map((distance, distanceIndex) => (
+                    <div key={distanceIndex}>
+                      <p>{Object.keys(distance)[0]}: {place.travel_times[distanceIndex][Object.keys(distance)[0]]} (
+                      {distance[Object.keys(distance)[0]].toFixed(1)} mi)
+                      {/* Add similar logic for travel times */}</p>
+                    </div>
+                  ))}
+
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        </div>
+      );
+    };
+
+export default ConsiderTheDrive;
+
+
+
+import React from 'react';
+import '../style.css';
+
+const Card = ({ title, children }) => (
+  <div className="card">
+    <div className="card-title">{title}</div>
+    <div className="card-content">{children}</div>
+  </div>
+);
+
+export default AddressesCard;
+
+
+
+
+// NextHelloes.js
+
+import React, { useEffect, useState } from 'react';
+import axios from '../api/axios';
+import useAuth from '../hooks/useAuth';
+
+const AllFriends = () => {
+  const [data, setData] = useState(null);
+  const { auth } = useAuth();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await axios.get('/friends/api/all_friends/', {
+          headers: {
+            'Content-Type': 'application/json',
+            /*Authorization: `Bearer ${auth.token}`,*/
+          },
+        });
+
+        setData(response.data.message);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, [auth.token]); // Include auth.token in the dependency array
+
+  return (
+    <div>
+      <h1>All Friends</h1>
+      {data && (
+        <div>
+          {data.map(item => (
+            <div key={item.id}>
+              <ul>
+                <li>{item.name}</li>
+              </ul>
+          </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default AllFriends;
+
+
+
+
+
+
+
+
+
+
+import React, { useEffect, useState } from 'react';
+import axios from '../api/axios';
+import useAuth from '../hooks/useAuth';
+import Card from './Card';
+import { FaFrown, FaStar, FaHeart, FaSmile, FaMeh, FaSadTear, FaThumbsDown } from 'react-icons/fa';
+import useSelectedFriend from '../hooks/useSelectedFriend'; // Import the new hook
+
+const FriendDaysSince = () => {
+  const [data, setData] = useState(null);
+  const { auth } = useAuth();
+  const { selectedFriend } = useSelectedFriend(); // Use the new hook if needed
+
+  const renderIcon = () => {
+    switch (data.time_score) {
+      case 1:
+        return <FaHeart />;
+      case 2:
+        return <FaSmile />;
+      case 3:
+        return <FaFrown />;
+      case 4:
+        return <FaMeh />;
+      case 5:
+        return <FaFrown />;
+      case 6:
+        return <FaSadTear />;
+      default:
+        return null; // or a default icon if needed
+    }
+  };
+
+  console.log('Selected Friend in FriendDaysSince:', selectedFriend);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (selectedFriend) {
+          const response = await axios.get(`/friends/api/view_friend/${selectedFriend.slug}/`, {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          console.log('Fetched Data:', response.data); // Log the fetched data
+
+          setData(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, [auth.token, selectedFriend]);
+
+  console.log('Current Data:', data); // Log the current data
+
+  if (!selectedFriend) {
+    // If no friend is selected, don't render anything
+    return null;
+  }
+
+  return (
+    <Card title="Days Since">
+      {data && (
+        <div>
+          <p>{data.days_since} {renderIcon()} </p>
+        </div>
+      )}
+    </Card>
+  );
+};
+
+export default FriendDaysSince;
+
+
+
+
+
+
+
+import React, { useEffect, useState } from 'react';
+import axios from '../api/axios';
+import useAuth from '../hooks/useAuth';
+import EditCard from './EditCard';
+import useSelectedFriend from '../hooks/useSelectedFriend'; // Import the new hook
+
+const FriendHelloesHistory = () => {
+  const [data, setData] = useState("");
+  const { auth } = useAuth();
+  const { selectedFriend } = useSelectedFriend(); // Use the new hook if needed
+
+  console.log('Helloes History Selected Friend', selectedFriend);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (selectedFriend) {
+          const response = await axios.get(`/friends/api/view_helloes/${selectedFriend.slug}/`, {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          console.log('Fetched Data:', response.data); // Log the fetched data
+
+          setData(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, [auth.token, selectedFriend]);
+
+  console.log('Current Data:', data); // Log the current data
+
+  return (
+    <div>
+      <h1></h1>
+      {data && data.helloes_related_to_friend && data.helloes_related_to_friend.length > 0 ? (
+        // Sort helloes by date
+        data.helloes_related_to_friend
+          .slice() // Create a shallow copy of the array to avoid modifying the original
+          .sort((a, b) => new Date(b.date) - new Date(a.date)) // Sort by date
+          .map((hello) => (
+            <div key={hello.id}>
+              <EditCard title={hello.location}>
+                <p>
+                  Location: {hello.location}, Date: {hello.date}
+                </p>
+                <ul>
+                  {/* Iterate through each note in the notes object */}
+                  {Object.values(hello.notes).map(note => (
+                    <li key={note.key}>
+                      {note.key}: {note.value}
+                    </li>
+                  ))}
+                </ul>
+              </EditCard>
+            </div>
+          ))
+      ) : (
+        <p>No helloes available.</p>
+      )}
+    </div>
+  );
+};
+
+export default FriendHelloesHistory;
+
+
+
+
+
+
+
+import React, { useEffect, useState } from 'react';
+import axios from '../api/axios';
+import useAuth from '../hooks/useAuth';
+import EditCard from './EditCard';
+import useSelectedFriend from '../hooks/useSelectedFriend';
+
+const FriendIdeas = () => {
+  const [data, setData] = useState({}); // Initialize as an object
+  const { auth } = useAuth();
+  const { selectedFriend } = useSelectedFriend();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (selectedFriend) {
+          const response = await axios.get(`/friends/api/view_ideas/${selectedFriend.slug}/`, {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          console.log('Fetched Data:', response.data);
+          setData(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, [auth.token, selectedFriend]);
+
+  console.log('Current Data:', data);
+
+  return (
+    <div>
+      {data && data.ideas_related_to_friend && data.ideas_related_to_friend.length > 0 ? (
+        data.ideas_related_to_friend.map((idea) => (
+          <div key={idea.category}>
+            <EditCard title={idea.category}>
+              {data.ideas_related_to_friend
+                .filter((item) => item.category === idea.category)
+                .map((item) => (
+                  <p key={item.id}>{item.ideas}</p>
+                ))}
+            </EditCard>
+          </div>
+        ))
+      ) : (
+        <p>No ideas available.</p>
+      )}
+    </div>
+  );
+};
+
+export default FriendIdeas;
+
+
+
+
+
+import React, { useEffect, useState } from 'react';
+import axios from '../api/axios';
+import useAuth from '../hooks/useAuth';
+import EditCard from './EditCard';
+import useSelectedFriend from '../hooks/useSelectedFriend';
+
+const FriendSettings = () => {
+  const [data, setData] = useState(null);
+  const { auth } = useAuth();
+  const { selectedFriend } = useSelectedFriend();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        if (selectedFriend) {
+          const response = await axios.get(`/friends/api/view_friend/${selectedFriend.slug}/`, {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          });
+
+          setData(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, [auth.token, selectedFriend]);
+
+  if (!selectedFriend) {
+    return <p>No friend selected.</p>;
+  }
+
+  return (
+    <EditCard title="Friend Settings">
+      {data ? (
+        <div>
+          <p><h1>Effort:</h1> {data.effort}</p>
+          <p><h1>Priority:</h1>{data.priority}</p>
+          <p><h1>Last Hello:</h1> {data.last_date}</p>
+        </div>
+      ) : (
+        <p>Loading...</p>
+      )}
+    </EditCard>
+  );
+};
+
+export default FriendSettings;
+
+
+
+
+
+
+
+
+
+// PlacesCard.js
+import React from 'react';
+import '../style.css';
+
+const PlacesCard = ({ title, children }) => (
+  <div className="places-card">
+    <div className="places-card-title">{title}</div>
+    <div className="places-card-content">{children}</div>
+  </div>
+);
+
+export default PlacesCard;
+
+
+
+
+
+import React from 'react';
+import '../style.css';
+
+const PlacesCardWide = ({ title, children }) => (
+  <div className="places-card-wide">
+    <div className="places-card-title">{title}</div>
+    <div className="places-card-content">{children}</div>
+  </div>
+);
+
+export default PlacesCardWide;
+
+
+/// ValidateAddress.jsx
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from '../api/axios';
+import { FaCheck } from 'react-icons/fa';
+import Card from './Card';
+
+const ValidateAddress = ({ onValidationChange }) => {
+  const [myAddressA, setMyAddressA] = useState(null);
+  const [myLatitudeA, setMyLatitudeA] = useState(null);
+  const [myLongitudeA, setMyLongitudeA] = useState(null);
+  const [isValidA, setIsValidA] = useState(false);
+  const [validationButton, setValidationButton] = useState('Validate');
+
+  const [validationResponseA, setValidationResponseA] = useState(null);
+
+  // Memoize the callback function to avoid unnecessary re-renders
+  const memoizedOnValidationChange = useCallback(onValidationChange, []);
+
+  useEffect(() => {
+    // Notify the parent component of the validation status change
+    memoizedOnValidationChange(isValidA, myAddressA, myLatitudeA, myLongitudeA);
+  }, [isValidA, myAddressA, myLatitudeA, myLongitudeA, memoizedOnValidationChange]);
+
+  const handleValidation = async () => {
+    try {
+      const response = await axios.post('/friends/api/validate_address_view/', {
+        address: myAddressA,
+      });
+
+      console.log('Validation Response:', response.data);
+
+      // Set the full response details
+      setValidationResponseA(response.data);
+
+      if (response.data.address && response.data.latitude && response.data.longitude) {
+        // Set the full response details
+        setValidationResponseA(response.data);
+        setValidationButton(<FaCheck />)
+        // Set latitude, longitude, and mark as valid
+        setMyLatitudeA(response.data.latitude);
+        setMyLongitudeA(response.data.longitude);
+        setIsValidA(true);
+
+        // Log when latitude, longitude, and address are set
+        console.log('My Address Latitude set:', response.data.latitude);
+        console.log('My Address Longitude set:', response.data.longitude);
+        console.log('My Address set:', response.data.address);
+      } else {
+        // Reset states if validation fails
+        setMyLatitudeA(null);
+        setMyLongitudeA(null);
+        validationButton('Validate')
+        setIsValidA(false);
+      }
+    } catch (error) {
+      console.error('Error validating address:', error);
+      setValidationResponseA({ detail: 'Error validating address', error: error.message });
+    }
+  };
+
+  return (
+    <div>
+        <label>
+          <input type="text" placeholder="Your starting address" value={myAddressA} onChange={(e) => setMyAddressA(e.target.value)} />
+        </label>
+        <button onClick={handleValidation}>{validationButton}</button>
+        {/*{validationResponseA && (
+          <div>
+            <strong>Validation Response:</strong>
+            <pre>{JSON.stringify(validationResponseA, null, 2)}</pre>
+          </div>
+        )} */}
+    </div>
+  );
+};
+
+export default ValidateAddress;
+
+
+
+// ValidateDestination.jsx
+import React, { useState, useEffect, useCallback } from 'react';
+import { FaCheck } from 'react-icons/fa';
+import axios from '../api/axios';
+import Card from './Card';
+
+const ValidateDestination = ({ onValidationChange }) => {
+  const [destinationAddressDest, setDestinationAddressDest] = useState(null);
+  const [destinationLatitudeDest, setDestinationLatitudeDest] = useState(null);
+  const [destinationLongitudeDest, setDestinationLongitudeDest] = useState(null);
+  const [isValidDest, setIsValidDest] = useState(true);
+
+  const [validationButton, setValidationButton] = useState('Validate');
+  const [validationResponseDest, setValidationResponseDest] = useState(null);
+
+  // Memoize the callback function to avoid unnecessary re-renders
+  const memoizedOnValidationChange = useCallback(onValidationChange, []);
+
+  useEffect(() => {
+    // Notify the parent component of the validation status change
+    memoizedOnValidationChange(isValidDest, destinationAddressDest, destinationLatitudeDest, destinationLongitudeDest);
+  }, [isValidDest, destinationAddressDest, destinationLatitudeDest, destinationLongitudeDest, memoizedOnValidationChange]);
+
+  const handleValidation = async () => {
+    try {
+      const response = await axios.post('/friends/api/validate_address_view/', {
+        address: destinationAddressDest,
+      });
+
+      console.log('Validation Response:', response.data);
+
+
+      if (response.data.address && response.data.latitude && response.data.longitude) {
+        // Set the full response details
+        setValidationResponseDest(response.data);
+        setValidationButton(<FaCheck />)
+        // Set latitude, longitude, and mark as valid
+        setDestinationLatitudeDest(response.data.latitude);
+        setDestinationLongitudeDest(response.data.longitude);
+        setIsValidDest(true);
+
+        // Log when latitude, longitude, and address are set
+        console.log('Dest Address Latitude set:', response.data.latitude);
+        console.log('Dest Address Longitude set:', response.data.longitude);
+        console.log('Dest Address set:', response.data.address);
+      } else {
+        // Reset states if validation fails
+        setDestinationLatitudeDest(null);
+        setDestinationLongitudeDest(null);
+        validationButton('Validate')
+        setIsValidDest(false);
+      }
+    } catch (error) {
+      console.error('Error validating address:', error);
+      setValidationResponseDest({ detail: 'Error validating address', error: error.message });
+    }
+  };
+
+  return (
+    <div>
+        <label>
+          <input
+            type="text"
+            placeholder="Destination"
+            value={destinationAddressDest}
+            onChange={(e) => setDestinationAddressDest(e.target.value)}
+          />
+        </label>
+        <button onClick={handleValidation}>{validationButton}</button>
+        {/*{validationResponseDest && (
+          <div>
+            <strong>Validation Response:</strong>
+            <pre>{JSON.stringify(validationResponseDest, null, 2)}</pre>
+          </div>
+        )}*/}
+    </div>
+  );
+};
+
+export default ValidateDestination;
+
+
+
+
+// ValidateFriendAddress.jsx
+import React, { useState, useEffect, useCallback } from 'react';
+import axios from '../api/axios';
+import Card from './Card';
+import useSelectedFriend from '../hooks/useSelectedFriend';
+import { FaCheck } from 'react-icons/fa';
+import useAuth from '../hooks/useAuth';
+
+const ValidateFriendAddress = ({ onValidationChange }) => {
+  const [friendAddressB, setFriendAddressB] = useState(null);
+  const [friendLatitudeB, setFriendLatitudeB] = useState(null);
+  const [friendLongitudeB, setFriendLongitudeB] = useState(null);
+  const [isValidB, setIsValidB] = useState(false);
+  const [validationButton, setValidationButton] = useState('Validate');
+  const [validationResponseB, setValidationResponseB] = useState(null);
+  const { auth } = useAuth();
+  const { selectedFriend } = useSelectedFriend(); 
+
+  // Memoize the callback function to avoid unnecessary re-renders
+  const memoizedOnValidationChange = useCallback(onValidationChange, []);
+
+  useEffect(() => {
+    // Notify the parent component of the validation status change
+    memoizedOnValidationChange(isValidB, friendAddressB, friendLatitudeB, friendLongitudeB);
+  }, [isValidB, friendAddressB, friendLatitudeB, friendLongitudeB, memoizedOnValidationChange]);
+
+  const handleValidation = async () => {
+    try {
+      const response = await axios.post('/friends/api/validate_address_view/', {
+        address: friendAddressB,
+      });
+
+      console.log('Validation Response:', response.data);
+
+
+      if (response.data.address && response.data.latitude && response.data.longitude) {
+        // Set the full response details
+        setValidationResponseB(response.data);
+        setValidationButton(<FaCheck />)
+        // Set latitude, longitude, and mark as valid
+        setFriendLatitudeB(response.data.latitude);
+        setFriendLongitudeB(response.data.longitude);
+        setIsValidB(true);
+
+        // Log when latitude, longitude, and address are set
+        console.log('Friend Address Latitude set:', response.data.latitude);
+        console.log('Friend Address Longitude set:', response.data.longitude);
+        console.log('Friend Address set:', response.data.address);
+      } else {
+        // Reset states if validation fails
+        setFriendLatitudeB(null);
+        setFriendLongitudeB(null);
+        validationButton('Validate')
+        setIsValidB(false);
+      }
+    } catch (error) {
+      console.error('Error validating address:', error);
+      setValidationResponseB({ detail: 'Error validating address', error: error.message });
+    }
+  };
+
+  return (
+    <div>
+        <label>
+          <input type="text" placeholder="Friend's starting address"value={friendAddressB} onChange={(e) => setFriendAddressB(e.target.value)} />
+        </label>
+        <button onClick={handleValidation}>{validationButton}</button>
+        {/*{validationResponseB && (
+          <div>
+            <strong>Validation Response:</strong>
+            <pre>{JSON.stringify(validationResponseB, null, 2)}</pre>
+          </div>
+        )}*/}
+    </div>
+  );
+};
+
+export default ValidateFriendAddress;
+
+
+
+
+
+

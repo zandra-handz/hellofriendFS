@@ -1,0 +1,2013 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap");
+
+*{
+
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+    
+    
+}
+
+
+
+.text-as-spacer {
+    color: transparent;
+    font-size: 13px;
+}
+
+.body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: url('lildude.jpg') no-repeat;
+    background-size: cover;
+    background-position: center;
+}
+
+.dark-mode .body {
+  background: #333; 
+}
+
+
+.wrapper {
+    width: 80%;
+    max-width: 420px;
+    box-sizing: border-box;
+    justify-content: center;
+    background: transparent;
+    background: white;
+    border: 2px solid rgba(255,255,255,.2);
+    backdrop-filter: blur(30px);
+    box-shadow: 0 0 0px rgba(0,0,0, .2);
+    align-items: center;
+    border-radius: 10px;
+    padding: 30px 40px;
+    
+
+}
+
+
+.dark-mode .wrapper {
+  background: #333; /* Dark mode background color */
+  border: 2px solid rgba(0, 0, 0, .2);
+  box-shadow: 0 0 0px rgba(255, 255, 255, .2);
+}
+
+
+
+.wrapper h1 {
+    font-family: "Poppins", sans-serif;
+    text-align: center;
+    font-size: 36px;
+    color: rgb(83, 175, 25);
+
+}
+
+
+.dark-mode .wrapper h1 {
+  color: #fff; /* Dark mode text color */
+font-family: "Poppins", sans-serif;
+}
+
+
+
+.wrapper .loginbox {
+    position: relative;
+    width: 100%;
+    height:50px;
+    margin: 20px 0;
+    
+}
+
+.loginbox input {
+    width: 100%;
+    height: 95%;
+    background: transparent;
+    border: none;
+    outline: none;
+    border: 2px solid rgba(1,1,1, .2);
+    border-radius: 40px;
+    font-size: 18px;
+    color: slategray;
+    padding: 20px 45px 20px 20px;
+}
+
+
+.loginbox input::placeholder {
+    color:rgba(1,1,1, .4);
+    font-size: 18px;
+
+}
+
+.loginbox i {
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+}
+
+.wrapper .forgot-password {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin: -15px 0 15px;
+
+}
+
+.forgot-password label input {
+    accent-color: black;
+    margin-right: 3px;
+
+}
+
+.forgot-password a {
+    color: black;
+    text-decoration: none;
+}
+
+.forgot-password a:hover {
+    text-decoration: underline;
+}
+
+.wrapper .btn {
+    width: 100%;
+    height: 45px;
+    background: rgb(83, 175, 25);
+    border: none;
+    outline: none;
+    border-radius: 40px;
+    box-shadow: 0 0 10px rgba(0,0,0, .1);
+    cursor: pointer;
+    font-size: 18px;
+    color: white;
+    font-weight: 600;
+}
+
+.wrapper .signup-link {
+    font-size: 13px;
+    text-align: center;
+    margin: 20px 0 15px;
+}
+
+.signup-link p a {
+    color: black;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.signup-link p a:hover {
+    text-decoration: underline;
+}
+
+.footer {
+    background: rgb(83, 175, 25); 
+    color: white;
+    padding: .4em;
+    text-align: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+
+.dark-mode .footer {
+    background: black;
+    color: white;
+  }
+
+
+
+.header {
+    background: rgb(83, 175, 25); 
+    color: white;
+    padding: .09em;
+    text-align: center;
+    position: fixed;
+    font-size: 10px;
+    top: 0;
+    left: 0;
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+
+    align-items: center;
+  }
+
+
+
+
+  .header-item {
+    padding-right: 2px; 
+    padding-left: 3px;     
+  }
+
+  
+
+
+
+.dark-mode .header { 
+    background: #1a1a1a;
+    background: black;
+    color: #ffffff; 
+}
+
+.header-button {
+  background: none;
+  border: none;
+  cursor: pointer; 
+  font-size: 14px;
+  color: white; 
+  padding-top: 4px;
+  margin-left: 2px;
+  
+}
+
+
+.dark-mode .header-button {
+  color:#04D9FF;
+}
+
+
+.header-functions-container {
+  height: 100%;
+  min-width: 100px;
+  display: inline-block;
+}
+
+.dark-mode .header-functions-container {
+
+}
+
+
+.footer .logout-button,
+.header .logout-button {
+    background-color: rgb(83, 175, 25); 
+    color: white;
+    font-weight: 400;
+    font-size: 20;
+    padding: 1px 10px;
+    border: none;
+    cursor: pointer;
+}
+
+
+.slider-container {
+  position: relative;
+  width: 20px;
+  height: 10px;
+  background-color: #ddd;
+  border-radius: 20px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+
+.dark-mode .slider-container {
+  background-color: #292929;
+}
+
+
+.slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  border-radius: 20px;
+  transition: transform 0.3s ease;
+}
+
+
+
+.slider-text {
+  position: absolute;
+  top: 200%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  color: black;
+}
+
+
+
+.dark-mode .slider-text {
+  color: white;
+}
+
+
+.banner-button-first {
+    background-color: white;
+    color: #ccc;
+    border: 1px solid #ccc;
+    border-radius: 18px;
+    font-weight: 400;
+    font-size: 20;
+    padding: 7px 10px;
+    cursor: pointer;
+    /*z-index: 1;*/
+}
+
+.dark-mode .banner-button-first {
+	background-color: black;
+	color: #04D9FF;
+	border: 0px solid #04D9FF;
+}
+
+
+
+
+.banner-button-second {
+  background-color: white;
+  color: #ccc;
+  border: 1px solid#ccc;
+  border-radius: 18px;
+  font-weight: 400;
+  font-size: 20;
+  padding: 7px 10px;
+  cursor: pointer;
+  /*z-index: 1;*/
+}
+
+.banner-button-third {
+  background-color: white;
+  color: #ccc;
+  border: 1px solid#ccc;
+  border-radius: 18px;
+  font-weight: 400;
+  font-size: 20;
+  padding: 7px 10px;
+  cursor: pointer;
+  /*z-index: 1;*/
+}
+
+
+
+
+.modal-overlay.active + .banner-button-first,
+.modal-overlay.active + .banner-button-second,
+.modal-overlay.active + .banner-button-third {
+  z-index: -1; /* Lower z-index to push below the modal */
+}
+
+
+.banner {
+    background-color: #b3e275;
+    background-color: white;
+    color: #fff;
+    padding: 0px;
+    width: 100%;
+    height: 58px;
+    box-sizing: border-box;
+    display: flex;
+    top: 24px;
+    left: 0;
+    justify-content: flex-start; /* Updated from 'left' */
+    align-items: center; /* Center items vertically */
+    position: fixed;
+    z-index: 1; 
+}
+
+.dark-mode .banner {
+	background-color: #292929;
+  background-color: black;
+	color: #04D9FF;
+  box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1); /* Add shadow effect */
+
+}
+
+
+.banner-content {
+    width: 70%;
+    display: flex;
+    justify-content: flex-start; /* Updated from 'left' */
+    padding-bottom: 20px;
+}
+
+
+.banner-text-field-container {
+    width: auto;
+    border: none;
+    margin: 0; /* Removed 'auto' to prevent centering */
+    padding: 0px;
+}
+
+.banner-text-field-container-friend-selector {
+  min-width: 120px;
+  width: auto;
+  border: none;
+  margin: 0; 
+}
+
+.banner-text-field-container-friend-selector:hover {
+  border: none;
+}
+
+.tab-bar-body {
+    background-color: white;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    height: 100vh;
+  }
+
+.dark-mode .tab-bar-body {
+  
+	background-color: black;	
+
+}
+
+
+
+  
+.tab-wrapper {
+  width: 100%;
+  background-color: white;
+  padding: 0px 0px;
+  box-shadow: 0 0px 0px rgba(0, 0, 0, 0.1);
+  border-radius: 0px;
+  }
+
+.dark-mode .tab-wrapper {
+	background-color: black;
+}
+
+
+
+.tab-bar-box {
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  top: 81px;
+  border-bottom: 1px solid rgba(229, 229, 229);
+  background-color: white;
+  font-size: 18px;
+  font-weight: 600;
+  position: fixed;
+  z-index: 0;
+  /* z-index: 1; /* Lower z-index than the modal */ 
+}
+
+.dark-mode .tab-bar-box {
+  background-color: black;
+	border-bottom: 1px solid #292929;
+
+
+}
+
+.tab-bar-box .tab-btn {
+  font-size: 12px;
+  font-weight: 500;
+  color: black;
+  background: none;
+  border: none;
+  border-radius: 20px;
+  padding: 0px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+
+.dark-mode .tab-bar-box .tab-btn {
+	color: rgb(1, 99, 210);
+  background: black;
+
+}
+
+.tab-bar-box .tab-btn.active {
+  font-size: 12px;
+  font-weight: 600px;
+  color: rgb(83, 175, 25);
+}
+
+
+.dark-mode .tab-bar-box .tab-btn.active {
+  color: #04D9FF;
+}
+
+
+.tab-content {
+    display: none;
+    animation: moving 0.5s ease;
+  }
+  
+@keyframes moving {
+from {
+    transform: translateX(50px);
+    opacity: 0;
+}
+to {
+    transform: translateX(0px);
+    opacity: 1;
+}
+}
+  
+.tab-content.active {
+  display: block;
+  width: 100%;
+}
+  
+  
+.line {
+  position: absolute;
+  top: 30px;
+  left: 4px;
+  height: 2px;
+  background-color: rgb(83, 175, 25);
+  border-radius: 20px;
+  transition: all 0.3s ease-in-out;
+  }
+
+
+.dark-mode .line {
+	background-color: #04D9FF;
+}
+  
+.tab-content h2 {
+margin-bottom: 8px;
+}
+
+@keyframes pulse {
+  0% {
+    background-position: 200% 50%; /* Starting position outside the left edge */
+  }
+  100% {
+    background-position: -200% 50%; /* Ending position outside the right edge */
+  }
+}
+ 
+.pulsing-text {
+  animation: pulse 3s infinite linear; /* Using linear timing function to ensure constant speed */
+  color: black; /* Hide the original text */
+  background-image: linear-gradient(to right, black, lightyellow); /* Apply gradient only to the text */
+  background-size: 200% 50%; /* Double the width to cover the whole text */
+  background-clip: text; /* Clip the gradient to the text */
+  -webkit-background-clip: text; /* For Safari/Chrome */
+  -webkit-text-fill-color: black; /* Hide text fill color for Safari/Chrome */
+}
+
+.pulsing-text:hover {
+  content: "→"; /* Add the arrow as content */
+  position: relative;
+  color: black;
+  top: 0;
+  right: -1em; /* Adjust the position of the arrow */
+}
+
+.upcoming-button {
+    background-color: transparent;
+    color: black;
+    border: none;
+    cursor: pointer;
+    outline: none; 
+}
+ 
+
+.edit-card {
+    background-color: white;
+    border: 2px solid rgba(229, 229, 229);
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    margin-bottom: 10px; /* Adjust margin as needed */
+}
+.dark-mode .edit-card {
+  background-color: #1a1a1a;;
+  border: none;
+  color: white;
+}
+
+.edit-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0px;
+    background-color: white;
+    border-bottom: 0px solid #ccc;
+}
+
+
+
+
+.dark-mode .edit-card-header {
+  background-color: transparent;
+  border-bottom: 0px solid #ccc; 
+  color: white;
+}
+
+
+
+.edit-card-header h2 {
+    font-size: 13px;
+    font-weight: 400;
+    color: #919191;
+    color: black;
+    margin: 0;
+}
+
+.dark-mode .edit-card-header h2 {
+  color: white; 
+}
+
+.edit-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: #333;
+}
+
+
+.dark-mode .edit-button {
+  color:#04D9FF;
+}
+
+.card {
+  background-color: white;
+  border: 2px solid rgba(229, 229, 229);
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  justify-content: center;
+  align-items: center;
+  align-content: center;
+  width: 100%;
+  margin-bottom: 10px; /* Adjust margin as needed */
+}
+
+
+.dark-mode .card {
+  background-color:#292929;
+  color: white;
+  border: none;
+  }
+
+
+.places-card {
+  background-color: white;
+  border: 1px solid gray;
+  border-radius: 10px; 
+  box-shadow: 0 0px 0px rgba(0, 0, 0, 0.1);
+  padding: 0;
+  width: 100%;
+}
+
+
+
+.travel-comparison-container {
+  font-size: 20px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  width: 100%;
+  height: 100%; 
+  padding: 10px;
+  justify-content: space-evenly;
+}
+
+
+.travel-comparison-container-header {
+  width: 100%;
+  justify-content: center;
+  display: inline-flex;
+  color: black;
+  font-size: 22px;
+  font-weight: 500;
+  padding-bottom: 30px;
+}
+
+.dark-mode .travel-comparison-container-header {
+  color:#04D9FF;
+}
+
+.dark-mode .places-card {
+  background-color: #292929;
+  border: none;
+}
+
+.places-restrictor {
+  display: flex;
+  flex-wrap: wrap;
+  width: 400px;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.places-restrictor-proximity-search {
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* Vertically center content */
+  align-items: center;
+  max-width: 400px;
+  width: auto;
+  padding: 0px;
+}
+
+.places-restrictor-proximity-search .section {
+  display: inline-block;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+
+}
+
+.places-restrictor-proximity-search .checkbox-section {
+  display: inline-block;
+  justify-content: left;
+  left: 0;
+  width: 100%;
+  flex-wrap: wrap;
+  margin: 16px; 
+}
+
+
+.places-restrictor-proximity-search .checkbox-section label {
+  display: inline-flex; 
+  align-items: left;
+  font-size: 13px; 
+  left: 0;
+  
+}
+
+.places-restrictor-proximity-search .checkbox-section label input[type="checkbox"] {
+  margin-left: 48px; /* Reset margin */
+  padding: 0; /* Reset padding */
+  position: absolute;
+  font-size: 13px;
+  width: auto;
+  margin-bottom: 0;
+  width: 18px; /* Set the width */
+  height: 18px; 
+  border-radius: 4px;
+  padding: 3px;
+
+}
+
+
+ 
+
+.places-card-content {
+   /* Occupy full width when stacked */
+  font-size: 12px;
+  font-weight: 400;
+  padding-top: 10px;
+  color: #919191;
+  display: flex;
+  justify-content: space-evenly;
+
+  flex-wrap: wrap;
+  box-sizing: border-box; /* Include padding in the width */
+  margin-bottom: 10px; /* Add margin between items */
+}
+
+.dark-mode .places-card-content {
+  color: white;
+}
+
+ 
+
+
+
+
+.places-card-content2 {
+  font-size: 14px;
+  font-weight: 400;
+  color: #919191;
+  color: rgb(61, 60, 60);
+  margin-bottom: 4px;
+  min-width: 300px;
+  padding: 20px;
+  align-items: center;
+  display: inline-block;
+  justify-content: center;
+}
+ 
+
+.places-card-indv { 
+  display: block;
+  white-space: wrap;   
+  flex-direction: column;
+  padding-bottom: 10px;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%; 
+
+}
+
+
+
+
+.places-card-indv > div > div:last-child > label {
+  background-color: white;
+  color: gray; 
+  color: rgb(88, 88, 88);
+  width: 100%;
+  font-weight: 500;
+  padding: 8px;
+  overflow: hidden; /* Hide overflowing content */
+  text-overflow: ellipsis; /* Display ellipsis for overflowing text */
+  white-space: nowrap; 
+  
+}
+
+.dark-mode .places-card-indv > div > div:last-child > label {
+  background-color: #292929;
+  color: #04D9FF; 
+}
+
+
+.places-card-indv > div > div:last-child > button {
+  width: auto; 
+  height: 100%;
+  padding: 16px;
+  padding-top: 10px;
+  font-size: 16px;
+  background-color: white;
+  color: gray;
+  border: none;
+  outline: none;
+}
+
+.dark-mode .places-card-indv > div > div:last-child > button {
+ 
+  background-color: #292929;
+
+  color: white;
+  
+}
+
+.places-card-submit-container {
+  vertical-align: top;
+}
+
+.validate-address-container {
+  margin-top: 0px;
+  margin-bottom: 10px;
+  width: 100%; /* Adjust spacing between each ValidateAddress component */
+}
+
+.places-card .label {
+  /* Your styles for the label */
+  /* Example styles: */
+  font-size: 24px;
+  margin-top: 5px;
+  color: #333;
+  background-color: white;
+  
+}
+
+
+.places-card input {
+  border-radius: 4px;
+  width: calc(100% - 40px);
+  min-width: 260px;
+  font-size: 12px;
+  padding: 8px;
+  box-sizing: border-box;
+  border: 0px solid slategray;
+  
+  
+  
+  cursor: pointer;
+  margin-right: 40px;
+  outline: none; 
+}
+
+.places-card input:focus {
+  outline: none; /* Remove outline on focus */
+}
+
+
+.places-card select {
+  border-radius: 4px;
+  width: calc(100% - 40px);
+  width: 100%;
+  font-size: 12px;
+  padding: 10px;
+  box-sizing: border-box;
+  border: .5px solid slategray;
+  cursor: pointer; 
+  
+}
+
+ 
+
+.dark-mode .places-card input {
+  background-color: black;
+  color: white;
+  border: 0px solid white;
+}
+
+.dark-mode .places-card select {
+  background-color: black;
+  color: white;
+  
+  border: 0px solid white;
+}
+
+
+.places-card-wide input {
+  border-radius: 20px;
+  min-width: 280px;
+  font-size: 13px;
+  padding: 6px 10px 6px 10px;
+  margin: 0px;
+  box-sizing: border-box;
+  border: 1px solid slategray;
+  cursor: pointer;
+
+}
+
+.places-card button {
+  color: black;
+  background: transparent;
+  outline: none;
+  border: none;
+  font-size: 22px;
+}
+
+.dark-mode .places-card button {
+  color:#04D9FF; 
+}
+
+.dark-mode .places-card button:hover {
+  color:rgb(1, 99, 210);
+}
+
+.places-card-validate-button {
+  border-radius: 50%;
+  background:  transparent;
+  width: auto; 
+  font-size: 22px;
+  padding: 0px;  
+  padding-top: 4px;
+  font-weight: 400; 
+  box-sizing: border-box;
+  border: none;
+
+}
+
+.dark-mode .places-card-validate-button { 
+  color: white;
+  color: rgb(1, 99, 210);
+  background: rgb(1, 99, 210);
+  background: transparent;
+  border: none;
+}
+
+
+
+.places-card-validate-button:hover::after {
+  content: 'Validate'; 
+  position: absolute;
+  top: 100%;
+  width: 160%;
+  left: 0;
+  background-color: rgba(0, 0, 0, 0.7); 
+  color: white; 
+  padding: 4px 4px; /* Padding around the helper text */
+  border-radius: 4px; /* Border radius */
+  font-size: 12px; /* Font size of the helper text */
+}
+
+ 
+
+
+
+
+.undo-wrapper {  
+  align-items: center;
+  padding-right: 7px;
+  padding-top: 4px;
+  background-color: white;
+}
+
+.dark-mode .undo-wrapper {
+  background-color: #292929; 
+}
+
+
+
+.places-card-indv .undo-wrapper:hover::after {
+  content: 'Reset'; 
+  position: absolute;
+  top: 80%;
+  width: 180%; 
+  left: 0;
+  background-color: rgba(0, 0, 0, 0.7);  
+  color: white; 
+  align-items: center;
+  padding: 4px;
+  padding-right: 22px; /* Padding around the helper text */
+  padding-left: 16px;
+  border-radius: 4px; /* Border radius */
+  font-size: 13px; /* Font size of the helper text */
+
+}
+
+.places-card-indv button.fa-undo-button {
+  font-size: 16px;
+  color: darkgray;
+  background-color: white;
+  outline: none;
+  border: none;
+}
+
+.dark-mode .places-card-indv button.fa-undo-button {
+  color:white;
+}
+
+.places-card-indv button.fa-undo-button:hover {
+
+  /* Adding animation */
+  animation: spin 4s linear infinite;
+  
+  
+  }
+  
+  @keyframes spin {
+    from {
+      transform: rotate(360deg);
+    }
+    to {
+      transform: rotate(0deg);
+    }
+  }
+  
+.places-restrictor .submit-button {
+  
+  background:  rgb(83, 175, 25); 
+  color: white;
+  font-size: 20px;
+  padding: 24px;
+  font-weight: 400;
+  border: 1px solid rgb(83, 175, 25);
+  border-radius: 20px;
+  
+  
+
+}
+
+.dark-mode .places-restrictor .submit-button {
+  
+  background-color: rgb(1, 99, 210);
+  color: white;
+  height: auto;
+  border: 1px solid rgb(1, 99, 210);
+  
+}
+
+.dark-mode .places-restrictor .submit-button:hover {
+  background-color:#04D9FF; 
+  color: white;
+  border: 1px solid #04D9FF;
+}
+
+.places-restrictor .submit-button:hover::after {
+  content: none;
+  position: absolute;
+}
+
+
+.places-restrictor .submit-button:disabled {
+  background: transparent;
+  color: lightgray;
+  border: 1px solid lightgray;
+}
+.places-restrictor .submit-button:disabled:hover {
+  background: transparent;
+  color: lightgray;
+  border: 1px solid lightgray;
+}
+
+.dark-mode .places-restrictor .submit-button:disabled {
+  background: transparent;
+  color: lightgray;
+  border: 1px solid lightgray;
+  opacity: 30%;
+}
+
+.dark-mode .places-restrictor .submit-button:disabled:hover {
+  background: transparent;
+  border: 1px solid lightgray;
+  color: lightgray;
+  opacity: 30%;
+}
+
+.places-restrictor .submit-button:hover {
+  background: white;
+  color: lightgray;
+  border: 1px solid lightgray;
+}
+
+
+
+.places-card-validate-button:hover  {
+  background:  rgb(119, 249, 38); 
+}
+
+
+
+.dark-mode .places-card-validate-button:hover {
+  background:#04D9FF; 
+  background: transparent;
+  color:#04D9FF;
+}
+
+.places-card input:focus,
+.places-card-wide input:focus {
+  border: 0px solid rgb(83, 175, 25);
+}
+  
+.card-title,
+.places-card-title,
+.places-card-wide-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: black;
+    margin-bottom: 10px;
+    height: auto;
+    align-items: center;
+    justify-content: center;
+}
+
+.places-card-header {
+  display: flex;
+  justify-content: left;
+  width: 100%; 
+  align-items: center;
+  padding: 10px;
+  padding-bottom: 0px;
+  background-color: transparent; 
+  z-index: 0;
+}
+
+
+.dark-mode .card-title {
+  color: white;
+}
+
+.card h2,
+.places-card h2 {
+    font-size: 16px;
+    font-weight: 400;
+    color: #919191;
+    margin-bottom: 10px;
+}
+
+.card h1,
+.edit-card h1,
+.places-card h1 {
+    font-size: 13px;
+    font-weight: 400;
+    color:  rgb(83, 175, 25);
+    margin-bottom: 10px; }
+  
+.card-content,
+.edit-card-content {
+    font-size: 12px;
+    font-weight: 300;
+    color: #919191;
+    color: rgb(61, 60, 60);
+    margin-bottom: 10px;
+    padding-top: 10px;
+    align-items: center;
+    justify-content: center;
+}
+
+.dark-mode .card-content,
+.dark-mode .edit-card-content {
+  color: white;
+
+}
+
+
+
+
+
+.quick-buttons-container {
+  /* Style the container of the FriendSelector component */
+
+  display: flex;
+  justify-content: space-evenly;
+  position: relative; 
+  margin-left: 6px;
+}
+
+.quick-buttons-container .capsule-button,
+.quick-buttons-container .image-button,
+.quick-buttons-container .hello-button {
+  color: black;
+  font-size: 22px;
+  background-color: transparent;
+  border: none;
+  padding: 6px;
+
+}
+
+.dark-mode .quick-buttons-container .capsule-button,
+.dark-mode .quick-buttons-container .image-button,
+.dark-mode .quick-buttons-container .hello-button {
+  color:#04D9FF;
+}
+
+
+
+.quick-buttons-container .capsule-button,
+.quick-buttons-container .image-button,
+.quick-buttons-container .hello-button {
+  transition: all 0.3s ease; /* Smooth transition for all properties */
+}
+.quick-buttons-container .capsule-button:hover,
+.quick-buttons-container .image-button:hover,
+.quick-buttons-container .hello-button:hover {
+  color: #ec18bb; /* Change color on hover */
+  animation: breathe 2s infinite alternate; /* Apply the breathing animation on hover */
+}
+.quick-buttons-container .capsule-button:hover::after {
+  content: 'Add a thought to share later'; 
+  position: absolute;
+  top: 100%;
+  width: 200%;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.7); 
+  color: white; 
+  padding: 4px 8px; /* Padding around the helper text */
+  border-radius: 4px; /* Border radius */
+  font-size: 11px; /* Font size of the helper text */
+}
+
+.quick-buttons-container .image-button:hover::after {
+  content: 'Save a meme or picture';   
+  position: absolute;
+  top: 100%;  
+  width: 200%;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.7); 
+  color: white; 
+  padding: 4px 8px; 
+  border-radius: 4px; 
+  font-size: 11px; 
+}
+
+.quick-buttons-container .hello-button:hover::after {
+  content: 'Log a recent meet-up';  
+  position: absolute;
+  top: 100%;  
+  width: 200%;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.7);  
+  color: white; 
+  padding: 4px 8px;  
+  border-radius: 4px; 
+  font-size: 11px;  
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+.dark-mode .quick-buttons-container .capsule-button:hover,
+.dark-mode .quick-buttons-container .image-button:hover,
+.dark-mode .quick-buttons-container .hello-button:hover { 
+  color: rgb(1, 99, 210); 
+}
+
+
+  
+
+.friend-selector-container {
+    margin-bottom: 4px;
+    align-items: left;
+    position: relative; 
+    padding: 0px;
+    background: transparent;
+    border: none;
+    display: inline-block; /* or inline-flex */
+}
+
+
+.dark-mode .friend-selector-container {
+  background-color: 'transparent'; 
+  color: white;
+  border: none;
+}
+
+/* Modal.css */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 99999;
+}
+
+.modal-wrapper {
+  width: 80%; /* Set width to 100% to fill the entire width */
+  height: auto;
+  z-index: 99999;
+  display: flex;
+  background: transparent;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  border: 0px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(30px);
+  box-shadow: 0 0 0px rgba(0, 0, 0, 0.2);
+  position: fixed;
+  border-radius: 15px;
+  padding: 0px 0px;
+  
+}
+
+.dark-mode .modal-wrapper {
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+
+.modal-content {
+  background: white;
+  padding: 16px;
+  border-radius: 15px;
+  min-height: 80vh;
+  display: flex;
+  flex-wrap: wrap; /* Allow items to wrap to the next line */
+  align-items: center;
+  justify-content: space-evenly;
+  color: #333;
+  width: 100%;
+  
+  height: auto;
+  z-index: 9999;
+}
+
+.dark-mode .modal-content {
+  background: #292929;
+  color: white;
+}
+
+.modal-title-container {
+
+  min-width: 300px;
+  width: 50%;
+  justify-content: space-evenly;
+
+
+}
+.modal-title-container h1 {
+  font-family: "Poppins", sans-serif;
+  text-align: center;
+  font-size: 22px; 
+  color: rgb(83, 175, 25);
+  margin-bottom: 20px;
+}
+
+.dark-mode .modal-title-container h1 {
+  color:#04D9FF;
+  
+}
+
+
+
+.modal-content-container {
+
+  min-width: 300px;
+  width: 50%;
+  justify-content: space-evenly;
+  max-height: 500px;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch; /* Enable smooth scrolling on iOS devices */
+  touch-action: pan-y; /* Allow vertical panning (swiping) */
+
+
+}
+
+.modal-content-container h1 {
+  font-family: "Poppins", sans-serif;
+  text-align: center;
+  font-size: 20px; 
+  color: rgb(83, 175, 25);
+  margin-bottom: 20px;
+}
+
+
+.dark-mode .modal-content-container h1 {
+  color:#04D9FF;
+}
+
+.modal-content .close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 20px;
+  color: black;
+  cursor: pointer;
+}
+
+.dark-mode .modal-content .close-button {
+  color:#04D9FF;
+}
+
+ 
+.modal-content label {
+  margin-bottom: 8px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.modal-content input,
+.modal-content select {
+  width: calc(100% - 40px);
+  height: 37px;
+  min-width: 94px;
+  padding: 6px;
+  margin-bottom:1px;
+  font-size: 14px;
+  border: none;
+  box-sizing: border-box;
+  background-color: white;
+  border-bottom: 0px solid #000000; 
+  border-radius: 15px;  
+  outline: none;  
+  border: 2px solid #ccc;  
+
+}
+
+.dark-mode .modal-content input,
+.dark-mode .modal-content select {
+  background-color: gray;
+  color: white;
+
+}
+
+
+.modal-content textarea {
+  width: 100%;
+  min-height: 126px;
+  padding: 12px;
+  margin-bottom: 6px;
+  font-size: 16px;
+  border: none;
+  background-color: white;
+  border-bottom: 0px solid #000000; /* Underline style */
+  border-radius: 22px; /* No border-radius or adjust as needed */
+  outline: none; /* Remove default outline */
+  border: 2px solid #ccc;
+  transition: border 0.3s ease; 
+  caret-color: black;/* Add a transition for smoother changes */
+  transition: all 0.3s ease-in-out;
+}
+
+
+.dark-mode .modal-content textarea {
+  background-color: gray;
+  color: white;
+}
+ 
+.modal-content input::placeholder,
+.modal-content select::placeholder,
+.modal-content textarea::placeholder {
+  color: #777373; 
+}
+
+
+.dark-mode .modal-content input::placeholder,
+.dark-mode .modal-content select::placeholder,
+.dark-mode .modal-content textarea::placeholder {
+  color: white;
+}
+
+
+
+.modal-content input:hover,
+.modal-content select:hover {
+  border: 0px solid #aaa;
+  border: 2px solid rgb(160, 241, 67); 
+}
+
+.modal-content textarea:hover {
+  border: 3px solid rgb(160, 241, 67);
+  transition: all 0.4s ease-in-out; /* Adjust border style on hover */
+}
+
+.dark-mode .modal-content input:hover,
+.dark-mode .modal-content select:hover,
+.dark-mode .modal-content textarea:hover {
+  border: 2px solid #04D9FF;
+}
+
+.modal-content input:focus,
+.modal-content select:focus {
+  border-bottom: 2px solid rgb(160, 241, 67); /* Adjust border style for focus state */
+  box-shadow: 0 0 0px rgb(108, 177, 28); /* Optional: Add a subtle box shadow */
+  font-size: 15px; 
+}
+
+
+.modal-content textarea:focus {
+  min-height: 165px;
+  border-bottom: 0px solid rgb(160, 241, 67); /* Adjust border style for focus state */
+  box-shadow: 0 0 0px rgb(108, 177, 28);
+  border: 3px solid rgb(160, 241, 67); 
+  font-size: 20px; /* Optional: Add a subtle box shadow */
+  transition: all 0.2s ease-in-out;
+}
+
+.dark-mode .modal-content input:focus,
+.dark-mode .modal-content select:focus,
+.dark-mode .modal-content textarea:focus {
+  border: 3px solid #04D9FF;
+  border-bottom: 2px solid rgb(1, 99, 210); 
+
+
+}
+
+
+.modal-delete-message {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(255, 0, 0, 0.5); /* Semi-transparent red background */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 20px;
+  z-index: 999; /* Ensure the message appears on top of other modal content */
+}
+
+
+
+
+.label-container {
+  font-size: 14px;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 8px;
+  border: none;
+  color: white;
+  background-color: rgb(160, 241, 67); 
+  border-bottom: 0px solid #000000; /* Underline style */
+  border-radius: 15px; /* No border-radius or adjust as needed */
+  outline: none; /* Remove default outline */
+ 
+  display: flex; /* Each container will start a new line */
+  justify-content: space-between; 
+}
+
+.dark-mode .label-container {
+  background-color:rgb(1, 99, 210);
+}
+
+.trash-container {
+  align-self: center; /* Center the trash container vertically */
+  margin-left: auto; /* Push the trash container to the right */
+}
+
+.trash-container button {
+  background-color: transparent;
+  color: rgb(160, 241, 67); 
+  border: none;
+  cursor: pointer; 
+  align-content: right;  
+}
+.trash-container button:hover::after {
+  content: 'delete note'; /* Add helper text */
+  position: absolute;
+  bottom: 100%; /* Position it above the button */
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.7); /* Background color of the helper text */
+  color: white; /* Text color of the helper text */
+  padding: 4px 8px; /* Padding around the helper text */
+  border-radius: 4px; /* Border radius */
+  font-size: 12px; /* Font size of the helper text */
+}
+
+.dark-mode .trash-container button {
+  color: rgb(1, 99, 210);
+}
+
+.trash-container button:hover { 
+  color: white;  
+}
+
+.label-container:hover {
+  background-color: black;
+}
+
+.dark-mode .label-container:hover {
+  background-color: black;
+}
+
+.modal-content-container .label-container {
+  display: block;
+}
+
+.input-container {
+  width: 100%;
+  display: inline-flex; /* Allow items to wrap to the next line if there isn't enough space */
+  align-items: center; /* Align items vertically in the center */
+  margin-bottom: 15px; /* Add margin between input containers */
+}
+
+.capsules-container {
+  width: 100%;
+  display: block; /* Allow items to wrap to the next line if there isn't enough space */
+  align-items: center; /* Align items vertically in the center */
+  margin-bottom: 15px; /* Add margin between input containers */
+  height: auto;
+}
+
+
+.input-container label {
+  margin-right: 10px; /* Add some space between label and input */
+}
+
+.input-container input {
+  flex-grow: 1; /* Allow the input to grow and take up available space */
+  box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+
+
+.modal-input-container {
+  white-space: pre-wrap;
+  max-width: 500px;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.modal-save-button-container {
+
+  width: 100%;
+  align-items: right;
+  justify-content: right;
+  margin-top: 28px;
+}
+
+.modal-save-button {
+  background-color: rgb(160, 241, 67);
+  color: black;
+  border: 0px solid rgb(86, 134, 30);
+  border-radius: 18px;
+  font-weight: 500;
+  font-size: 16px;
+  align-self: right;
+  padding: 7px 10px;
+  cursor: pointer;
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+
+}
+
+.dark-mode .modal-save-button {
+  background-color:#04D9FF;
+  color: white;
+}
+
+
+.modal-save-button:disabled {
+  background-color: transparent;
+  color: #ccc;
+  border: 1px solid#ccc;
+  border-radius: 18px;
+  font-weight: 500;
+  font-size: 16px;
+  align-self: right;
+  padding: 7px 10px;
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+
+}
+
+
+
+.modal-select {
+  border-radius: 15px;
+  height: auto;
+
+}
+
+  /* Style the react-select dropdown */
+  .modal-select__control {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    position: relative; /* Ensure the control creates a stacking context */
+    z-index: 2; /* Set a higher z-index for the dropdown container */
+  }
+
+  
+  
+  /* Style the dropdown menu */
+  .modal-select .css-1pahdxg-menu {
+    background-color: #fff;
+    width: 150px;
+    border-radius: 15px;
+    height: auto;
+    z-index: 3; /* Set an even higher z-index for the dropdown menu */
+  }
+
+
+  
+  .modal-select__option {
+    color: black;
+  }
+  
+  .modal-select__option--is-selected {
+    color: white;
+    background-color: #ff00ea;
+  }
+  
+  .modal-select__option--is-selected:hover {
+    background-color: #ec18bb;
+    color: white;
+  }
+
+
+
+.category-container {
+  /* Add your styling for the container */
+}
+
+.scrollable-container {
+  max-height: 200px; /* Set the maximum height for scrollability */
+  overflow-y: auto;
+  width: 100%;
+  
+  display: flexbox; /* Allow items to wrap to the next line if there isn't enough space */
+  align-items: left;
+  justify-content: left;
+  padding: 3px;
+  margin-bottom: 6px;
+  border-radius: 22px; /* No border-radius or adjust as needed */
+  outline: none; /* Remove default outline */
+  border: 2px solid #ccc; /* Enable vertical scrolling */
+  /* Add other styling for the scrollable container */
+}
+
+.scrollable-label {
+  display: flex;
+  align-items: left;
+}
+
+.scrollable-text {
+  margin-top: 5px; 
+}
+
+.category-item { /* Align items to the start (left) */
+  margin-bottom: 5px; /* Add space between each category item */
+  width: 100%;
+  font-size: 12px;
+  display: flex;
+  justify-content: left;
+  align-items: left;
+}
+
+.scrollable-label-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.scrollable-textbody-container {
+  width: 100%;
+  display: inline-flex; /* Allow items to wrap to the next line if there isn't enough space */
+  align-items: left; /* Align items vertically in the center */
+  margin-bottom: 15px; /* Add margin between input containers */
+}
+
+.checkbox-container {
+  margin-top: 0px;
+  width: 80px;
+}
+
+.scrollable-container input[type="checkbox"] { /* Add space between the checkbox and content */
+  transform: scale(0.7);
+  width: auto;
+  margin: 0px; /* Adjust the checkbox size as needed */
+}
+
+.lscrollable-container input[type="checkbox"] + label {
+  position: relative;
+  padding-left: 30px; /* Adjust as needed */
+  cursor: pointer;
+  display: inline-block;
+}
+
+.scrollable-container h3 {
+  margin-bottom: 5px; /* Add space between key and value */
+  font-size: 13px; /* Adjust the font size for key */
+}
+
+
+.scrollable-container p {
+  margin-left: 2px; /* Remove default margin for the paragraph */
+  margin-top: 7px;
+  font-size: 13px;
+  width: auto;
+  font-family: "Poppins", sans-serif;
+  font-weight: 400; /* Adjust the font size for value */
+}
+
+
+/* Modal.css */
+.success-message-container {
+  background-color: #4caf50; /* Green background color */
+  color: white; /* White text color */
+  border-radius: 15px; /* Rounded corners */
+  padding: 15px; /* Padding */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Box shadow for a subtle lift */
+}
+
+.success-message-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  top: 50%;
+}
+
+.success-message {
+  margin: 0;
+  font-size: 22px;
+  text-align: center; /* Center the text horizontally */
+  line-height: 1.5;
+}
+
+.close-success-button {
+  background-color: transparent;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 22px;
+}
+
+
+.selected-friend-box {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px; /* Add margin between selected friend boxes */
+}
+
+.selected-friend-box span {
+  margin-right: 8px; /* Add margin between friend's name and remove button */
+}
+
+.selected-friend-box button {
+  width: 80px; /* Set a fixed width for the remove button */
+}
+
+
+.section .long-input {
+  /* Add styles specific to this input */
+  width: 94px; /* Adjust width as needed */
+  border: 2px solid #ccc; /* Example border style */
+  padding: 8px; /* Example padding */
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 12px; /* Example font size */
+  /* Add any other styles you want */
+  min-width: 20px;
+  border-radius: 12px;
+  margin-left: 4px;
+  margin-bottom: 10px;
+  margin-right: 10px;
+}
+
+.section .short-input { 
+  width: 52px;  
+  border: 2px solid white; 
+  padding: 8px;  
+  padding-top: 4px;
+  padding-bottom: 4px;
+  font-size: 12px;
+  min-width: 20px;
+  border-radius: 12px;
+  margin-left: 4px;
+  margin-bottom: 10px;
+  margin-right: 10px;
+  
+}
+ 
+
+.dark-mode .section .long-input,
+.dark-mode .section .short-input { 
+  background:#777373;
+  border: 1px solid white; 
+  outline:white;
+
+}
+
+.dark-mode .section .long-input:hover,
+.dark-mode .section .short-input:hover { 
+  background:#777373;
+  border: 1px solid #04D9FF; 
+  outline:#04D9FF;
+
+}
+
+.dark-mode .section .long-input:focus,
+.dark-mode .section .short-input:focus { 
+  background:#777373;
+  border: 1px solid #04D9FF; 
+  outline:#04D9FF;
+
+}
+
+.places-card-header .redo-button {
+  color: black; 
+  font-size: 20px; 
+}
+
+.dark-mode .places-card-header .redo-button {
+  
+  right: 0;
+}
+
+
+.places-card-content-places-redo-button:hover::after {
+  content: 'no'; 
+  position: absolute;
+  top: 100%;
+  width: 200%;
+  left: 0;
+  background-color: rgba(0, 0, 0, 0.7); 
+  color: white; 
+  padding: 4px 4px; /* Padding around the helper text */
+  border-radius: 4px; /* Border radius */
+  font-size: 12px; /* Font size of the helper text */
+}
+/* Hide scrollbar on Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+/* Hide scrollbar on Webkit/Blink */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #555;
+}
+
+
+.custom-dropdown {
+  position: relative;
+  width: 90%;
+}
+
+.custom-dropdown select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none; 
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  cursor: pointer;
+}
+
+.custom-dropdown select:focus {
+  outline: none;
+}
+
+/* Arrow icon */
+.custom-dropdown::after {
+  content: '\25BC';
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}

@@ -1,0 +1,378 @@
+REACT segment of tutorial
+
+// double check this
+npm create projectname frontend -- --template react
+
+cd frontend
+
+npm install axios 
+npm install react-router-dom
+npm install jwt-decode
+
+
+in src directory, delete css files
+
+
+In app.jsx, replace with:
+
+import react from 'react'
+
+function App() {
+	return(
+	<>
+
+	</>
+    )
+}
+
+export default App
+
+
+in main.jsx:
+
+remove import to index.css because deleted
+
+
+in src directory still, create
+
+directories:
+- pages
+- styles
+- components
+
+files:
+constants.js
+api.js
+
+
+
+Inside 'frontend/name' directory:
+
+.env
+
+
+~~~~~~~~~~~~~~~
+
+
+in constants.js:
+
+
+// To access what we are storing in local
+
+export const ACCESS_TOKEN = "access";
+export const REFRESH_TOKEN = "refresh";
+
+
+
+in api.js:
+
+write interceptor that will add correct headers to every request
+
+use axios
+
+
+import axios from 'axios';
+
+import { ACCESS_TOKEN } from './constants';
+
+ // access env variables
+const api = axios.create({
+	baseURL: import.meta.env.VITE_API_URL
+});
+api.interceptors.request.use(
+	(config) => {
+		const token = localStorage.getItem(ACCESS_TOKEN);
+		if (token) {
+			// how JWT token specifically is passed
+			config.headers.Authorization = `Bearer ${token}`;
+		}
+		return config;
+	},
+	(error) => {
+		return Promise.reject(error);
+	}
+);
+
+export default api;
+
+
+
+
+in .env:  (where above code imports from)
+
+(cant see the screen so not sure if this is correct)
+VITE_API_URL='http://localhost:8000'   (url of backend server)
+
+
+
+in components directory:
+
+create ProtectedRoute.jsx
+
+import { Navigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
+import api from '../api';
+import { REFRESH_TOKEN, ACCESS_TOKEN } from '../constants';
+import { useState, useEffect } from 'react';
+
+function ProtectedRoute({ children }) {
+
+    // (Custom front end protection) Check if someone is authorized first
+	const [isAuthorized, setIsAuthorized] = useState(null);
+
+	useEffect(() => {
+	    auth().catch(() => setIsAuthorized(false))
+	}, [])
+
+	const refreshToken = async () => {
+		const refreshToken = localStorage.getItem(REFRESH_TOKEN)
+		try {
+			const res = await api.post('/api/token/refresh/', { 
+				refresh: refreshToken,
+			});
+			if (res.status === 200) {
+				localStorage.setItem(ACCESS_TOKEN, res.data.access)
+				setIsAuthorized(true)
+			} else {
+				setIsAuthorized(false)
+			}
+
+		} catch (error) {
+			console.log(error);
+			setIsAuthorized(false);
+		}
+	};
+
+	const auth = async () => {
+	    // Check for token
+		const token = localStorage.getItem(ACCESS_TOKEN);
+		if (!token) {
+			setIsAuthorized(false);
+			return;
+		}
+	    // Automatically decode and give access to expiration date
+		const decoded = jwtDecode(token);
+		const tokenExpiration = decoded.exp;
+		const now = Date.now() / 1000;  // Get date in seconds
+
+		if (tokenExpiration < now) {
+			await refreshToken();
+		} else {
+			setIsAuthorized(true);
+		}
+	}
+
+	if (isAuthorized === null) {
+		return <div>Loading...</div>;
+
+	}
+ 
+	return isAuthorized ? children : <Navigate to='/signin' />;
+
+}
+
+export default ProtectedRoute;
+
+
+make some components (in pages directory (?)):
+	SignUp.jsx
+	SignIn.jsx
+	SignOut.jsx
+	Home.jsx
+	NotFound.jsx
+
+
+in Home.jsx:
+
+function Home() {
+	return <div>Home</div>
+}
+
+export default Home
+	
+
+in SignIn.jsx:
+
+function SignIn() {
+	return <div>Sign in</div>
+}
+
+
+export default SignIn
+
+in SignOut.jsx:
+
+function SignOut() {
+	return <div>Sign out</div>
+}
+
+
+export default SignOut
+
+
+in SignUp.jsx:
+
+function SignUp() {
+	return <div>Sign up</div>
+}
+
+
+export default SignUp
+
+
+in NotFound.jsx:
+
+function NotFound() {
+	return <div>Not found</div>
+}
+
+export default NotFound
+
+
+update App.js, write the navigation using react router dom:
+
+import react from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import SignIn from './pages/SignIn';
+import SignUp from './pages/SignUp';
+import SignOut from './pages/SignOut';
+import NotFound from './pages/NotFound';
+import Home from './pages/Home';
+import ProtectedRoute from './components/ProtectedRoute';
+
+function Signout() {
+  localStorage.clear()
+  return <Navigate to='/signin' />
+}
+
+// Need to clear any tokens that might be there 
+function SignupandSignout() {
+  localStorage.clear()
+  return <SignUp />
+}
+
+
+function App() {
+	return(
+    <BrowserRouter>
+      <Routes>
+        <Route 
+          path='/'
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+        <Route path='/signin' element={<SignIn />}/>
+		<Route path='/signout' element={<SignOut />}/>
+        <Route path='/signup' element={<SignupandSignout />}/>
+        <Route path='*' element={<NotFound />}></Route>
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+export default App;
+
+
+to test so far:
+
+npm install (if haven't run this already)
+npm run dev
+
+
+yay it works so far!
+
+
+
+Update component:
+function NotFound() {
+	return <div>
+        <h1>404 Not Found</h1>
+        <p>The page you're looking for doesn't exist!</p>
+    </div>
+}
+
+export default NotFound;
+
+
+Create a single form for both sign in and sign up
+
+in components dir, create:
+
+UserCredForm.jsx
+import { useState } from 'react';
+import api from '../api';
+import { useNavigate } from 'react-router-dom';
+import { ACCESS_TOKEN, REFRESH_TOKEN } from '../constants';
+import '../styles/UserCredForm.css';
+
+// Route is where we are going, method is whether we are signing up or signing in
+function UserCredForm({route, method}) {
+    // Collect what user is typing in
+    const [username, setUsername] = useState('')
+    const [password, setPassword] = useState('')
+    // Track if loading
+    const [loading, setLoading] = useState(false)
+    const navigate = useNavigate()
+
+    const methodName = method === 'signin' ? 'signin' : 'signup'
+
+    const handleSubmit = async (e) => {
+        setLoading(true);
+        e.preventDefault();
+
+        try {
+            const res = await api.post(route,{username, password})
+            if (method === 'signin') {
+                localStorage.setItem(ACCESS_TOKEN, res.data.access);
+                localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
+                navigate('/')
+            } else {
+                navigate('/signin')
+            }
+        } catch (error) {
+            alert(error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    return <form onSubmit= {handleSubmit} className='form-container'>
+        <h1>{methodName}</h1>
+        <input 
+            className='form-input'
+            type='text'
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder='Username'
+        />
+            <input 
+            className='form-input'
+            type='password'
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder='Password'
+        />
+        <button className='form-button' type='submit'>
+            {methodName}
+        </button>
+    </form>
+}
+
+export default UserCredForm;
+
+
+
+in styles directory:
+
+UserCredForm.css 
+
+(added a bunch that came with the tutorial)
+ 
+
+ npm run dev
+
+
+ 
