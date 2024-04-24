@@ -1714,6 +1714,9 @@ margin-bottom: 8px;
   border: 1px solid #04D9FF;
   border-bottom: 1px solid rgb(1, 99, 210);
   border-right: 1px solid rgb(1, 99, 210);
+  border: none;
+  border-bottom: none;
+  border-right: none;
 }
 
 /* CenterButton.css */
