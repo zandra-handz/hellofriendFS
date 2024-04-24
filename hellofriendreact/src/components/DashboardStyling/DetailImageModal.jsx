@@ -21,11 +21,19 @@ const DetailImageModal = ({ imageId, onClose }) => {
         setIsOpen(true); // Open the modal after fetching the image
       } catch (error) {
         console.error('Error fetching image:', error);
+        // Handle the error, e.g., by displaying a message to the user
+        // You can set image to null to prevent the modal from rendering
+        setImage(null);
       }
     };
-
-    fetchImage();
-  }, [imageId]);
+  
+    // Only fetch image if the imageId changes
+    if (imageId !== null && imageId !== undefined) {
+      fetchImage();
+    }
+  
+  }, [imageId]); // Only re-run the effect when imageId changes
+  
 
   const handleClose = () => {
     setIsOpen(false);
@@ -47,7 +55,7 @@ const DetailImageModal = ({ imageId, onClose }) => {
   };
 
   return (
-    isOpen && (
+    isOpen && image && (
       <div className={`${themeMode === 'dark' ? 'dark-mode' : ''}`}>
         <div className="modal-overlay" style={{ zIndex: 9999 }}>
           <div className="modal-wrapper">

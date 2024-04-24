@@ -13,6 +13,7 @@ urlpatterns = [
     path('<int:friend_id>/faves/', views.FriendFavesDetail.as_view()),
     path('<int:friend_id>/next-meet/', views.NextMeetView.as_view()),
     path('<int:friend_id>/thoughtcapsules/', views.ThoughtCapsulesAll.as_view()),
+    path('<int:friend_id>/thoughtcapsules/by-category/', views.ThoughtCapsulesByCategory.as_view()),
     path('<int:friend_id>/thoughtcapsules/add/', views.ThoughtCapsuleCreate.as_view()),
     path('<int:friend_id>/thoughtcapsule/<uuid:pk>/', views.ThoughtCapsuleDetail.as_view()),
     path('<int:friend_id>/images/', views.ImagesAll.as_view()),

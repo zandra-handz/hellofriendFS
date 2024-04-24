@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import EditCard from './DashboardStyling/EditCard';
+import CardConfig from './DashboardStyling/CardConfig';
 import useAuthUser from '../hooks/UseAuthUser';
 
 const UserSettings = () => {
@@ -77,7 +77,7 @@ const UserSettings = () => {
   };
 
   return (
-    <EditCard title="User Settings" onEditButtonClick={toggleEditMode}>
+    <CardConfig title="User Settings" onEditButtonClick={toggleEditMode}>
       <div>
         <button onClick={toggleEditMode}>
           {isEditMode ? 'Cancel' : 'Edit'}
@@ -137,7 +137,7 @@ const UserSettings = () => {
           )}
         </div>
       )}
-    </EditCard>
+    </CardConfig>
   );
 };
 

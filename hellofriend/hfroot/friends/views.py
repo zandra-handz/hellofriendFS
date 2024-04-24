@@ -150,6 +150,35 @@ class ThoughtCapsulesAll(generics.ListAPIView):
 
 
 
+class ThoughtCapsulesByCategory(generics.ListAPIView):
+    serializer_class = serializers.ThoughtCapsuleSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id'] 
+        return models.ThoughtCapsulez.objects.filter(user=user, friend_id=friend_id)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        friend_id = self.kwargs['friend_id']
+        
+        # Fetch all categories associated with the friend
+        categories = models.Category.objects.filter(user=request.user, friend_id=friend_id)
+        
+        # Dictionary to store capsules grouped by category
+        capsules_by_category = {}
+        
+        # Group capsules by category
+        for category in categories:
+            capsules = queryset.filter(category=category)
+            serialized_capsules = self.get_serializer(capsules, many=True).data
+            capsules_by_category[category.name] = serialized_capsules
+        
+        return response.Response(capsules_by_category, status=status.HTTP_200_OK)
+
+
 
 class ThoughtCapsuleCreate(generics.ListCreateAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer

@@ -188,10 +188,10 @@ font-family: "Poppins", sans-serif;
 .header {
     background: rgb(83, 175, 25); 
     color: white;
-    padding: .09em;
+    padding: .11em;
     text-align: center;
     position: fixed;
-    font-size: 10px;
+    font-size: 13px;
     top: 0;
     left: 0;
     width: 100%;
@@ -205,8 +205,8 @@ font-family: "Poppins", sans-serif;
 
 
   .header-item {
-    padding-right: 2px; 
-    padding-left: 3px;     
+    padding-right: 6px; 
+    padding-left: 5px;     
   }
 
   
@@ -261,8 +261,8 @@ font-family: "Poppins", sans-serif;
 
 .slider-container {
   position: relative;
-  width: 20px;
-  height: 10px;
+  width: 24px;
+  height: 14px;
   background-color: #ddd;
   border-radius: 20px;
   cursor: pointer;
@@ -459,6 +459,7 @@ font-family: "Poppins", sans-serif;
 .dark-mode .tab-bar-box {
   background-color: black;
 	border-bottom: 1px solid #292929;
+  
 
 
 }
@@ -519,8 +520,8 @@ to {
 .line {
   position: absolute;
   top: 30px;
-  left: 4px;
-  height: 2px;
+  width: auto;
+  height: 2px; 
   background-color: rgb(83, 175, 25);
   border-radius: 20px;
   transition: all 0.3s ease-in-out;
@@ -1697,6 +1698,27 @@ margin-bottom: 8px;
 
 
 
+.capsule-item {
+  padding: 14px;
+  background: #f4f4f4;
+  color: black;
+  font-weight: 400;
+  font-size: 13px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+}
+
+.dark-mode .capsule-item {
+  background: black;
+  color: white;
+  border: 1px solid #04D9FF;
+  border-bottom: 1px solid rgb(1, 99, 210);
+  border-right: 1px solid rgb(1, 99, 210);
+}
+
+/* CenterButton.css */
+
+
 .modal-select {
   border-radius: 15px;
   height: auto;
@@ -2010,4 +2032,95 @@ margin-bottom: 8px;
   right: 8px;
   transform: translateY(-50%);
   pointer-events: none;
+}
+
+
+
+
+.tab-spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+}
+
+.tab-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: rgb(83, 175, 25); 
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+
+.expand-all-button-container {
+  display: flex;
+  justify-content: left;
+  width: 100%;
+}
+
+.mass-function-button { 
+  padding: 8px;
+  margin: 4px;
+  border: none;
+  font-size: 11px;
+  border-radius: 12px;
+  background-color: rgb(83, 175, 25);
+  color: white;
+  
+}
+
+.mass-function-button:hover  {
+  background:  rgb(119, 249, 38); 
+}
+
+.dark-mode .mass-function-button {
+  background-color:rgb(1, 99, 210); 
+  color: white;
+
+}
+
+.dark-mode .mass-function-button:hover {
+  background-color:#04D9FF;
+  color: white;
+
+}
+
+.spinner-container {
+  display: flex;
+  
+  align-content: left;
+  margin-left: 0; 
+  width: auto;
+  position: absolute;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px; 
+  margin-left: 0;
+
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-left-color: rgb(83, 175, 25); 
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.dark-mode .spinner {
+  border-left-color: rgb(83, 175, 25); 
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

@@ -40,7 +40,8 @@ function UserCredForm({route, method}) {
     
 
     return <form onSubmit= {handleSubmit} className='form-container'>
-        <h1>{methodName}</h1>
+        <h1>hellofr::nd!</h1>
+        <h3>{methodName}</h3>
         <input 
             className='form-input'
             type='text'

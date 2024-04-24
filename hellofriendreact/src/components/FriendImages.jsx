@@ -1,16 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import CardUneditable from './DashboardStyling/CardUneditable';
-import useAuthUser from '../hooks/UseAuthUser';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
-import useThemeMode from '../hooks/UseThemeMode';
 import DetailImageModal from './DashboardStyling/DetailImageModal'; 
 
-const FriendImages = () => {
-  const { themeMode } = useThemeMode();
+const FriendImages = () => { 
   const [imagesByCategory, setImagesByCategory] = useState({});
   const [selectedImageId, setSelectedImageId] = useState(null);
-  const { authUser } = useAuthUser();
   const { selectedFriend } = useSelectedFriend();
 
   useEffect(() => {
@@ -22,12 +18,14 @@ const FriendImages = () => {
         }
       } catch (error) {
         console.error('Error fetching data:', error);
+        // Handle the error, e.g., by setting imagesByCategory to an empty object
+        setImagesByCategory({});
       }
     };
-
+  
     fetchData();
   }, [selectedFriend]);
-
+  
   const handleImageClick = (imageId) => {
     setSelectedImageId(imageId);
   };
@@ -63,8 +61,8 @@ const FriendImages = () => {
         <p></p>
       )}
       <DetailImageModal
-        imageId={selectedImageId}
-        onHide={() => setSelectedImageId(null)} // Reset selectedImageId when modal is closed
+        image={imagesByCategory[selectedImageId]}
+        onClose={() => setSelectedImageId(null)} // Reset selectedImageId when modal is closed
       />
     </div>
   );
