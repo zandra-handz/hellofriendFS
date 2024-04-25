@@ -197,7 +197,6 @@ font-family: "Poppins", sans-serif;
     width: 100%;
     display: flex;
     justify-content: flex-end;
-
     align-items: center;
   }
 
@@ -206,7 +205,7 @@ font-family: "Poppins", sans-serif;
 
   .header-item {
     padding-right: 6px; 
-    padding-left: 5px;     
+    padding-left: 5px;   
   }
 
   
@@ -1198,23 +1197,29 @@ margin-bottom: 8px;
   display: flex;
   justify-content: space-evenly;
   position: relative; 
-  margin-left: 6px;
+  margin-left: 6px; 
+  width: 100%;
 }
 
 .quick-buttons-container .capsule-button,
 .quick-buttons-container .image-button,
 .quick-buttons-container .hello-button {
-  color: black;
-  font-size: 22px;
-  background-color: transparent;
-  border: none;
+  color:#4caf50;
+  font-size: 22px; 
+  background-color: #b3e275;
+  background-color: white;
+  border-radius: 50%;
+  width: 100%; 
+  border: none; 
   padding: 6px;
+  margin-left: 4px;
 
 }
 
 .dark-mode .quick-buttons-container .capsule-button,
 .dark-mode .quick-buttons-container .image-button,
 .dark-mode .quick-buttons-container .hello-button {
+  background-color: transparent;
   color:#04D9FF;
 }
 
@@ -2100,18 +2105,12 @@ margin-bottom: 8px;
 
 .spinner-container {
   display: flex;
-  
-  align-content: left;
-  margin-left: 0; 
-  width: auto;
-  position: absolute;
+  justify-content: left;
 }
 
 .spinner {
   width: 40px;
-  height: 40px; 
-  margin-left: 0;
-
+  height: 40px;
   border: 4px solid rgba(0, 0, 0, 0.1);
   border-left-color: rgb(83, 175, 25); 
   border-radius: 50%;
@@ -2119,11 +2118,46 @@ margin-bottom: 8px;
 }
 
 .dark-mode .spinner {
-  border-left-color: rgb(83, 175, 25); 
+  border-left-color:#04D9FF;
 }
 
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
+}
+
+
+.custom-image-input-label {
+  display: inline-block;
+  background-color: transparent;
+  color: black; 
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+
+.dark-mode .custom-image-input-label { 
+  color: rgb(1, 99, 210); 
+}
+
+
+.custom-image-input-label:hover {
+  background-color: transparent;
+  color:#4caf50;
+}
+
+
+.dark-mode .custom-image-input-label:hover {
+  background-color: transparent;
+  color:#04D9FF;
+}
+
+
+.image-input {
+  display: none;
+}
+
+.fa-icon {
+  margin-left: 8px;
 }

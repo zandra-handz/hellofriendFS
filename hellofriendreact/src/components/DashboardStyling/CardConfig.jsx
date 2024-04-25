@@ -10,7 +10,7 @@ const CardConfig = ({ title, children, onEditButtonClick }) => {
     <div className={`${themeMode === 'dark' ? 'dark-mode' : ''}`}>
       <div className="edit-card">
         <div className="edit-card-header">
-          <h2>{title}</h2>
+          <h5>{title}</h5>
           <button className="edit-button" onClick={onEditButtonClick}> {/* Call onEditButtonClick */}
             <FaWrench />
           </button>

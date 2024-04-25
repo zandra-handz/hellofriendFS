@@ -109,7 +109,7 @@ const TabBarPageUserLocationsAll = () => {
       <div>
         <CreateLocation />
 
-        <button onClick={() => setShowLocations(!showLocations)}>
+        <button className="mass-function-button" onClick={() => setShowLocations(!showLocations)}>
           {showLocations ? 'Hide Locations' : 'Expand Saved Locations'}
         </button>
 

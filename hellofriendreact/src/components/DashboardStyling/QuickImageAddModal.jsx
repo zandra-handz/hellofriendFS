@@ -4,6 +4,7 @@ import useAuthUser from '/src/hooks/UseAuthUser';
 import useSelectedFriend from '/src/hooks/UseSelectedFriend';
 import useThemeMode from '/src/hooks/UseThemeMode';
 import '/src/styles/OldStyles.css';
+import { FaCamera } from 'react-icons/fa';
 
 
 const QuickImageAddModal = ({ onClose, onSave }) => {
@@ -64,7 +65,12 @@ const QuickImageAddModal = ({ onClose, onSave }) => {
             <div className="modal-content-container">
               <div className="modal-input-container">
                 <div className="input-container">
-                  <input type="file" onChange={handleImageChange} />
+                  <label htmlFor="imageUpload" className="custom-image-input-label">
+                    <input type="file" id="imageUpload" className="image-input" onChange={handleImageChange} />
+                     
+                    <span className="fa-icon"><FaCamera />     </span>
+                    Upload image
+                  </label>
                 </div>
                 <div className="input-container">
                   <label htmlFor="imageCategory">Image Category</label>

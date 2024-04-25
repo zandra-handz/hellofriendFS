@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import CardConfig from './DashboardStyling/CardConfig';
+import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
 
 const UserProfile = () => {
@@ -72,11 +73,6 @@ const UserProfile = () => {
 
   return (
     <CardConfig title="User Profile" onEditButtonClick={toggleEditMode}>
-      <div>
-        <button onClick={toggleEditMode}>
-          {isEditMode ? 'Cancel' : 'Edit'}
-        </button>
-      </div>
       {isEditMode ? (
         <div>
           <div>
@@ -123,7 +119,7 @@ const UserProfile = () => {
               <p>Gender: {gender}</p>
             </div>
           ) : (
-            <p>Loading...</p>
+            <Spinner />
           )}
         </div>
       )}

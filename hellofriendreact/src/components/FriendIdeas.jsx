@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import CardExpand from './DashboardStyling/CardExpand';
 import ButtonExpandAll from './DashboardStyling/ButtonExpandAll';
 import ItemCapsule from './DashboardStyling/ItemCapsule';
@@ -11,13 +11,18 @@ const FriendIdeas = () => {
   const { selectedFriend } = useSelectedFriend();
   const { capsuleList } = useCapsuleList();
 
-  const initializeExpandedCategories = () => {
-    const initialExpandedCategories = {};
-    capsuleList.forEach(capsule => {
-      initialExpandedCategories[capsule.typedCategory] = false;
-    });
-    return initialExpandedCategories;
-  };
+  useEffect(() => {
+    if (capsuleList.length > 0) {
+      // Initialize expandedCategories based on capsuleList
+      const initialExpandedCategories = {};
+      capsuleList.forEach(capsule => {
+        if (!initialExpandedCategories[capsule.typedCategory]) {
+          initialExpandedCategories[capsule.typedCategory] = false;
+        }
+      });
+      setExpandedCategories(initialExpandedCategories);
+    }
+  }, [capsuleList]);
 
   const toggleCategory = (category) => {
     setExpandedCategories(prev => ({
@@ -60,7 +65,7 @@ const FriendIdeas = () => {
           </div>
         ))
       ) : (
-        <p><TabSpinner/></p>
+        <p></p>
       )}
     </div>
   );

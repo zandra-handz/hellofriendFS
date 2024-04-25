@@ -174,7 +174,7 @@ const QuickThoughtCapsuleAddModal = ({ onClose, onSave }) => {
               <div className="modal-input-container">
                 {remainingCategories > 0 && (
                   <div className="input-container">
-                    <label htmlFor="newCategory">Category </label>
+                    <label htmlFor="newCategory">Existing Category </label>
                     <input
                       type="text"
                       id="newCategory"
