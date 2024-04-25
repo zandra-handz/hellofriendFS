@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthUserProvider } from './context/AuthUserProvider'; 
 import { SelectedFriendProvider } from './context/SelectedFriendProvider'; 
 import { FriendListProvider } from './context/FriendListProvider'; 
+import { CapsuleListProvider } from './context/CapsuleListProvider'; 
 import { FocusModeProvider } from './context/FocusModeProvider'; 
 import { ThemeModeProvider } from './context/ThemeModeProvider'; 
 
@@ -35,11 +36,13 @@ function App() {
               <AuthUserProvider>
                 <SelectedFriendProvider>
                   <FriendListProvider>
-                    <FocusModeProvider>
-                      <ThemeModeProvider>
-                        <Home />
-                      </ThemeModeProvider>
-                    </FocusModeProvider>
+                    <CapsuleListProvider>  
+                      <FocusModeProvider>
+                        <ThemeModeProvider>
+                          <Home />
+                        </ThemeModeProvider>
+                      </FocusModeProvider>
+                    </CapsuleListProvider>
                   </FriendListProvider>
                 </SelectedFriendProvider>
               </AuthUserProvider>

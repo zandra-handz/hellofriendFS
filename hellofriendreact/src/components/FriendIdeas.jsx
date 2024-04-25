@@ -1,44 +1,26 @@
-import React, { useEffect, useState } from 'react';
-import api from '../api';
+import React, { useState } from 'react';
 import CardExpand from './DashboardStyling/CardExpand';
 import ButtonExpandAll from './DashboardStyling/ButtonExpandAll';
 import ItemCapsule from './DashboardStyling/ItemCapsule';
 import TabSpinner from './DashboardStyling/TabSpinner';
-import useAuthUser from '../hooks/UseAuthUser';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
-import useThemeMode from '/src/hooks/UseThemeMode';
+import useCapsuleList from '../hooks/UseCapsuleList'; 
 
-const FriendIdeas = () => {
-  const { themeMode } = useThemeMode();
-  const [categoryData, setCategoryData] = useState({});
+const FriendIdeas = () => { 
   const [expandedCategories, setExpandedCategories] = useState({});
-  const { authUser } = useAuthUser();
   const { selectedFriend } = useSelectedFriend();
+  const { capsuleList } = useCapsuleList();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        if (selectedFriend) {
-          // Fetch category data
-          const categoryDataResponse = await api.get(`/friends/${selectedFriend.id}/thoughtcapsules/by-category/`);
-          setCategoryData(categoryDataResponse.data);
-          // Initialize expandedCategories state
-          const initialExpandedCategories = {};
-          Object.keys(categoryDataResponse.data).forEach(category => {
-            initialExpandedCategories[category] = false;
-          });
-          setExpandedCategories(initialExpandedCategories);
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-    };
-
-    fetchData();
-  }, [authUser, selectedFriend]);
+  const initializeExpandedCategories = () => {
+    const initialExpandedCategories = {};
+    capsuleList.forEach(capsule => {
+      initialExpandedCategories[capsule.typedCategory] = false;
+    });
+    return initialExpandedCategories;
+  };
 
   const toggleCategory = (category) => {
-    setExpandedCategories((prev) => ({
+    setExpandedCategories(prev => ({
       ...prev,
       [category]: !prev[category],
     }));
@@ -57,15 +39,21 @@ const FriendIdeas = () => {
     <div>
       <ButtonExpandAll onClick={expandAll} expandText="Expand all" collapseText="Close all" /> 
       
-      {Object.keys(categoryData).length > 0 ? (
-        Object.entries(categoryData).map(([category, capsules]) => (
+      {capsuleList.length > 0 ? (
+        Object.entries(capsuleList.reduce((acc, capsule) => {
+          if (!acc[capsule.typedCategory]) {
+            acc[capsule.typedCategory] = [];
+          }
+          acc[capsule.typedCategory].push(capsule);
+          return acc;
+        }, {})).map(([category, capsules]) => (
           <div key={category}>
             <CardExpand
               title={`Category: ${category}`}
               expanded={expandedCategories[category]}
               onExpandButtonClick={() => toggleCategory(category)}
             >
-              {expandedCategories[category] && capsules.map((capsule) => (
+              {expandedCategories[category] && capsules.map(capsule => (
                 <ItemCapsule key={capsule.id} capsule={capsule.capsule} />
               ))}
             </CardExpand>

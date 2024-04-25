@@ -72,6 +72,18 @@ class FriendSuggestionSettingsDetail(generics.RetrieveUpdateAPIView):
     
 
 
+
+class FriendSuggestionSettingsCategoryLimit(generics.RetrieveAPIView):
+    serializer_class = serializers.CategoryLimitSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_object(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id']
+        return models.FriendSuggestionSettings.objects.get(user=user, friend_id=friend_id)
+    
+    
 class FriendFavesDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.FriendFavesSerializer
     permission_classes = [IsAuthenticated]

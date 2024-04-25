@@ -10,6 +10,7 @@ urlpatterns = [
     path('<int:friend_id>/', views.FriendDetail.as_view()),
     path('<int:friend_id>/settings/', views.FriendSuggestionSettingsDetail.as_view()),
     path('<int:friend_id>/settings/update/', views.FriendSuggestionSettingsDetail.as_view()),
+    path('<int:friend_id>/category-limit/', views.FriendSuggestionSettingsCategoryLimit.as_view()),
     path('<int:friend_id>/faves/', views.FriendFavesDetail.as_view()),
     path('<int:friend_id>/next-meet/', views.NextMeetView.as_view()),
     path('<int:friend_id>/thoughtcapsules/', views.ThoughtCapsulesAll.as_view()),

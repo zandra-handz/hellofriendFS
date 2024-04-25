@@ -24,6 +24,10 @@ class FriendSuggestionSettingsSerializer(serializers.ModelSerializer):
         fields = ['id', 'friend', 'user', 'can_schedule', 'effort_required', 'priority_level', 'category_limit_formula']
     
 
+class CategoryLimitSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.FriendSuggestionSettings
+        fields = ['friend', 'user', 'category_limit_formula']
 
 
 class FriendFavesSerializer(serializers.ModelSerializer):

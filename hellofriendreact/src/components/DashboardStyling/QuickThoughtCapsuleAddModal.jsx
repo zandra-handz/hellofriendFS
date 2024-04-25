@@ -6,9 +6,12 @@ import useThemeMode from '/src/hooks/UseThemeMode';
 import Spinner from './Spinner';
 import { FaTrash } from 'react-icons/fa';
 import '/src/styles/OldStyles.css';
+import useCapsuleList from '/src/hooks/UseCapsuleList';
 
 const QuickThoughtCapsuleAddModal = ({ onClose, onSave }) => {
   const { themeMode } = useThemeMode();
+  const { selectedFriend } = useSelectedFriend();
+  const { capsuleList, setCapsuleList } = useCapsuleList();
   const [loading, setLoading] = useState(true); // State to track loading
   const [textInput, setTextInput] = useState('');
   const [categoryInput, setCategoryInput] = useState('');
@@ -17,51 +20,56 @@ const QuickThoughtCapsuleAddModal = ({ onClose, onSave }) => {
   const textareaRef = useRef();
   const [textboxPlaceholder, setTextboxPlaceholder] = useState('Start typing your thought here');
   const [nextMeetData, setNextMeetData] = useState('');
+  const [categoryLimit, setCategoryLimit] = useState('');
+  const [remainingCategories, setRemainingCategories] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [thoughtCapsules, setThoughtCapsules] = useState([]);
   const [isDeleted, setIsDeleted] = useState(false); 
   const { authUser } = useAuthUser();
-  const { selectedFriend } = useSelectedFriend();
-
+  const calculateRemainingCategories = (categoryLimit, capsuleList) => {
+    const uniqueCategories = [...new Set(capsuleList.map(capsule => capsule.typedCategory))];
+    const uniqueCategoriesCount = uniqueCategories.length;
+    console.log("Unique Categories:", uniqueCategories);
+    console.log("Unique Categories Count:", uniqueCategoriesCount);
+    return categoryLimit - uniqueCategoriesCount;
+  };
+  
   useEffect(() => {
     if (selectedFriend) {
-      fetchUpdatedData();
+      fetchInitialData();
     }
   }, [selectedFriend]);
-
   
-
-  const fetchUpdatedData = async () => {
+  const fetchInitialData = async () => {
     try {
-      const [capsulesResponse, nextMeetResponse] = await Promise.all([
-        api.get(`/friends/${selectedFriend.id}/thoughtcapsules/add/`),
-        api.get(`/friends/${selectedFriend.id}/next-meet/`)
+      const [categoryLimitResponse] = await Promise.all([
+        api.get(`/friends/${selectedFriend.id}/category-limit/`)
       ]);
-      setThoughtCapsules(capsulesResponse.data);
-      setNextMeetData(nextMeetResponse.data[0]);
-      setTimeout(() => {
-        setSuccessMessage('');
-        setLoading(false); // Set loading to false when data is loaded
-      }, 2000);
+      const categoryLimitValue = parseInt(categoryLimitResponse.data.category_limit_formula, 10); // Parse the value to an integer
+      console.log("Category Limit Value:", categoryLimitValue);
+      const remainingCategoriesCount = calculateRemainingCategories(categoryLimitValue, capsuleList);
+      console.log("Remaining Categories Count:", remainingCategoriesCount);
+      setCategoryLimit(categoryLimitValue);
+      setRemainingCategories(remainingCategoriesCount);
     } catch (error) {
-      console.error('Error fetching updated data:', error);
+      console.error('Error fetching initial data:', error);
     }
   };
+  
+  
+  
+
 
   const handleInputChange = (e) => {
-    console.log('textInput updated:', e.target.value);
     setTextInput(e.target.value);
   };
 
   const handleCategoryInputChange = (e) => {
-    console.log('categoryInput updated:', e.target.value);
     setCategoryInput(e.target.value);
     setTextboxPlaceholder('Start typing your thought here');
     setSelectedCategory('');
   };
 
   const handleCategoryChange = async (e) => {
-    console.log('selectedCategory updated:', e.target.value);
     setSelectedCategory(e.target.value);
     setCategoryLabelValue(e.target.value ? `${e.target.value}` : '');
     setTextboxPlaceholder(`add to ${e.target.value}`);
@@ -82,128 +90,151 @@ const QuickThoughtCapsuleAddModal = ({ onClose, onSave }) => {
           typed_category: selectedCategory || categoryInput,
           capsule: textInput,
         };
-
+  
         const response = await api.post(`/friends/${selectedFriend.id}/thoughtcapsules/add/`, requestData);
-
+  
+        // Log the values of selectedCategory and categoryInput
+        console.log('Selected Category:', selectedCategory);
+        console.log('Category Input:', categoryInput);
+  
+        // Add the saved capsule to the capsuleList
+        setCapsuleList(prevCapsuleList => [
+          ...prevCapsuleList,
+          {
+            id: response.data.id,
+            typedCategory: selectedCategory || categoryInput, // Make sure typedCategory is set
+            capsule: textInput  
+          }
+        ]);
+  
+        // Clear input fields and set success message
         setTextInput('');
         setCategoryInput('');
         setCategoryLabelValue('');
         setSelectedCategory('');
         setSuccessMessage('Idea saved successfully!');
-        fetchUpdatedData(); // Fetch updated data after saving the idea
         onSave(textInput);
       }
     } catch (error) {
       console.error('Error creating idea:', error);
     }
   };
+  
+  
 
   const handleTrashClick = async (capsuleId) => {
     try {
       await api.delete(`/friends/${selectedFriend.id}/thoughtcapsule/${capsuleId}/`);
-      
+  
+      // Remove the deleted capsule from the capsuleList
+      setCapsuleList(prevCapsuleList => prevCapsuleList.filter(capsule => capsule.id !== capsuleId));
+  
       setSuccessMessage('Idea deleted successfully!');
-      fetchUpdatedData();
       setIsDeleted(true); 
       setTimeout(() => {
         setIsDeleted(false);  
-      }, 3000);  
+      }, 3000);
     } catch (error) {
       console.error('Error deleting capsule:', error);
     }
   };
+  
 
+  console.log("Capsule List:", capsuleList);
+ 
   return (
     <div className={`${themeMode === 'dark' ? 'dark-mode' : ''}`}>
-      {loading ? (
-        <div className="spinner-container">
-          <Spinner />
-        </div>
-      ) : (
-        <div className="modal-overlay" style={{ zIndex: 9999 }}> 
-          <div className="modal-wrapper">
-            <div className="modal-content">
-              <span className="close-button" onClick={onClose}>
-                &times;
-              </span>
-              <div className="modal-title-container">
-                <div>
-                  <h1>Add a thought ({nextMeetData.category_activations_left} left) </h1>
-                </div>
+      <div className="modal-overlay" style={{ zIndex: 9999 }}> 
+        <div className="modal-wrapper">
+          <div className="modal-content">
+            <span className="close-button" onClick={onClose}>
+              &times;
+            </span>
+            <div className="modal-title-container">
+              <div>
+                <h1>Add a thought</h1>
+                <h1>(categories left: {remainingCategories}) </h1>
               </div>
-              <div className="modal-content-container">
-                <div className="modal-input-container">
-                  {(nextMeetData.category_activations_left > 0 || selectedCategory) && (
-                    <div className="input-container">
-                      <textarea
-                        id="notes"
-                        ref={textareaRef} 
-                        autoFocus
-                        value={textInput}
-                        placeholder={textboxPlaceholder}
-                        onChange={handleInputChange}
-                      />
-                    </div>
-                  )}
-                </div>
-                <div className="modal-input-container">
-                  {nextMeetData.category_activations_left > 0 && (
-                    <div className="input-container">
-                      <label htmlFor="newCategory">Category </label>
-                      <input
-                        type="text"
-                        id="newCategory"
-                        value={categoryInput}
-                        onChange={handleCategoryInputChange}
-                        placeholder="examples: 'work news', 'hobbies', 'family', 'shared interests' "
-                      />
-                    </div>
-                  )}
-                  {nextMeetData.active_categories && (
-                    <div className="input-container">
-                      <label htmlFor="category"> </label>
-                      <select id="category-select" className="modal-select" value={selectedCategory} onChange={handleCategoryChange}>
-                        <option value="">Add to existing category</option>
-                        {nextMeetData.active_categories.map((categoryInfo) => (
-                          <option key={categoryInfo} value={categoryInfo}>
-                            {categoryInfo}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {selectedCategory.length > 0 && (
-                    <div className="capsules-container">
-                      {thoughtCapsules
-                        .filter((capsule) => capsule.category === selectedCategory || capsule.typed_category === selectedCategory)
-                        .map((capsule) => (
-                          <div className="label-container" id="category-notes" key={capsule.id} style={{ display: 'flex' }}>
-                            {capsule.capsule} 
-                            <div className="trash-container">
-                              <button onClick={() => handleTrashClick(capsule.id)}>
-                                <FaTrash />
-                              </button>
-                            </div>
+            </div>
+            <div className="modal-content-container">
+              <div className="modal-input-container">
+                {(remainingCategories > 0 || selectedCategory) && (
+                  <div className="input-container">
+                    <textarea
+                      id="notes"
+                      ref={textareaRef} 
+                      autoFocus
+                      value={textInput}
+                      placeholder={textboxPlaceholder}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="modal-input-container">
+                {remainingCategories > 0 && (
+                  <div className="input-container">
+                    <label htmlFor="newCategory">Category </label>
+                    <input
+                      type="text"
+                      id="newCategory"
+                      value={categoryInput}
+                      onChange={handleCategoryInputChange}
+                      placeholder="examples: 'work news', 'hobbies', 'family', 'shared interests' "
+                    />
+                  </div>
+                )}
+                {capsuleList.length > 0 && (
+                  <div className="input-container">
+                    <label htmlFor="category">Category </label>
+                    <select
+                      id="category-select"
+                      className="modal-select"
+                      value={selectedCategory}
+                      onChange={handleCategoryChange}
+                    >
+                      <option value="">Add to existing category</option>
+                      {/* Extract unique categories from capsuleList */}
+                      {[...new Set(capsuleList.map(capsule => capsule.typedCategory))].map((categoryInfo) => (
+                        <option key={categoryInfo} value={categoryInfo}>
+                          {categoryInfo}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+  
+                {selectedCategory && (
+                  <div className="capsules-container">
+                    {capsuleList
+                      .filter((capsule) => capsule.typedCategory === selectedCategory)
+                      .map((capsule) => (
+                        <div className="label-container" id="category-notes" key={capsule.id} style={{ display: 'flex' }}>
+                          <div>{capsule.capsule}</div>
+                          <div className="trash-container">
+                            <button onClick={() => handleTrashClick(capsule.id)}>
+                              <FaTrash />
+                            </button>
                           </div>
-                        ))} 
-                    </div>
-                  )}
-                </div>
-                <div className="modal-input-container">
-                  {successMessage && <p className="success-message">{successMessage}</p>}
-                </div>
-                <div className="modal-save-button-container">
-                  <button className="modal-save-button" onClick={handleSave} disabled={(!selectedCategory || !categoryInput) && !textInput}>
-                    Save
-                  </button>
-                  {isDeleted && <p className="delete-message">Capsule deleted!</p>}
-                </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+  
+              </div>
+              <div className="modal-input-container">
+                {successMessage && <p className="success-message">{successMessage}</p>}
+              </div>
+              <div className="modal-save-button-container">
+                <button className="modal-save-button" onClick={handleSave} disabled={(!selectedCategory || !categoryInput) && !textInput}>
+                  Save
+                </button>
+                {isDeleted && <p className="delete-message">Capsule deleted!</p>}
               </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

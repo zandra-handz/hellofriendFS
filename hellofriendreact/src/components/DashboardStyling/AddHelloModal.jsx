@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import api from '/src/api'; 
 import useAuthUser from '/src/hooks/UseAuthUser';
 import useSelectedFriend from '/src/hooks/UseSelectedFriend';
+import useCapsuleList from '/src/hooks/UseCapsuleList'; 
 import useThemeMode from '/src/hooks/UseThemeMode';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -33,6 +34,7 @@ const AddHelloModal = ({ onClose, onSave }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [shouldClose, setShouldClose] = useState(false);
   const { selectedFriend } = useSelectedFriend();
+  const { capsuleList } = useCapsuleList();
   const { authUser } = useAuthUser();
 
   const handleInputChange = (e) => {
@@ -332,33 +334,47 @@ const AddHelloModal = ({ onClose, onSave }) => {
                     </select>
                   </div>
                 )}
-                {capsuleData.length > 0 && (
+                 
+                {capsuleList.length > 0 && (
                   <div>
-                    <label htmlFor="capsule">Thought gifts given  </label>
-                    <div className="scrollable-container">
-                      {capsuleData.map((capsuleInfo) => (
-                        <div key={capsuleInfo.id} className="capsule-item">
-                          <label htmlFor={capsuleInfo.id} className="scrollable-label">
-                            <div className="checkbox-container">
-                              <input
-                                type="checkbox"
-                                id={capsuleInfo.id} // Ensure each checkbox has a unique id
-                                value={capsuleInfo.id}
-                                checked={selectedCapsules.some((item) => item.id === capsuleInfo.id)}
-                                onChange={() => handleCheckboxCapsuleChange(capsuleInfo)}
-                              />
-                            </div> 
-                            <div>
-                              {capsuleInfo.typed_category}
-                              <p>{capsuleInfo.capsule}</p>
+                    {Object.entries(capsuleList.reduce((acc, capsule) => {
+                      // Check if the category already exists in the accumulator
+                      if (!acc[capsule.typedCategory]) {
+                        acc[capsule.typedCategory] = []; // If not, create a new category array
+                      }
+                      // Push the capsule to the corresponding category array
+                      acc[capsule.typedCategory].push(capsule);
+                      return acc;
+                    }, {})).map(([category, categoryCapsules]) => (
+                      <div key={category}>
+                        <h2>{category}</h2>
+                        <div className="scrollable-container">
+                          {categoryCapsules.map((capsuleInfo) => (
+                            <div key={capsuleInfo.id} className="capsule-item">
+                              <label htmlFor={capsuleInfo.id} className="scrollable-label">
+                                <div className="checkbox-container">
+                                  <input
+                                    type="checkbox"
+                                    id={capsuleInfo.id} // Ensure each checkbox has a unique id
+                                    value={capsuleInfo.id}
+                                    checked={selectedCapsules.some((item) => item.id === capsuleInfo.id)}
+                                    onChange={() => handleCheckboxCapsuleChange(capsuleInfo)}
+                                  />
+                                </div> 
+                                <div>
+                                  <p>{capsuleInfo.capsule}</p>
+                                </div>
+                              </label>
                             </div>
-                          </label>
+                          ))}
                         </div>
-                      ))}
-
-                    </div>
+                      </div>
+                    ))}
                   </div>
                 )}
+
+
+
                 {selectedCapsule.length > 0 && (
                   <div className="input-container">
                     {capsuleData

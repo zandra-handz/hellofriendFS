@@ -4,12 +4,14 @@ import Select from 'react-select';
 import { FaHome } from 'react-icons/fa';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
 import useFriendList from '../hooks/UseFriendList';
+import useCapsuleList from '../hooks/UseCapsuleList';
 import useThemeMode from '../hooks/UseThemeMode';
 
 const FriendSelector = () => {
     const { themeMode } = useThemeMode();
     const { selectedFriend, setFriend } = useSelectedFriend();
     const { friendList, setFriendList } = useFriendList([]);
+    const { capsuleList, setCapsuleList } = useCapsuleList([]);
     const [initialData, setInitialData] = useState(null);
     const [refreshIndicator, setRefreshIndicator] = useState(false); // State to trigger refresh
 
