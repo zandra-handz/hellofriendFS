@@ -34,7 +34,7 @@ const AddHelloModal = ({ onClose, onSave }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [shouldClose, setShouldClose] = useState(false);
   const { selectedFriend } = useSelectedFriend();
-  const { capsuleList } = useCapsuleList();
+  const { capsuleList, setCapsuleList } = useCapsuleList(); // Destructure fetchCapsuleList from the hook
   const { authUser } = useAuthUser();
 
   const handleInputChange = (e) => {
@@ -57,37 +57,36 @@ const AddHelloModal = ({ onClose, onSave }) => {
     setSelectedLocation('');
   };
 
-  const handleLocationChange = async (e) => {
-    setSelectedLocation(e.target.value);
-    setLocationLabelValue(e.target.value ? `${e.target.value}` : '');
-    setTextboxPlaceholder(`add to ${e.target.value}`);
+  const handleLocationChange = (e) => {
+    const selectedValue = e.target.value;
+    setSelectedLocation(selectedValue); // Set selected location
+    setLocationLabelValue(selectedValue || ''); // Set location label value based on the selected location
+    setTextboxPlaceholder(`add to ${selectedValue || locationInput || locationNameInput}`);
     setLocationNameInput('');
     setLocationInput('');
-    const textareaElement = document.getElementById('location');
-
-    // Check if the textarea element exists and is visible before focusing
-    if (textareaElement && textareaElement.offsetWidth && textareaElement.offsetHeight) {
-      textareaRef.current.focus();
-    }
   };
+  
+  
+  useEffect(() => {
+    console.log("Location Data:", locationData); // Log locationData
+  }, [locationData]);
 
   const handleCheckboxCapsuleChange = (capsuleInfo) => {
+    console.log('Capsule Info:', capsuleInfo); // Added console.log statement
+  
     setSelectedCapsules((prevSelectedCapsules) => {
       const isCapsuleSelected = prevSelectedCapsules.some((item) => item.id === capsuleInfo.id);
   
       if (isCapsuleSelected) {
         return prevSelectedCapsules.filter((item) => item.id !== capsuleInfo.id);
       } else {
-        return [...prevSelectedCapsules, capsuleInfo];
+        return [...prevSelectedCapsules, { ...capsuleInfo, typed_category: capsuleInfo.typedCategory }];
       }
     });
   
     setTextboxPlaceholder(`add to ${capsuleInfo.capsule}`);
     setCapsuleLabelValue(capsuleInfo.id ? `${capsuleInfo.id}` : '');
   };
-  
-  
-  
 
   const handleCapsuleChange = async (e) => {
     setSelectedCapsule(e.target.value);
@@ -104,6 +103,23 @@ const AddHelloModal = ({ onClose, onSave }) => {
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
+  };
+
+  const fetchCapsuleListData = async () => {
+    try {
+      if (selectedFriend) {
+        const response = await api.get(`/friends/${selectedFriend.id}/thoughtcapsules/`);
+        const capsuleData = response.data;
+        const formattedCapsuleList = capsuleData.map(capsule => ({
+          id: capsule.id,
+          typedCategory: capsule.typed_category,
+          capsule: capsule.capsule
+        }));
+        setCapsuleList(formattedCapsuleList);
+      }
+    } catch (error) {
+      console.error('Error fetching capsule list:', error);
+    }
   };
 
   const handleSave = async () => {
@@ -123,8 +139,9 @@ const AddHelloModal = ({ onClose, onSave }) => {
           user: authUser.user.id,
           friend: selectedFriend.id,
           type: selectedType,
-          typed_location: selectedLocation || locationInput,
+          typed_location: locationInput,
           location_name: selectedLocationName || locationNameInput,
+          location: selectedLocation,
           date: formattedDate,
           thought_capsules_shared: capsulesDictionary,
           delete_all_unshared_capsules: deleteChoice,
@@ -132,7 +149,8 @@ const AddHelloModal = ({ onClose, onSave }) => {
 
         const response = await api.post(`/friends/${selectedFriend.id}/helloes/add/`, requestData);
 
-
+        // Call the fetchCapsuleList function to refetch the capsule list data after saving
+        fetchCapsuleListData();
 
         setIdeaLimit('limit feature disabled');
         setTextInput('');
@@ -214,11 +232,19 @@ const AddHelloModal = ({ onClose, onSave }) => {
       if (selectedFriend) {
         const response = await api.get(`/friends/dropdown/all-user-locations/`);
         setLocationData(response.data);
+  
+        // Set initial location label value based on the first location in the data
+        if (response.data.length > 0) {
+          setLocationLabelValue(response.data[0].address); // Set to the first address, for example
+        }
+  
+        console.log("Location Data:", response.data); // Log locationData after setting state
       }
     } catch (error) {
       console.error('Error fetching data:', error);
     }
   };
+  
 
   const fetchUpdatedData = async () => {
     try {
@@ -320,21 +346,28 @@ const AddHelloModal = ({ onClose, onSave }) => {
                     onChange={handleLocationInputChange}
                     placeholder="(leave empty to keep address unvalidated)"
                   />
-                </div>
+                </div>   
                 {locationData.length > 0 && (
                   <div className="input-container">
                     <label htmlFor="location"> </label>
-                    <select id="location-select" className="modal-select" value={selectedLocation} onChange={handleLocationChange}>
+                    <select
+                      id="location-select"
+                      className="modal-select"
+                      value={selectedLocation}
+                      onChange={handleLocationChange} // Ensure this is correctly bound
+                    >
                       <option value="">Been here before: </option>
                       {locationData.map((locationInfo) => (
-                        <option key={locationInfo.title} value={locationInfo.address}>
-                          {locationInfo.title} {locationInfo.address}
+                        <option key={locationInfo.title} value={locationInfo.id || ''}>
+                          {locationInfo.title} {locationInfo.address || 'No address'}
                         </option>
                       ))}
                     </select>
+
                   </div>
                 )}
-                 
+
+
                 {capsuleList.length > 0 && (
                   <div>
                     {Object.entries(capsuleList.reduce((acc, capsule) => {

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import EditCard from './DashboardStyling/EditCard';
+import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
+import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
 import useSelectedFriend from '../hooks/UseSelectedFriend'; 
 
-const FriendSuggestionSettings = () => { 
+const FriendSuggestionSettings = () => {
   const [data, setData] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [effortRequired, setEffortRequired] = useState('');
@@ -30,15 +31,12 @@ const FriendSuggestionSettings = () => {
     fetchData();
   }, [selectedFriend]);
 
-  
-
   const toggleEditMode = () => {
     setIsEditMode(prevMode => !prevMode);
   };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    // Update corresponding state based on input field name
     switch (name) {
       case 'effort':
         if (['1', '2', '3', '4', '5'].includes(value)) {
@@ -63,7 +61,6 @@ const FriendSuggestionSettings = () => {
         effort_required: effortRequired,
         priority_level: priorityLevel
       });
-      // Assuming the update is successful, we can set edit mode to false to switch back to view mode
       setIsEditMode(false);
       fetchData();
     } catch (error) {
@@ -72,23 +69,18 @@ const FriendSuggestionSettings = () => {
   };
 
   return (
-    <EditCard title="Friend Settings" onEditButtonClick={toggleEditMode}>
-      <div>
-        <button onClick={toggleEditMode}>
-          {isEditMode ? '' : ''}
-        </button>
-      </div>
+    <CardExpandAndConfig title="Friend Settings" onEditButtonClick={toggleEditMode}>
       {isEditMode ? (
         <div>
           <div>
             <h1>Effort:</h1>
-            <input type="text" name="effort" defaultValue={effortRequired} onChange={handleInputChange} />
-            {effortRequired && !['1', '2', '3', '4', '5'].includes(effortRequired) && <p>Please enter a valid effort level (1, 2, 3, 4, or 5).</p>}
+            <input type="range" name="effort" min="1" max="5" value={effortRequired} onChange={handleInputChange} />
+            <span>{effortRequired}</span>
           </div>
           <div>
             <h1>Priority:</h1>
-            <input type="text" name="priority" defaultValue={priorityLevel} onChange={handleInputChange} />
-            {priorityLevel && !['1', '2', '3'].includes(priorityLevel) && <p>Please enter a valid priority level (1, 2, or 3).</p>}
+            <input type="range" name="priority" min="1" max="3" value={priorityLevel} onChange={handleInputChange} />
+            <span>{priorityLevel}</span>
           </div>
           <div>
             <button onClick={handleSubmit}>Submit</button>
@@ -99,15 +91,15 @@ const FriendSuggestionSettings = () => {
           {data ? (
             <div>
               <p><h1>Effort:</h1> {effortRequired}</p>
-              <p><h1>Priority:</h1>{priorityLevel}</p>
-              <p><h1>Max categories:</h1>{maxCategories}</p>
+              <p><h1>Priority:</h1> {priorityLevel}</p>
+              <p><h1>Max categories:</h1> {maxCategories}</p>
             </div>
           ) : (
-            <p>Loading...</p>
+            <Spinner />
           )}
         </div>
       )}
-    </EditCard>
+    </CardExpandAndConfig>
   );
 };
 

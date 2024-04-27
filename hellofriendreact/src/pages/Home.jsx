@@ -4,6 +4,7 @@ import api from '../api';
 import TabBar from '../components/DashboardStyling/TabBar';
 import Tab from '../components/DashboardStyling/Tab';
 import Header from '../components/DashboardStyling/Header';
+import Spinner from '../components/DashboardStyling/Spinner';
 import NextHelloes from '../components/NextHelloes';
 import FriendDaysSince from '../components/FriendDaysSince';
 import FriendIdeas from '../components/FriendIdeas';
@@ -27,6 +28,23 @@ const Home = () => {
   const { themeMode } = useThemeMode();
   const { selectedFriend } = useSelectedFriend();  
   const { focusMode } = useFocusMode();
+  const [loading, setLoading] = useState(true); 
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Simulate API call delay
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setLoading(false); // Set loading to false when data fetching is complete
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setLoading(false); // Set loading to false in case of error
+      }
+    };
+
+    fetchData();
+  }, []); // Empty dependency array to run once when component mounts
+
 
   return (
     <div className="App">
@@ -37,10 +55,15 @@ const Home = () => {
       <TabBar>
       {!selectedFriend && (
         <Tab label="Home">
+
+        {loading ? (
+          // Render the Spinner component while data is loading
+          <Spinner />
+            ) : (
             <NextHelloes />
+            )}
         </Tab>
       )}
-        
       {selectedFriend && !focusMode && (
         <Tab label="Dash">
             <FriendDaysSince />

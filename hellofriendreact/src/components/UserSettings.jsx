@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import CardConfig from './DashboardStyling/CardConfig';
+import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
 import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
 
@@ -78,7 +78,7 @@ const UserSettings = () => {
   };
 
   return (
-    <CardConfig title="User Settings" onEditButtonClick={toggleEditMode}>
+    <CardExpandAndConfig title="User Settings" onEditButtonClick={toggleEditMode}>
       {isEditMode ? (
         <div>
           <div>
@@ -133,7 +133,7 @@ const UserSettings = () => {
           )}
         </div>
       )}
-    </CardConfig>
+    </CardExpandAndConfig>
   );
 };
 

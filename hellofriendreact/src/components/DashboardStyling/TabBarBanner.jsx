@@ -18,23 +18,28 @@ const TabBarBanner = () => {
     <div className={`${themeMode === 'dark' ? 'dark-mode' : ''}`}>
       <div className="banner">
         <div className="banner-content"> 
+
           <div className="banner-text-field-container-friend-selector">
             <div>
               <FriendSelector />
             </div>
-            {selectedFriend && (
-            <div>
-              <ToggleFriendFocus />
-            </div>
-            )}
           </div>
+ 
           
           {selectedFriend && !focusMode && (
             <div className="banner-text-field-container">
               <QuickButtons buttonClassName="banner-button-first" /> 
             </div>
           )}
-        </div>
+          </div>
+          <div className="banner-text-field-container">
+
+          {selectedFriend && ( 
+            <div className="slidebar-container">
+              <ToggleFriendFocus />
+            </div>
+          )}
+          </div> 
       </div>
     </div>
   );

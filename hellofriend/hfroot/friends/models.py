@@ -607,6 +607,12 @@ class PastMeet(models.Model):
            # with transaction.atomic():
 
         if self.location:
+            self.location.friends.add(self.friend)
+            
+            updated_location = self.location
+            updated_location.save()
+
+            self.location_name = self.location.title
             self.typed_location = None
 
         elif self.typed_location:
@@ -653,7 +659,6 @@ class PastMeet(models.Model):
                         new_location = Location(
 
                             title=self.typed_location,
-                            address=self.typed_location,
                             user=self.user
                             )
 
@@ -702,7 +707,6 @@ class PastMeet(models.Model):
                 else:
                     self.location = None
 
-        super().save(*args, **kwargs)
                     
 
         if self.thought_capsules_shared:
@@ -748,8 +752,8 @@ class PastMeet(models.Model):
 class Location(models.Model):
 
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
-    title = models.CharField(max_length=64, unique=True, null=True)
-    address = models.CharField(max_length=64, unique=True)
+    title = models.CharField(max_length=64, unique=True)
+    address = models.CharField(max_length=64, unique=True, null=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     friends = models.ManyToManyField(Friend, blank=True)
@@ -769,11 +773,16 @@ class Location(models.Model):
 
 
     def calculate_coordinates(self):
+
+        if not self.address:
+            self.address = self.title
+ 
         coordinates = utils.get_coordinates(self.address)
+
         if coordinates:
             self.latitude = coordinates[0]
             self.longitude = coordinates[1]
-            self.validated_address = True
+            self.validated_address = True 
 
     
     def save(self, *args, **kwargs):

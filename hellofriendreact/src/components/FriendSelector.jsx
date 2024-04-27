@@ -61,8 +61,9 @@ const FriendSelector = () => {
         control: (provided, state) => ({
             ...provided,
             border: '1px solid transparent',
-            borderRadius: '18px',
-            backgroundColor: themeMode === 'dark' ? 'transparent' : 'transparent',
+            borderRadius: '40px',
+            backgroundColor: themeMode === 'dark' ? 'transparent' : 'white',
+            width: 'auto',
             color: themeMode === 'dark' ? '#333' : 'transparent',
             borderColor: state.isFocused || state.isHovered ? 'transparent' : 'transparent', // Transparent border on hover or focus
             boxShadow: state.isFocused ? 'none' : provided.boxShadow,
@@ -70,9 +71,7 @@ const FriendSelector = () => {
         }),
         singleValue: (provided, state) => ({
             ...provided,
-            color: themeMode === 'dark' ? 'white' : 'black',
-            fontSize: '20px' ,
-            fontWeight: '500'
+            color: themeMode === 'dark' ? 'white' : 'black'
         }),
         indicatorSeparator: () => ({ display: 'none' }), // Hide the indicator separator
         indicator: (provided, state) => ({
@@ -97,7 +96,6 @@ const FriendSelector = () => {
             color: state.isSelected ? 'white' : 'black',
             backgroundColor: state.isSelected ? 'gray' : 'transparent',
             '&:hover': {
-                
                 backgroundColor: 'gray',
                 color: 'white',
             },
@@ -129,4 +127,4 @@ const FriendSelector = () => {
     );
 };
 
-export default FriendSelector;
+export default React.memo(FriendSelector);

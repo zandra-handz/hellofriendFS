@@ -260,12 +260,13 @@ font-family: "Poppins", sans-serif;
 
 .slider-container {
   position: relative;
-  width: 24px;
-  height: 14px;
+  width: 30px;
+  height: 20px;
   background-color: #ddd;
   border-radius: 20px;
-  cursor: pointer;
-  margin-left: 10px;
+  cursor: pointer;   
+  align-content: right;
+  margin-right: 0;
 }
 
 
@@ -292,7 +293,7 @@ font-family: "Poppins", sans-serif;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 10px;
-  color: black;
+  color: transparent;
 }
 
 
@@ -387,22 +388,25 @@ font-family: "Poppins", sans-serif;
     width: 70%;
     display: flex;
     justify-content: flex-start; /* Updated from 'left' */
-    padding-bottom: 20px;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 
 .banner-text-field-container {
     width: auto;
     border: none;
-    margin: 0; /* Removed 'auto' to prevent centering */
+    margin-top: 2px; /* Removed 'auto' to prevent centering */
     padding: 0px;
 }
 
-.banner-text-field-container-friend-selector {
-  min-width: 120px;
+.banner-text-field-container-friend-selector { 
+  max-width: 360px;
   width: auto;
+  height: auto;
   border: none;
   margin: 0; 
+  align-items: left; 
 }
 
 .banner-text-field-container-friend-selector:hover {
@@ -576,7 +580,8 @@ margin-bottom: 8px;
     border: 2px solid rgba(229, 229, 229);
     border-radius: 10px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    padding: 20px;
+    padding-left: 20px;
+    padding-right: 20px;
     margin-bottom: 10px; /* Adjust margin as needed */
 }
 .dark-mode .edit-card {
@@ -589,11 +594,14 @@ margin-bottom: 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    top: 0;
     background-color: white;
     border-bottom: 0px solid #ccc;
-}
-
+    border-radius: 10px;
+    cursor: pointer;
+    }
 
 
 
@@ -1247,6 +1255,7 @@ margin-bottom: 8px;
   padding: 4px 8px; /* Padding around the helper text */
   border-radius: 4px; /* Border radius */
   font-size: 11px; /* Font size of the helper text */
+  z-index: 3;
 }
 
 .quick-buttons-container .image-button:hover::after {
@@ -1289,13 +1298,17 @@ margin-bottom: 8px;
   
 
 .friend-selector-container {
-    margin-bottom: 4px;
-    align-items: left;
+    margin-top: 0px;
+    align-items: center;
     position: relative; 
     padding: 0px;
     background: transparent;
     border: none;
-    display: inline-block; /* or inline-flex */
+    width: 100%;
+    font-size: 32px;
+    font-weight: 500;
+    display: inline-block; 
+    margin-bottom: 4px;
 }
 
 

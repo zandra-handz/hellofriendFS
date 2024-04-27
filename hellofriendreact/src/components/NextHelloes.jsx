@@ -55,4 +55,4 @@ const NextHelloes = () => {
     );
 };
 
-export default NextHelloes;
+export default React.memo(NextHelloes);
