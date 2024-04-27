@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaWrench, FaArrowDown, FaArrowRight } from 'react-icons/fa';
 import '/src/styles/OldStyles.css';
+import Spinner from './Spinner';
 import useThemeMode from '/src/hooks/UseThemeMode';
 
 const CardExpandAndConfig = ({ title, children, onEditButtonClick }) => {
@@ -38,7 +39,7 @@ const CardExpandAndConfig = ({ title, children, onEditButtonClick }) => {
           </button>
         </div>
         {loading ? ( // Conditionally render loading spinner if data isn't ready yet
-          <div>Loading...</div>
+          <Spinner />
         ) : (
           <div
             className="edit-card-content"

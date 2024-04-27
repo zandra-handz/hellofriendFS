@@ -30,20 +30,18 @@ const TabBarBanner = () => {
             <div className="banner-text-field-container">
               <QuickButtons buttonClassName="banner-button-first" /> 
             </div>
-          )}
-          </div>
+          )} 
           <div className="banner-text-field-container">
-
-          {selectedFriend && ( 
-            <div className="slidebar-container">
-              <ToggleFriendFocus />
-            </div>
-          )}
-          </div> 
+            {selectedFriend && ( 
+              <div>
+                <ToggleFriendFocus />
+              </div>
+            )}
+          </div>
+        </div> {/* Closing tag for banner-content */}
       </div>
     </div>
   );
-  
 };
 
 export default TabBarBanner;

@@ -1,10 +1,9 @@
-
-
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import EditCard from './DashboardStyling/EditCard';
+import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
+import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
-import useSelectedFriend from '../hooks/UseSelectedFriend';
+import useSelectedFriend from '../hooks/UseSelectedFriend'; 
 
 const FriendFaves = () => {
   const [data, setData] = useState(null);
@@ -16,7 +15,6 @@ const FriendFaves = () => {
       try {
         if (selectedFriend) {
           const response = await api.get(`/friends/${selectedFriend.id}/faves/`);
-
           setData(response.data);
         }
       } catch (error) {
@@ -32,20 +30,20 @@ const FriendFaves = () => {
   }
 
   return (
-    <EditCard title="Friend Favez">
-    {data ? (
+    <CardExpandAndConfig title="Friend Favez">
+      {data ? (
         <div>
-        <h1>Locations:</h1>
-        <select>
+          <h1>Locations:</h1>
+          <select>
             {data.locations.map(location => (
-            <option key={location.id} value={location.id}>{location.name}</option>
+              <option key={location.id} value={location.id}>{location.name}</option>
             ))}
-        </select>
+          </select>
         </div>
-    ) : (
-        <p>Loading...</p>
-    )}
-    </EditCard>
+      ) : (
+        <Spinner />
+      )}
+    </CardExpandAndConfig>
   );
 };
 
