@@ -4,6 +4,7 @@ import useAuthUser from '/src/hooks/UseAuthUser';
 import useSelectedFriend from '/src/hooks/UseSelectedFriend';
 import useCapsuleList from '/src/hooks/UseCapsuleList'; 
 import useThemeMode from '/src/hooks/UseThemeMode';
+import useUpcomingHelloes from '/src/hooks/UseUpcomingHelloes'; 
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '/src/styles/OldStyles.css';
@@ -35,7 +36,10 @@ const AddHelloModal = ({ onClose, onSave }) => {
   const [shouldClose, setShouldClose] = useState(false);
   const { selectedFriend } = useSelectedFriend();
   const { capsuleList, setCapsuleList } = useCapsuleList(); // Destructure fetchCapsuleList from the hook
-  const { authUser } = useAuthUser();
+  const { authUser } = useAuthUser(); 
+
+  const { updateTrigger, setUpdateTrigger } = useUpcomingHelloes(); // Destructure updateTrigger and setUpdateTrigger from the hook
+
 
   const handleInputChange = (e) => {
     setTextInput(e.target.value);
@@ -127,14 +131,14 @@ const AddHelloModal = ({ onClose, onSave }) => {
       if (selectedFriend) {
         const formattedDate = selectedDate.toISOString().split('T')[0];
         const capsulesDictionary = {};
-
+  
         selectedCapsules.forEach(capsule => {
           capsulesDictionary[capsule.id] = {
             typed_category: capsule.typed_category,
             capsule: capsule.capsule,
           };
         });
-
+  
         const requestData = {
           user: authUser.user.id,
           friend: selectedFriend.id,
@@ -146,12 +150,12 @@ const AddHelloModal = ({ onClose, onSave }) => {
           thought_capsules_shared: capsulesDictionary,
           delete_all_unshared_capsules: deleteChoice,
         };
-
+  
         const response = await api.post(`/friends/${selectedFriend.id}/helloes/add/`, requestData);
-
+  
         // Call the fetchCapsuleList function to refetch the capsule list data after saving
         fetchCapsuleListData();
-
+  
         setIdeaLimit('limit feature disabled');
         setTextInput('');
         setLocationInput('');
@@ -162,11 +166,11 @@ const AddHelloModal = ({ onClose, onSave }) => {
         setSelectedLocation('');
         setSuccessMessage('Hello saved successfully!');
         setShouldClose(true);
-
+  
         setTimeout(() => {
           setSuccessMessage('');
         }, 4000);
-
+  
         setTimeout(() => {
           setShouldClose((prevShouldClose) => {
             if (prevShouldClose) {
@@ -175,13 +179,17 @@ const AddHelloModal = ({ onClose, onSave }) => {
             return prevShouldClose;
           });
         }, 4000);
-
+  
         onSave(textInput);
+  
+        // Trigger update
+        setUpdateTrigger(prev => !prev);
       }
     } catch (error) {
       console.error('Error creating idea:', error);
     }
   };
+  
 
   useEffect(() => {
     const fetchData = async () => {

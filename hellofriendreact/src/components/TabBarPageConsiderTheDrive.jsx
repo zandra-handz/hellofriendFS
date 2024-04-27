@@ -117,17 +117,17 @@ const TabBarPageConsiderTheDrive = () => {
             <div className="places-restrictor">
               <div className="validate-address-container">
                 <div className="places-card-indv">
-                  <ValidateAddress headerText="I'm coming from: " onValidationChange={(isValid, address, lat, long) => handleValidationChange(isValid, address, lat, long, 'A')} />
+                  <ValidateAddress headerText="My starting address: " onValidationChange={(isValid, address, lat, long) => handleValidationChange(isValid, address, lat, long, 'A')} />
                 </div>
               </div>
               <div className="validate-address-container">
                 <div className="places-card-indv">
-                  <ValidateAddress headerText={`${selectedFriend.name} is coming from: `} onValidationChange={(isValid, address, lat, long) => handleValidationChange(isValid, address, lat, long, 'B')} />
+                  <ValidateAddress headerText={`${selectedFriend.name}'s starting address: `} onValidationChange={(isValid, address, lat, long) => handleValidationChange(isValid, address, lat, long, 'B')} />
                 </div>
               </div>
               <div className="validate-address-container">
                 <div className="places-card-indv">
-                  <ValidateAddress headerText="We are thinking of going to: " onValidationChange={(isValid, address, lat, long) => handleValidationChange(isValid, address, lat, long, 'Destination')} />
+                  <ValidateAddress headerText="Going to: " onValidationChange={(isValid, address, lat, long) => handleValidationChange(isValid, address, lat, long, 'Destination')} />
                 </div>
               </div>
             </div>

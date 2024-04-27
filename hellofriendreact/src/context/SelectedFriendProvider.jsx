@@ -1,26 +1,55 @@
 // SelectedFriendProvider.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect } from 'react';
+import api from '../api';
 
 const SelectedFriendContext = createContext({});
 
 export const SelectedFriendProvider = ({ children }) => {
-  // Retrieve selected friend from local storage or default to null
-  // const storedFriend = JSON.parse(localStorage.getItem('selectedFriend')) || null;
+  const [selectedFriend, setSelectedFriend] = useState(null);
+  const [friendList, setFriendList] = useState([]);
+  const [friendDashboardData, setFriendDashboardData] = useState(null);
 
-  // Uncomment the line above if you want to use localStorage
-  const storedFriend = null;  // Comment this line out if you use localStorage
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch all friends
+        const friendResponse = await api.get('/friends/all/');
+        const friendData = friendResponse.data;
+        setFriendList(friendData);
 
-  const [selectedFriend, setFriend] = useState(storedFriend);
+        // Initially, no friend is selected
+        setSelectedFriend(null);
+      } catch (error) {
+        console.error('Error fetching friend data:', error);
+      }
+    };
 
-  // Save selected friend to local storage whenever it changes
-  // useEffect(() => {
-  //   localStorage.setItem('selectedFriend', JSON.stringify(selectedFriend));
-  // }, [selectedFriend]);
+    fetchData();
+  }, []);
 
-  console.log('Selected Friend Provider', selectedFriend);
+  useEffect(() => {
+    const fetchFriendDashboard = async () => {
+      if (selectedFriend) {
+        try {
+          // Fetch friend dashboard data based on selected friend
+          const dashboardResponse = await api.get(`/friends/${selectedFriend.id}/dashboard/`);
+          const dashboardData = dashboardResponse.data;
+          console.log('Friend dashboard data:', dashboardData); // Log the dashboard data
+          setFriendDashboardData(dashboardData);
+        } catch (error) {
+          console.error('Error fetching friend dashboard data:', error);
+        }
+      } else {
+        // If no friend is selected, clear the dashboard data
+        setFriendDashboardData(null);
+      }
+    };
+
+    fetchFriendDashboard();
+  }, [selectedFriend]);
 
   return (
-    <SelectedFriendContext.Provider value={{ selectedFriend, setFriend }}>
+    <SelectedFriendContext.Provider value={{ selectedFriend, setFriend: setSelectedFriend, friendList, friendDashboardData }}>
       {children}
     </SelectedFriendContext.Provider>
   );

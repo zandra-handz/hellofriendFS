@@ -7,6 +7,7 @@ import Header from '../components/DashboardStyling/Header';
 import Spinner from '../components/DashboardStyling/Spinner';
 import NextHelloes from '../components/NextHelloes';
 import FriendDaysSince from '../components/FriendDaysSince';
+import FriendNextHello from '../components/FriendNextHello';
 import FriendIdeas from '../components/FriendIdeas';
 import FriendImages from '../components/FriendImages';
 import UserSettings from '../components/UserSettings';
@@ -67,6 +68,7 @@ const Home = () => {
       {selectedFriend && !focusMode && (
         <Tab label="Dash">
             <FriendDaysSince />
+            <FriendNextHello />
             <FriendFaves />
             <FriendSuggestionSettings />
         </Tab>

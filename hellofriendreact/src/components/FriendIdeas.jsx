@@ -32,18 +32,31 @@ const FriendIdeas = () => {
   };
 
   const expandAll = () => {
-    const allExpanded = Object.keys(expandedCategories).every(category => expandedCategories[category]);
     const newExpandedCategories = {};
     Object.keys(expandedCategories).forEach(category => {
-      newExpandedCategories[category] = !allExpanded;
+      newExpandedCategories[category] = true;
     });
     setExpandedCategories(newExpandedCategories);
   };
 
+  const collapseAll = () => {
+    const newExpandedCategories = {};
+    Object.keys(expandedCategories).forEach(category => {
+      newExpandedCategories[category] = false;
+    });
+    setExpandedCategories(newExpandedCategories);
+  };
+
+
   return (
-    <div>
-      <ButtonExpandAll onClick={expandAll} expandText="Expand all" collapseText="Close all" /> 
-      
+    <>
+      {capsuleList.length > 0 && (
+        <div className="expand-all-button-container">
+          <ButtonExpandAll onClick={expandAll} text="Expand all" /> 
+          <ButtonExpandAll onClick={collapseAll} text="Collapse all" />
+        </div>
+      )}
+
       {capsuleList.length > 0 ? (
         Object.entries(capsuleList.reduce((acc, capsule) => {
           if (!acc[capsule.typedCategory]) {
@@ -67,7 +80,7 @@ const FriendIdeas = () => {
       ) : (
         <p></p>
       )}
-    </div>
+    </>
   );
 };
 

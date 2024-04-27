@@ -168,6 +168,9 @@ class NextMeet(models.Model):
     class Meta:
         ordering = ('date',)
 
+    def reset_date(self):
+        self.date = get_yesterday()
+
 
     @property
     def days_since(self):
@@ -259,7 +262,7 @@ class NextMeet(models.Model):
         p = date.strftime("%B") + " " + str(date.day)
         s = date.strftime("%Y")
         words = f"{l}, {p}" #, {s}"
-        return words.lower()
+        return words
 
 
 
@@ -733,15 +736,14 @@ class PastMeet(models.Model):
                 except ThoughtCapsulez.DoesNotExist:
                     pass
                 
-
-            if self.friend.next_meet:
-                self.friend.next_meet.save()
+ 
 
                 
+        super().save(*args, **kwargs)
 
-        else:
-
-            super().save(*args, **kwargs)
+        if self.friend.next_meet:
+            self.friend.next_meet.reset_date()
+            self.friend.next_meet.save()
 
     def __str__(self):
 

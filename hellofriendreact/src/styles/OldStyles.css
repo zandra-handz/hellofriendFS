@@ -393,7 +393,7 @@ font-family: "Poppins", sans-serif;
     display: flex;
     justify-content: flex-start; /* Updated from 'left' */
     padding-bottom: 10px;
-    margin-bottom: 50px;
+    margin-bottom: 50px; 
     margin-top: 0;
     top: 0;
 }
@@ -663,8 +663,8 @@ margin-bottom: 8px;
 
 
 .places-card {
-  background-color: white;
-  border: 1px solid gray;
+  background-color: transparent;
+  border: 0px solid gray;
   border-radius: 10px; 
   box-shadow: 0 0px 0px rgba(0, 0, 0, 0.1);
   padding: 0;
@@ -680,6 +680,7 @@ margin-bottom: 8px;
   width: 100%;
   height: 100%; 
   padding: 10px;
+  
   justify-content: space-evenly;
 }
 
@@ -690,7 +691,7 @@ margin-bottom: 8px;
   display: inline-flex;
   color: black;
   font-size: 22px;
-  font-weight: 500;
+  font-weight: 300;
   padding-bottom: 30px;
 }
 
@@ -699,7 +700,7 @@ margin-bottom: 8px;
 }
 
 .dark-mode .places-card {
-  background-color: #292929;
+  background-color: transparent;
   border: none;
 }
 
@@ -709,6 +710,15 @@ margin-bottom: 8px;
   width: 400px;
   justify-content: space-around;
   align-items: center;
+  background-color:rgb(160, 241, 67);
+  background-color: white;
+  border-radius: 18px;
+  padding: 20px;
+  
+}
+
+.dark-mode .places-restrictor {
+  background-color: #292929;
 }
 
 .places-restrictor-proximity-search {
@@ -719,6 +729,15 @@ margin-bottom: 8px;
   max-width: 400px;
   width: auto;
   padding: 0px;
+  background-color: white;
+  border-radius: 18px;
+  padding: 20px;
+}
+
+
+.dark-mode .places-restrictor-proximity-search {
+  background-color: #292929;
+
 }
 
 .places-restrictor-proximity-search .section {
@@ -761,17 +780,14 @@ margin-bottom: 8px;
 }
 
 
- 
 
 .places-card-content {
    /* Occupy full width when stacked */
   font-size: 12px;
-  font-weight: 400;
-  padding-top: 10px;
-  color: #919191;
+  font-weight: 400; 
+  border-radius: 18px;
   display: flex;
-  justify-content: space-evenly;
-
+  justify-content: space-evenly; 
   flex-wrap: wrap;
   box-sizing: border-box; /* Include padding in the width */
   margin-bottom: 10px; /* Add margin between items */
@@ -780,6 +796,7 @@ margin-bottom: 8px;
 .dark-mode .places-card-content {
   color: white;
 }
+
 
  
 
@@ -809,6 +826,13 @@ margin-bottom: 8px;
   align-items: center;
   width: 100%; 
 
+}
+
+v
+
+
+.places-card-indv input {
+  border-radius: 20px;
 }
 
 
@@ -860,13 +884,16 @@ margin-bottom: 8px;
 .validate-address-container {
   margin-top: 0px;
   margin-bottom: 10px;
-  width: 100%; /* Adjust spacing between each ValidateAddress component */
+  width: 100%;  
 }
+
+ 
+
 
 .places-card .label {
   /* Your styles for the label */
   /* Example styles: */
-  font-size: 24px;
+  font-size: 20px;
   margin-top: 5px;
   color: #333;
   background-color: white;
@@ -906,6 +933,8 @@ margin-bottom: 8px;
   cursor: pointer; 
   
 }
+
+
 
  
 
@@ -977,9 +1006,9 @@ margin-bottom: 8px;
 .places-card-validate-button:hover::after {
   content: 'Validate'; 
   position: absolute;
-  top: 100%;
+  bottom: 118%;
   width: 160%;
-  left: 0;
+  right: 10%;
   background-color: rgba(0, 0, 0, 0.7); 
   color: white; 
   padding: 4px 4px; /* Padding around the helper text */
@@ -1120,7 +1149,7 @@ margin-bottom: 8px;
 
 
 .places-card-validate-button:hover  {
-  background:  rgb(119, 249, 38); 
+  color:  rgb(119, 249, 38); 
 }
 
 
@@ -1169,6 +1198,7 @@ margin-bottom: 8px;
     font-size: 16px;
     font-weight: 400;
     color: #919191;
+    color: black;
     margin-bottom: 10px;
 }
 
@@ -2032,16 +2062,27 @@ margin-bottom: 8px;
 .custom-dropdown {
   position: relative;
   width: 90%;
+  border-radius: 18px; 
+  
 }
 
 .custom-dropdown select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none; 
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border: 2px solid rgb(160, 241, 67);
+ 
+  border-bottom: 2px solid #4caf50;
+  border-radius: 18px;
   background-color: #fff;
   cursor: pointer;
+  border-radius: 18px; 
+}
+
+.dark-mode .custom-dropdown select {
+  border: 1px solid #ccc; 
+  background-color: #fff;
+
 }
 
 .custom-dropdown select:focus {
@@ -2087,8 +2128,8 @@ margin-bottom: 8px;
 
 
 .expand-all-button-container {
-  display: flex;
-  justify-content: left;
+  display: flex; /* Use flexbox */
+  justify-content: flex-start; /* Align items to the start */
   width: 100%;
 }
 

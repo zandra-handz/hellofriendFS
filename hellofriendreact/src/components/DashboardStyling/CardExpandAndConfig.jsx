@@ -39,7 +39,7 @@ const CardExpandAndConfig = ({ title, children, onEditButtonClick }) => {
           </button>
         </div>
         {loading ? ( // Conditionally render loading spinner if data isn't ready yet
-          <Spinner />
+          <p></p>
         ) : (
           <div
             className="edit-card-content"

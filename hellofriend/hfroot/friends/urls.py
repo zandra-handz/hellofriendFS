@@ -8,6 +8,7 @@ urlpatterns = [
     path('all/', views.FriendsView.as_view()),
     path('create/', views.FriendCreateView.as_view()),
     path('<int:friend_id>/', views.FriendDetail.as_view()),
+    path('<int:friend_id>/dashboard/', views.FriendDashboardView.as_view()),
     path('<int:friend_id>/settings/', views.FriendSuggestionSettingsDetail.as_view()),
     path('<int:friend_id>/settings/update/', views.FriendSuggestionSettingsDetail.as_view()),
     path('<int:friend_id>/category-limit/', views.FriendSuggestionSettingsCategoryLimit.as_view()),

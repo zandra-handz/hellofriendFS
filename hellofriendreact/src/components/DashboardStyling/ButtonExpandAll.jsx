@@ -15,10 +15,9 @@ const ButtonExpandAll = ({ onClick, expandText, collapseText }) => {
   };
 
   return (
-    <div className={`${themeMode === 'dark' ? 'dark-mode' : ''}`}>
-        <div className='expand-all-button-container'>
-            <button className='mass-function-button' onClick={handleClick}>{expanded ? collapseText : expandText}</button>
-        </div>
+    <div className={`${themeMode === 'dark' ? 'dark-mode' : ''}`}> 
+        <button className='mass-function-button' onClick={handleClick}>{expanded ? collapseText : expandText}</button>
+         
     </div>
   );
 };

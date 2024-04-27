@@ -12,24 +12,25 @@ const FriendSuggestionSettings = () => {
   const [priorityLevel, setPriorityLevel] = useState('');
   const [maxCategories, setMaxCategories] = useState('');
   const { authUser } = useAuthUser();
-  const { selectedFriend } = useSelectedFriend();
+  const { selectedFriend, friendDashboardData } = useSelectedFriend();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        if (selectedFriend) {
-          const response = await api.get(`/friends/${selectedFriend.id}/settings/`);
-          setData(response.data);
-          setEffortRequired(response.data.effort_required);
-          setPriorityLevel(response.data.priority_level);
-          setMaxCategories(response.data.category_limit_formula);
+        if (friendDashboardData && friendDashboardData.length > 0) {
+          const suggestionSettings = friendDashboardData[0].suggestion_settings;
+          if (suggestionSettings) {
+            setEffortRequired(suggestionSettings.effort_required);
+            setPriorityLevel(suggestionSettings.priority_level);
+            setMaxCategories(suggestionSettings.category_limit_formula);
+          }
         }
       } catch (error) {
         console.error('Error fetching data:', error);
       }
     };
     fetchData();
-  }, [selectedFriend]);
+  }, [friendDashboardData]);
 
   const toggleEditMode = () => {
     setIsEditMode(prevMode => !prevMode);
@@ -88,14 +89,14 @@ const FriendSuggestionSettings = () => {
         </div>
       ) : (
         <div>
-          {data ? (
+          {friendDashboardData ? (
             <div>
               <p><h1>Effort:</h1> {effortRequired}</p>
               <p><h1>Priority:</h1> {priorityLevel}</p>
               <p><h1>Max categories:</h1> {maxCategories}</p>
             </div>
           ) : (
-            <Spinner />
+            <p></p>
           )}
         </div>
       )}

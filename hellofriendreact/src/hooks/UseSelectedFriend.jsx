@@ -8,7 +8,10 @@ const useSelectedFriend = () => {
     throw new Error('useSelectedFriend must be used within a SelectedFriendProvider');
   }
 
-  return context;
+  return {
+    ...context,
+    friendDashboardData: context.friendDashboardData // Include dashboard data in the returned object
+  };
 };
 
 export default useSelectedFriend;

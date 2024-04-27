@@ -1,42 +1,15 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import api from '../api';
+import React, { useMemo, useCallback } from 'react';
 import Select from 'react-select';
 import { FaHome } from 'react-icons/fa';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
 import useFriendList from '../hooks/UseFriendList';
-import useCapsuleList from '../hooks/UseCapsuleList';
 import useThemeMode from '../hooks/UseThemeMode';
 
 const FriendSelector = () => {
     const { themeMode } = useThemeMode();
     const { selectedFriend, setFriend } = useSelectedFriend();
-    const { friendList, setFriendList } = useFriendList([]);
-    const { capsuleList, setCapsuleList } = useCapsuleList([]);
-    const [initialData, setInitialData] = useState(null);
-    const [refreshIndicator, setRefreshIndicator] = useState(false); // State to trigger refresh
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await api.get('/friends/all/');
-                const friendData = response.data;
-                setInitialData(friendData);
-                setFriendList(friendData.map((friend) => ({ id: friend.id, name: friend.name })));
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            }
-        };
-
-        fetchData();
-    }, [setFriendList, refreshIndicator]); // Include refreshIndicator in dependencies
-
-    useEffect(() => {
-        // Logic to handle the effect when the length of the friendList changes
-        console.log('Length of friendList changed. Refreshing FriendSelector...');
-        // Set refreshIndicator to trigger a re-fetch
-        setRefreshIndicator(prevState => !prevState);
-    }, [friendList.length]); // Include friendList length in dependencies
-
+    const { friendList } = useFriendList([]);
+    
     const handleSelectChange = useCallback((selectedOption) => {
         if (selectedOption && selectedOption.value === '') {
             setFriend(null);
@@ -47,14 +20,12 @@ const FriendSelector = () => {
     }, [setFriend]);
 
     const options = useMemo(() => {
-        if (!initialData) return [];
+        if (!friendList) return [];
         return [
             { value: '', label: <FaHome /> }, 
-            ...initialData.map((item) => ({ value: item.id, label: item.name, data: item })),
+            ...friendList.map((friend) => ({ value: friend.id, label: friend.name, data: friend })),
         ];
-    }, [initialData]);
-
-    console.log('Selected Friend in FriendSelector:', selectedFriend);
+    }, [friendList]);
 
     // Define selectStyles inside the component body to recalculate when themeMode changes
     const selectStyles = useMemo(() => ({
@@ -118,7 +89,6 @@ const FriendSelector = () => {
 
                 {selectedFriend && (
                     <div>
-                        <h2></h2>
                         {/* Display additional details about the selected friend here */}
                     </div>
                 )}

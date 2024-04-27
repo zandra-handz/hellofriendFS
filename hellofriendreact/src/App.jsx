@@ -7,6 +7,7 @@ import NotFound from './pages/NotFound';
 import Home from './pages/Home';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthUserProvider } from './context/AuthUserProvider'; 
+import { UpcomingHelloesProvider } from './context/UpcomingHelloesProvider'; 
 import { SelectedFriendProvider } from './context/SelectedFriendProvider'; 
 import { FriendListProvider } from './context/FriendListProvider'; 
 import { CapsuleListProvider } from './context/CapsuleListProvider'; 
@@ -34,17 +35,19 @@ function App() {
           element={
             <ProtectedRoute>
               <AuthUserProvider>
-                <SelectedFriendProvider>
-                  <FriendListProvider>
-                    <CapsuleListProvider>  
-                      <FocusModeProvider>
-                        <ThemeModeProvider>
-                          <Home />
-                        </ThemeModeProvider>
-                      </FocusModeProvider>
-                    </CapsuleListProvider>
-                  </FriendListProvider>
-                </SelectedFriendProvider>
+                <UpcomingHelloesProvider>
+                  <SelectedFriendProvider>
+                    <FriendListProvider>
+                      <CapsuleListProvider>  
+                        <FocusModeProvider>
+                          <ThemeModeProvider>
+                            <Home />
+                          </ThemeModeProvider>
+                        </FocusModeProvider>
+                      </CapsuleListProvider>
+                    </FriendListProvider>
+                  </SelectedFriendProvider>
+                </UpcomingHelloesProvider>
               </AuthUserProvider>
             </ProtectedRoute>
           }

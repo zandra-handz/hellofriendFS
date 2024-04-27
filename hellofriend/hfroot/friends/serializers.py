@@ -85,6 +85,24 @@ class NextMeetSerializer(serializers.ModelSerializer):
         model = models.NextMeet
         fields = '__all__'
 
+class FriendDashboardSerializer(serializers.ModelSerializer):
+    suggestion_settings = FriendSuggestionSettingsSerializer(source='friend_suggestion_settings', read_only=True)
+    friend_faves = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.NextMeet
+        fields = ['id', 'date', 'friend', 'days_since', 'days_since_words', 
+                  'time_score', 'future_date_in_words', 'category_activations_left', 
+                  'suggestion_settings', 'friend_faves']
+
+    def get_friend_faves(self, obj):
+        friend = obj.friend  # Get the friend associated with the NextMeet instance
+        friend_faves_instance = models.FriendFaves.objects.filter(friend=friend).first()
+        if friend_faves_instance:
+            return FriendFavesSerializer(instance=friend_faves_instance).data
+        else:
+            return None
+
 
 class UpcomingMeetsSerializer(serializers.ModelSerializer):
 

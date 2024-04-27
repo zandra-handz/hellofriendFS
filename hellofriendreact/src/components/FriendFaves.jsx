@@ -8,14 +8,17 @@ import useSelectedFriend from '../hooks/UseSelectedFriend';
 const FriendFaves = () => {
   const [data, setData] = useState(null);
   const { authUser } = useAuthUser();
-  const { selectedFriend } = useSelectedFriend();
+  const { selectedFriend, friendDashboardData } = useSelectedFriend();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        if (selectedFriend) {
-          const response = await api.get(`/friends/${selectedFriend.id}/faves/`);
-          setData(response.data);
+        if (friendDashboardData && friendDashboardData.length > 0) {
+          // Assuming friend_faves is nested inside friendDashboardData
+          const friendFaves = friendDashboardData[0].friend_faves;
+          if (friendFaves) {
+            setData(friendFaves);
+          }
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -23,7 +26,7 @@ const FriendFaves = () => {
     };
 
     fetchData();
-  }, [authUser, selectedFriend]);
+  }, [friendDashboardData]);
 
   if (!selectedFriend) {
     return <p>No friend selected.</p>;
@@ -41,7 +44,7 @@ const FriendFaves = () => {
           </select>
         </div>
       ) : (
-        <Spinner />
+        <p></p>
       )}
     </CardExpandAndConfig>
   );

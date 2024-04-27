@@ -116,6 +116,18 @@ class NextMeetView(generics.ListAPIView):
         return models.NextMeet.objects.filter(user=user, friend_id=friend_id)
 
 
+class FriendDashboardView(generics.ListAPIView):
+    serializer_class = serializers.FriendDashboardSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id']
+        return models.NextMeet.objects.filter(user=user, friend_id=friend_id)
+
+
+
 
 class NextMeetsAllView(generics.ListCreateAPIView):
     serializer_class = serializers.NextMeetSerializer
