@@ -10,24 +10,17 @@ const NextHelloes = () => {
     return (
         <div>
             <Card title='Next Helloes'>
-                {upcomingHelloes && (
-                    <div>
-                        {upcomingHelloes.map((item) => (
-                            <div key={item.id}>
-                                <ul>
-                                    <li>
-                                        {/* Use the MainNextHelloButton component here */}
-                                        <MainNextHelloButton
-                                            friendName={item.friend_name}
-                                            futureDate={item.future_date_in_words}
-                                            friendObject={item.friend}
-                                        />
-                                    </li>
-                                </ul>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                <div className="hello-grid">
+                    {upcomingHelloes && upcomingHelloes.map((item) => (
+                        <div className="hello-item" key={item.id}>
+                            <MainNextHelloButton
+                                friendName={item.friend_name}
+                                futureDate={item.future_date_in_words}
+                                friendObject={item.friend}
+                            />
+                        </div>
+                    ))}
+                </div>
             </Card>
         </div>
     );

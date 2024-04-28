@@ -14,9 +14,11 @@ const FriendNextHello = () => {
   const firstFriendData = friendDashboardData[0]; // Assuming you want data for the first friend
 
   return ( 
-    <Card title="Next Meetup">
-      <p>{firstFriendData.future_date_in_words} </p>
-    </Card> 
+    <>
+      <h4> Next hello:</h4>
+      <h4>{firstFriendData.future_date_in_words} </h4>
+    </>
+       
   );
 };
 

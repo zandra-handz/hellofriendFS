@@ -1,5 +1,5 @@
 import React from 'react';
-import Card from './DashboardStyling/Card';
+import CardHalfWidth from './DashboardStyling/CardHalfWidth';
 import { FaFrown, FaStar, FaHeart, FaSmile, FaMeh, FaSadTear, FaThumbsDown } from 'react-icons/fa';
 import useSelectedFriend from '../hooks/UseSelectedFriend';   
 
@@ -36,9 +36,11 @@ const FriendDaysSince = () => {
   const firstFriendData = friendDashboardData[0]; // Assuming you want data for the first friend
 
   return ( 
-    <Card title="Days Since">
-      <p>{firstFriendData.days_since} {renderIcon()} </p>
-    </Card> 
+    <>
+      <h4>Days Since: </h4>
+      <h4>{firstFriendData.days_since}   {renderIcon()}</h4>
+    </>
+    
   );
 };
 

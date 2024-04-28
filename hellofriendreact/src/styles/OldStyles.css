@@ -187,8 +187,8 @@ font-family: "Poppins", sans-serif;
 
 .header {
     background: rgb(83, 175, 25); 
-    color: white;
-    padding: .11em;
+    background: linear-gradient(to right, #4caf50, rgb(160, 241, 67));
+    color: white; 
     text-align: center;
     position: fixed;
     font-size: 13px;
@@ -208,9 +208,9 @@ font-family: "Poppins", sans-serif;
   .header-item {
     padding-right: 2px; 
     padding-left: 2px; 
-    margin-top: 0;
+    margin-top: 0px;
   }
-
+ 
   
 
 
@@ -225,16 +225,20 @@ font-family: "Poppins", sans-serif;
   background: none;
   border: none;
   cursor: pointer; 
-  font-size: 14px;
+  font-size: 15px;
   color: white; 
-  padding-top: 4px;
+  padding-top: 2px;
   margin-left: 2px;
-  
+
 }
 
 
 .dark-mode .header-button {
   color:#04D9FF;
+}
+
+.dark-mode .header-button:hover {
+  color:rgb(1, 99, 210);
 }
 
 
@@ -267,7 +271,7 @@ font-family: "Poppins", sans-serif;
   height: 10px;
   top: 12px;
   margin-left: 16px;
-  background-color: #ddd;
+  background-color: green;
   border-radius: 20px;
   cursor: pointer;   
   align-content: right;
@@ -297,9 +301,24 @@ font-family: "Poppins", sans-serif;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 10px;
-  color: transparent;
+  color: black;
 }
 
+
+
+.slider-focus {
+  background-color:rgb(160, 241, 67);
+  transform: translateX(0);
+}
+
+.dark-mode .slider-focus {
+  background-color: #04D9FF;
+}
+
+.slider-blur {
+  background-color: #a2a3a0;
+  transform: translateX(100%);
+}
 
 
 .dark-mode .slider-text {
@@ -393,7 +412,7 @@ font-family: "Poppins", sans-serif;
     display: flex;
     justify-content: flex-start; /* Updated from 'left' */
     padding-bottom: 10px;
-    margin-bottom: 50px; 
+    margin-bottom: 52px; 
     margin-top: 0;
     top: 0;
 }
@@ -555,31 +574,62 @@ margin-bottom: 8px;
 }
  
 .pulsing-text {
+  font-size: 12px;
+  font-weight: 600;
   animation: pulse 3s infinite linear; /* Using linear timing function to ensure constant speed */
   color: black; /* Hide the original text */
-  background-image: linear-gradient(to right, black, lightyellow); /* Apply gradient only to the text */
+  background-image: linear-gradient(to right, black, #4caf50); /* Apply gradient only to the text */
+  
   background-size: 200% 50%; /* Double the width to cover the whole text */
   background-clip: text; /* Clip the gradient to the text */
   -webkit-background-clip: text; /* For Safari/Chrome */
   -webkit-text-fill-color: black; /* Hide text fill color for Safari/Chrome */
 }
 
+.dark-mode .pulsing-text {
+  background-image: linear-gradient(to right, black, #04D9FF); /* Apply gradient only to the text */
+  
+
+}
+
 .pulsing-text:hover {
-  content: "→"; /* Add the arrow as content */
+  animation: none; 
   position: relative;
-  color: black;
-  top: 0;
-  right: -1em; /* Adjust the position of the arrow */
+  color: white;
+  -webkit-text-fill-color: white;  
 }
 
 .upcoming-button {
-    background-color: transparent;
-    color: black;
-    border: none;
-    cursor: pointer;
-    outline: none; 
+  background-color: lightgray;
+  border: 1px solid darkgray;
+  cursor: pointer;
+  outline: none; 
+  
+  border-radius: 18px;
+  padding: 10px;  
+  color: white;
+  animation: none;
+  white-space: nowrap; /* Prevent text from wrapping */
+  overflow: hidden; /* Hide overflowing text */
+  text-overflow: ellipsis; /* Display ellipsis for overflow text */
+}
+
+.dark-mode .upcoming-button {
+  background-color: gray;
+  color: white;
+  border: none;
+
+}
+
+.upcoming-button:hover {
+  background: rgb(160, 241, 67);
+  border: 1px solid rgb(160, 241, 67);
 }
  
+.dark-mode .upcoming-button:hover {
+  background: #04D9FF;
+  border: none;
+}
 
 .edit-card {
     background-color: white;
@@ -641,18 +691,65 @@ margin-bottom: 8px;
   color:#04D9FF;
 }
 
+.gradient-background {
+  background: linear-gradient(to right, #4caf50, rgb(160, 241, 67)); /* Apply gradient background */
+  padding: 0px; /* Add padding to create space around the cards */
+  margin-bottom: 10px;
+  border-radius: 20px;
+}
+
+
+.dark-mode .gradient-background {
+  background: linear-gradient(to right, #c5fefa, #04D9FF);
+
+}
+.card-container {
+  display: inline-flex;
+  flex-wrap: wrap;
+  width: 100%;
+  justify-content: space-between;
+  border: 7px solid white;
+  border-radius:20px;
+  
+}
+
+.dark-mode .card-container {
+  border: 7px solid black;
+}
+
+.half-width-card {
+  flex-basis: calc(50% - 6px); /* Adjust flex-basis to take up 50% of the container with a small gap between cards */
+  position: relative; /* Set position to relative for pseudo-elements */
+  padding: 20px;
+  margin-bottom: 0px;   
+  justify-content: center;
+  border: 1px solid rgb(160, 241, 67);
+  border-radius: 18px; /* CHANGE RADIUS HERE */
+  
+  /* Add white box shadow all around */
+  box-shadow: 0 0 0 12px white;
+}
+
+.dark-mode .half-width-card {
+  box-shadow: 0 0 0 12px black;
+  border: 1px solid #04D9FF;
+}
+
+
+
+
 .card {
   background-color: white;
-  border: 2px solid rgba(229, 229, 229);
+  border: 2px solid rgba(229, 229, 229); 
   border-radius: 10px;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  justify-content: center;
-  align-items: center;
-  align-content: center;
+  padding: 20px; 
+  margin: 0 10px 10px 0;
   width: 100%;
-  margin-bottom: 10px; /* Adjust margin as needed */
+  box-sizing: border-box; /* Ensure padding and border are included in the width calculation */
 }
+
+
 
 
 .dark-mode .card {
@@ -909,9 +1006,6 @@ v
   padding: 8px;
   box-sizing: border-box;
   border: 0px solid slategray;
-  
-  
-  
   cursor: pointer;
   margin-right: 40px;
   outline: none; 
@@ -934,8 +1028,6 @@ v
   
 }
 
-
-
  
 
 .dark-mode .places-card input {
@@ -952,17 +1044,6 @@ v
 }
 
 
-.places-card-wide input {
-  border-radius: 20px;
-  min-width: 280px;
-  font-size: 13px;
-  padding: 6px 10px 6px 10px;
-  margin: 0px;
-  box-sizing: border-box;
-  border: 1px solid slategray;
-  cursor: pointer;
-
-}
 
 .places-card button {
   color: black;
@@ -1044,8 +1125,8 @@ v
   color: white; 
   align-items: center;
   padding: 4px;
-  padding-right: 22px; /* Padding around the helper text */
-  padding-left: 16px;
+  padding-right: 6px; /* Padding around the helper text */
+  padding-left: 12px;
   border-radius: 4px; /* Border radius */
   font-size: 13px; /* Font size of the helper text */
 
@@ -1071,14 +1152,14 @@ v
   
   }
   
-  @keyframes spin {
-    from {
-      transform: rotate(360deg);
-    }
-    to {
-      transform: rotate(0deg);
-    }
+@keyframes spin {
+  from {
+    transform: rotate(0deg); /* Start from 0 degrees */
   }
+  to {
+    transform: rotate(-360deg); /* End at -360 degrees to spin counterclockwise */
+  }
+}
   
 .places-restrictor .submit-button {
   
@@ -1168,7 +1249,7 @@ v
 .card-title,
 .places-card-title,
 .places-card-wide-title {
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 600;
     color: black;
     margin-bottom: 10px;
@@ -1254,12 +1335,18 @@ v
   border: none; 
   padding: 6px;
   margin-left: 4px;
+  border-bottom: 2px solid rgb(160, 241, 67);
+  border-right: 2px solid rgb(160, 241, 67);
+  border-top: 2px solid rgb(160, 241, 67);
+  border-bottom: 2px solid rgb(46, 46, 46);
+  border-top: 2px solid white;
 
 }
 
 .dark-mode .quick-buttons-container .capsule-button,
 .dark-mode .quick-buttons-container .image-button,
 .dark-mode .quick-buttons-container .hello-button {
+  border: none;
   background-color: transparent;
   color:#04D9FF;
 }
@@ -1275,6 +1362,7 @@ v
 .quick-buttons-container .image-button:hover,
 .quick-buttons-container .hello-button:hover {
   color: #ec18bb; /* Change color on hover */
+  color: black;
   animation: breathe 2s infinite alternate; /* Apply the breathing animation on hover */
 }
 .quick-buttons-container .capsule-button:hover::after {
@@ -2081,7 +2169,8 @@ v
 
 .dark-mode .custom-dropdown select {
   border: 1px solid #ccc; 
-  background-color: #fff;
+  background-color: black;
+  border: 2px solid black;
 
 }
 
@@ -2217,4 +2306,15 @@ v
 
 .fa-icon {
   margin-left: 8px;
+}
+
+
+.hello-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Two items per row */
+  gap: 20px; /* Adjust gap between items */
+}
+
+.hello-item {
+  font-size: 29px;
 }

@@ -4,8 +4,9 @@ import api from '../api';
 import TabBar from '../components/DashboardStyling/TabBar';
 import Tab from '../components/DashboardStyling/Tab';
 import Header from '../components/DashboardStyling/Header';
-import Spinner from '../components/DashboardStyling/Spinner';
+import TabSpinner from '../components/DashboardStyling/TabSpinner';
 import NextHelloes from '../components/NextHelloes';
+import FriendDashHeader from '../components/FriendDashHeader';
 import FriendDaysSince from '../components/FriendDaysSince';
 import FriendNextHello from '../components/FriendNextHello';
 import FriendIdeas from '../components/FriendIdeas';
@@ -59,7 +60,7 @@ const Home = () => {
 
         {loading ? (
           // Render the Spinner component while data is loading
-          <Spinner />
+          <TabSpinner />
             ) : (
             <NextHelloes />
             )}
@@ -67,8 +68,10 @@ const Home = () => {
       )}
       {selectedFriend && !focusMode && (
         <Tab label="Dash">
-            <FriendDaysSince />
-            <FriendNextHello />
+            <FriendDashHeader
+              friendDaysSince={<FriendDaysSince />}
+              friendNextHello={<FriendNextHello />}
+            />
             <FriendFaves />
             <FriendSuggestionSettings />
         </Tab>
@@ -80,7 +83,7 @@ const Home = () => {
           <FriendImages />
         </Tab>
       )}
-      {selectedFriend && (
+      {selectedFriend && !focusMode && (
         <Tab label="Places">
           <TabBarPageConsiderTheDrive />
         </Tab>

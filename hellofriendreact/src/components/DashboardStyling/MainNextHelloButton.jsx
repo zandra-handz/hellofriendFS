@@ -2,6 +2,8 @@ import React from 'react';
 import '/src/styles/OldStyles.css';
 import useSelectedFriend from '/src/hooks/UseSelectedFriend'; 
 import useThemeMode from '/src/hooks/UseThemeMode';
+import { FaArrowRight } from 'react-icons/fa';
+
 
 
 
@@ -28,7 +30,7 @@ const MainNextHelloButton = ({ friendName, futureDate, friendObject }) => {
                 onClick={() => setFriend(friendObject)}
             >
                 <span className="upcoming-button-text pulsing-text">
-                    {friendName} on {futureDate}
+                    {friendName}  <FaArrowRight /> {futureDate}
                 </span>
             </button>
         </div>
