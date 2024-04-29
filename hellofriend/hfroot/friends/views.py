@@ -492,7 +492,7 @@ def consider_the_drive(request):
     return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
-class LocationDetail(generics.RetrieveUpdateAPIView):
+class LocationDetail(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
     serializer_class = serializers.LocationSerializer
     permission_classes = [IsAuthenticated] 
 

@@ -3,6 +3,7 @@ import api from '../api';
 import CardUneditable from './DashboardStyling/CardUneditable';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
 import DetailImageModal from './DashboardStyling/DetailImageModal';  
+import TabSpinner from './DashboardStyling/TabSpinner';
 
 const FriendImages = () => {
   const [imagesByCategory, setImagesByCategory] = useState({});

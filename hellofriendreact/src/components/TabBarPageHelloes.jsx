@@ -3,6 +3,7 @@ import api from '../api';
 import CardUneditable from './DashboardStyling/CardUneditable';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
 import useThemeMode from '../hooks/UseThemeMode';
+import TabSpinner from './DashboardStyling/TabSpinner';
 
 const TabBarPageHelloes = () => {
   const { themeMode } = useThemeMode();
@@ -44,7 +45,7 @@ const TabBarPageHelloes = () => {
           </div>
         ))
       ) : (
-        <p>No helloes available.</p>
+        <TabSpinner />
       )}
     </div>
   );

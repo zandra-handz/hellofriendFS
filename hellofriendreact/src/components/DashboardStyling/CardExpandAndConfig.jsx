@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaWrench, FaArrowDown, FaArrowRight } from 'react-icons/fa';
+import { FaArrowDown, FaArrowRight } from 'react-icons/fa';
 import '/src/styles/OldStyles.css';
 import Spinner from './Spinner';
 import useThemeMode from '/src/hooks/UseThemeMode';
 
-const CardExpandAndConfig = ({ title, children, onEditButtonClick }) => {
-  const [expanded, setExpanded] = useState(false);
+const CardExpand = ({ title, children, expanded, onExpandButtonClick }) => { 
   const [loading, setLoading] = useState(true); // State for loading spinner
   const { themeMode } = useThemeMode();
   const contentRef = useRef(null); // Ref for the content element
@@ -17,12 +16,8 @@ const CardExpandAndConfig = ({ title, children, onEditButtonClick }) => {
     }, 1000); // Simulated delay of 1 second
   }, []);
 
-  const toggleExpand = () => {
-    setExpanded(prevExpanded => !prevExpanded);
-  };
-
   const handleHeaderClick = () => {
-    toggleExpand();
+    onExpandButtonClick(); // Call the provided onExpandButtonClick function
     // Focus on content when expanded
     if (!expanded && contentRef.current) {
       contentRef.current.focus();
@@ -39,7 +34,7 @@ const CardExpandAndConfig = ({ title, children, onEditButtonClick }) => {
           </button>
         </div>
         {loading ? ( // Conditionally render loading spinner if data isn't ready yet
-          <p></p>
+          <Spinner />
         ) : (
           <div
             className="edit-card-content"
@@ -47,9 +42,6 @@ const CardExpandAndConfig = ({ title, children, onEditButtonClick }) => {
             ref={contentRef} // Assign ref to the content element
             tabIndex={-1} // Make content focusable
           >
-            <button className="edit-button" onClick={onEditButtonClick}>
-              <FaWrench />
-            </button>
             {children}
           </div>
         )}
@@ -58,4 +50,4 @@ const CardExpandAndConfig = ({ title, children, onEditButtonClick }) => {
   );
 };
 
-export default CardExpandAndConfig;
+export default CardExpand;

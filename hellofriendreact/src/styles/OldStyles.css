@@ -633,7 +633,7 @@ margin-bottom: 8px;
     border: 2px solid rgba(229, 229, 229);
     border-radius: 10px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-    padding: 20px;/* Adjust margin as needed */
+    padding: 14px;/* Adjust margin as needed */
     margin-bottom: 10px;
 }
 .dark-mode .edit-card {

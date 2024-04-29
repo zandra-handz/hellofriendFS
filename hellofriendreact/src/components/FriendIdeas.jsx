@@ -78,7 +78,7 @@ const FriendIdeas = () => {
           </div>
         ))
       ) : (
-        <p></p>
+        <p>You haven't added any thoughts here yet.</p>
       )}
     </>
   );

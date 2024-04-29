@@ -5,6 +5,8 @@ import CardCreate from './DashboardStyling/CardCreate';
 import useAuthUser from '../hooks/UseAuthUser'; 
 import CreateLocation from './CreateLocation';
 import useFriendList from '../hooks/UseFriendList'; // Import the useFriendList hook
+import TabSpinner from './DashboardStyling/TabSpinner';
+
 
 const TabBarPageUserLocationsAll = () => {
     const [data, setData] = useState(null);
@@ -42,6 +44,16 @@ const TabBarPageUserLocationsAll = () => {
         return updatedModes;
       });
       setCurrentlyEditedIndex(index); // Set the currently edited index when toggling edit mode
+    };
+
+    const handleDelete = async (locationId) => {
+      try {
+        await api.delete(`/friends/location/${locationId}/`);
+        // Remove the deleted location from the state
+        setData(prevData => prevData.filter(location => location.id !== locationId));
+      } catch (error) {
+        console.error('Error deleting location:', error);
+      }
     };
   
     const handleInputChange = (e, index) => {
@@ -153,10 +165,12 @@ const TabBarPageUserLocationsAll = () => {
                       <p><h1>Associated friends:</h1>{location.friends.map(friendId => friendList.find(friend => friend.id === friendId).name).join(', ')}</p>
                     </div>
                   )}
+                  {/* Delete button */}
+                  <button onClick={() => handleDelete(location.id)}>Delete</button>
                 </EditCard>
               ))
             ) : (
-              <p>Loading...</p>
+              <TabSpinner />
             )}
           </>
         )}
