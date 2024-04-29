@@ -37,17 +37,23 @@ class FriendFavesSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-
-
-
-
 class ImageSerializer(serializers.ModelSerializer):
+    # Override the image field to return HTTPS URLs
+    image = serializers.SerializerMethodField()
 
-    class Meta():
+    def get_image(self, obj):
+        # Get the image URL from the object
+        image_url = obj.image.url
+        
+        # Check if the URL starts with "http://", if so, replace it with "https://"
+        if image_url.startswith('http://'):
+            image_url = image_url.replace('http://', 'https://')
+        
+        return image_url
+
+    class Meta:
         model = models.Image
         fields = '__all__'
-
-
 
 
 class LocationSerializer(serializers.ModelSerializer):
