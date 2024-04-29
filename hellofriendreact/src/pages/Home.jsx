@@ -89,7 +89,7 @@ const Home = () => {
         </Tab>
       )}
       {selectedFriend && !focusMode && (
-        <Tab label="Past meetups">
+        <Tab label="Meetups">
           <TabBarPageHelloes />
         </Tab>
       )}

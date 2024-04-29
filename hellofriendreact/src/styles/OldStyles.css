@@ -441,8 +441,6 @@ font-family: "Poppins", sans-serif;
 
 .tab-bar-body {
     background-color: white;
-    display: flex;
-    justify-content: center;
     align-items: flex-start;
     height: 100vh;
   }
@@ -472,14 +470,11 @@ font-family: "Poppins", sans-serif;
 
 .tab-bar-box {
   width: 100%;
-  display: flex;
+  display: inline-flex;
   justify-content: space-around;
-  align-items: center;
   top: 81px;
   border-bottom: 1px solid rgba(229, 229, 229);
   background-color: white;
-  font-size: 18px;
-  font-weight: 600;
   position: fixed;
   z-index: 0;
   /* z-index: 1; /* Lower z-index than the modal */ 
@@ -503,6 +498,7 @@ font-family: "Poppins", sans-serif;
   padding: 0px;
   margin-bottom: 10px;
   cursor: pointer;
+  outline: none;
 }
 
 
@@ -513,8 +509,6 @@ font-family: "Poppins", sans-serif;
 }
 
 .tab-bar-box .tab-btn.active {
-  font-size: 12px;
-  font-weight: 600px;
   color: rgb(83, 175, 25);
 }
 
@@ -526,12 +520,12 @@ font-family: "Poppins", sans-serif;
 
 .tab-content {
     display: none;
-    animation: moving 0.5s ease;
+    animation: moving .5s ease;
   }
   
 @keyframes moving {
 from {
-    transform: translateX(50px);
+    transform: translateX(0px);
     opacity: 0;
 }
 to {
@@ -549,8 +543,10 @@ to {
 .line {
   position: absolute;
   top: 30px;
-  width: auto;
+  width: 30px;
   height: 2px; 
+  left: 4px;
+
   background-color: rgb(83, 175, 25);
   border-radius: 20px;
   transition: all 0.3s ease-in-out;
