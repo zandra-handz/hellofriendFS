@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
+import FormUserProfile from './Forms/FormUserProfile';
 import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
 import { FaWrench } from 'react-icons/fa';
+
 
 const UserProfile = () => {
   const [data, setData] = useState(null);
@@ -82,49 +84,26 @@ const UserProfile = () => {
         {expanded ? (
           <div>
             <div className="edit-card-header">
-              <h5></h5>
+              <h5>User Profile</h5>
               <button className="edit-button" onClick={toggleEditMode}>
                 <FaWrench />
               </button>
             </div>
             {isEditMode ? (
               <div>
-                <div>
-                  <label>
-                    First Name:
-                    <input type="text" name="firstName" value={firstName} onChange={handleInputChange} />
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    Last Name:
-                    <input type="text" name="lastName" value={lastName} onChange={handleInputChange} />
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    Date of Birth:
-                    <input type="date" name="dateOfBirth" value={dateOfBirth} onChange={handleInputChange} />
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    Gender:
-                    <select name="gender" value={gender} onChange={handleInputChange}>
-                      <option value="NB">Non-Binary</option>
-                      <option value="M">Male</option>
-                      <option value="F">Female</option>
-                      <option value="O">Other</option>
-                      <option value="No answer">Uninterested in answering this</option>
-                    </select>
-                  </label>
-                </div>
-                <div>
-                  <button onClick={handleSubmit}>Submit</button>
-                </div>
+                {/* Edit mode content */}
+                <FormUserProfile
+                  firstName={firstName}
+                  lastName={lastName}
+                  dateOfBirth={dateOfBirth}
+                  gender={gender}
+                  handleInputChange={handleInputChange}
+                  handleSubmit={handleSubmit}
+                />
               </div>
             ) : (
               <div>
+                {/* View mode content */}
                 <p>First Name: {firstName}</p>
                 <p>Last Name: {lastName}</p>
                 <p>Date of Birth: {dateOfBirth}</p>

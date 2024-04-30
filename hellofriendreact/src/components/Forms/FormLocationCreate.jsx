@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import api from '../api';
-import useAuthUser from '../hooks/UseAuthUser';
-import useFriendList from '../hooks/UseFriendList'; // Import the useFriendList hook
-import '../styles/OldStyles.css';
+import api from '/src/api';
+import useAuthUser from '/src/hooks/UseAuthUser';
+import useFriendList from '/src/hooks/UseFriendList'; 
+import '/src/styles/StylingFormsGeneral.css';
 
-function CreateLocationForm() {
+function FormLocationCreate() {
     const [title, setTitle] = useState('');
     const [address, setAddress] = useState('');
     const [personalExperience, setPersonalExperience] = useState(''); 
@@ -40,24 +40,24 @@ function CreateLocationForm() {
     }
 
     return (
-        <form onSubmit={handleSubmit} className='form-container'>
+        <form onSubmit={handleSubmit} className='form-general-container'>
             <h1>Create Location</h1>
             <input
-                className='form-input'
+                className='form-general-input'
                 type='text'
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder='Title'
             />
             <input
-                className='form-input'
+                className='form-general-input'
                 type='text'
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder='Address'
             />
             <textarea
-                className='form-input'
+                className='form-general-input'
                 value={personalExperience}
                 onChange={(e) => setPersonalExperience(e.target.value)}
                 placeholder='Personal Experience Info'
@@ -75,11 +75,11 @@ function CreateLocationForm() {
                     </label>
                 ))}
             </div>
-            <button className='form-button' type='submit'>
+            <button className='form-general-button' type='submit'>
                 Create Location
             </button>
         </form>
     );
 }
 
-export default CreateLocationForm;
+export default FormLocationCreate;

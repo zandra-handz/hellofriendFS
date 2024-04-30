@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import api from '../api';  
 import CardCreate from './DashboardStyling/CardCreate';
-import CreateLocationForm from './CreateLocationForm'; 
+import FormLocationCreate from './Forms/FormLocationCreate';
 
 const CreateLocation = () => {
   const [isFormVisible, setIsFormVisible] = useState(false); // State to manage form visibility
@@ -12,7 +11,7 @@ const CreateLocation = () => {
 
   return (
     <CardCreate title="Add Location" onClick={toggleFormVisibility}>
-      {isFormVisible && <CreateLocationForm />}
+      {isFormVisible && <FormLocationCreate />}
     </CardCreate>
   );
 };

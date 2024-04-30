@@ -2,10 +2,12 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
+import FormFriendFaves from './Forms/FormFriendFaves';
 import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
 import { FaWrench } from 'react-icons/fa';
+
 
 const FriendFaves = () => {
   const [data, setData] = useState(null);
@@ -18,7 +20,6 @@ const FriendFaves = () => {
     const fetchData = async () => {
       try {
         if (friendDashboardData && friendDashboardData.length > 0) {
-          // Assuming friend_faves is nested inside friendDashboardData
           const friendFaves = friendDashboardData[0].friend_faves;
           if (friendFaves) {
             setData(friendFaves);
@@ -58,10 +59,7 @@ const FriendFaves = () => {
             {isEditMode ? (
               <div>
                 {/* Edit mode content */}
-                <h1>Edit mode content</h1>
-                {/* Place your editable content here */}
-                {/* Example: */}
-                {/* <input type="text" value={value} onChange={handleChange} /> */}
+                <FormFriendFaves locations={data.locations} />
               </div>
             ) : (
               <div>

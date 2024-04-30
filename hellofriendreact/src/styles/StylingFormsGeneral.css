@@ -1,0 +1,27 @@
+/* Styling for FormFriendSettings */
+
+.form-general-container {
+    margin-bottom: 20px;
+  }
+  
+  .form-general-input {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  
+  .form-general-button {
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .form-general-button:hover {
+    background-color: #0056b3;
+  }
+  

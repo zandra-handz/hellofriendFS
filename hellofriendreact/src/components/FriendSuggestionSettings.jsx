@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import CardExpandAndConfigSliders from './DashboardStyling/CardExpandAndConfigSliders';
+import FormFriendSettings from './Forms/FormFriendSettings';
 import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
@@ -86,27 +87,12 @@ const FriendSuggestionSettings = () => {
               </button>
             </div>
             {isEditMode ? (
-              <div>
-                <h6>Effort Required:</h6>
-                <input
-                  type="range"
-                  min="1"
-                  max="5"
-                  value={effortRequired}
-                  onChange={handleInputChange}
-                  name="effort"
-                />
-                <h6>Priority Level:</h6>
-                <input
-                  type="range"
-                  min="1"
-                  max="3"
-                  value={priorityLevel}
-                  onChange={handleInputChange}
-                  name="priority"
-                />
-                <button onClick={handleSubmit}>Submit</button>
-              </div>
+              <FormFriendSettings
+                effortRequired={effortRequired}
+                priorityLevel={priorityLevel}
+                handleInputChange={handleInputChange}
+                handleSubmit={handleSubmit}
+              />
             ) : (
               <div>
                 <h6>Effort Required: {effortRequired}</h6>

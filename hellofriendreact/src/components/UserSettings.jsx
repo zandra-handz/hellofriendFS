@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
+import FormUserSettings from './Forms/FormUserSettings';
 import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
 import { FaWrench } from 'react-icons/fa';
+
 
 const UserSettings = () => {
   const [data, setData] = useState(null);
@@ -73,7 +75,6 @@ const UserSettings = () => {
       });
       // Assuming the update is successful, we can set edit mode to false to switch back to view mode
       setIsEditMode(false);
-      fetchData();
     } catch (error) {
       console.error('Error updating user settings:', error);
     }
@@ -89,52 +90,27 @@ const UserSettings = () => {
         {expanded ? (
           <div>
             <div className="edit-card-header">
-              <h5></h5>
+              <h5>User Settings</h5>
               <button className="edit-button" onClick={toggleEditMode}>
                 <FaWrench />
               </button>
             </div>
             {isEditMode ? (
               <div>
-                <div>
-                  <label>
-                    Receive Notifications:
-                    <input type="checkbox" name="receiveNotifications" checked={receiveNotifications} onChange={handleInputChange} />
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    Language Preference:
-                    <select name="languagePreference" value={languagePreference} onChange={handleInputChange}>
-                      <option value="en">English</option>
-                      <option value="es">Spanish</option>
-                    </select>
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    Large Text:
-                    <input type="checkbox" name="largeText" checked={largeText} onChange={handleInputChange} />
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    High Contrast Mode:
-                    <input type="checkbox" name="highContrastMode" checked={highContrastMode} onChange={handleInputChange} />
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    Screen Reader:
-                    <input type="checkbox" name="screenReader" checked={screenReader} onChange={handleInputChange} />
-                  </label>
-                </div>
-                <div>
-                  <button onClick={handleSubmit}>Submit</button>
-                </div>
+                {/* Edit mode content */}
+                <FormUserSettings
+                  receiveNotifications={receiveNotifications}
+                  languagePreference={languagePreference}
+                  largeText={largeText}
+                  highContrastMode={highContrastMode}
+                  screenReader={screenReader}
+                  handleInputChange={handleInputChange}
+                  handleSubmit={handleSubmit}
+                />
               </div>
             ) : (
               <div>
+                {/* View mode content */}
                 <p>Receive Notifications: {receiveNotifications ? 'Enabled' : 'Disabled'}</p>
                 <p>Language Preference: {languagePreference}</p>
                 <p>Large Text: {largeText ? 'Enabled' : 'Disabled'}</p>

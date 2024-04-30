@@ -1,60 +1,65 @@
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import EditCard from './DashboardStyling/EditCard';
-import CardCreate from './DashboardStyling/CardCreate';
 import useAuthUser from '../hooks/UseAuthUser'; 
 import CreateLocation from './CreateLocation';
 import useFriendList from '../hooks/UseFriendList'; // Import the useFriendList hook
 import TabSpinner from './DashboardStyling/TabSpinner';
 import { FaWrench } from 'react-icons/fa';
 
-const TabBarPageUserLocationsAll = () => {
-    const [data, setData] = useState(null);
-    const [editModes, setEditModes] = useState([]);
-    const [locationTitles, setLocationTitles] = useState([]);
-    const [locationExperiences, setLocationExperiences] = useState([]); // State to hold location experiences
-    const [locationFriends, setLocationFriends] = useState([]); // State to hold location friends
-    const [currentlyEditedIndex, setCurrentlyEditedIndex] = useState(null); // State to hold the index of the currently edited location
-    const [showLocations, setShowLocations] = useState(false); // State to toggle visibility of locations
-    const { authUser } = useAuthUser();
-    const { friendList } = useFriendList(); // Fetch the list of friends
-  
-    useEffect(() => {
-      if (showLocations) {
-        const fetchData = async () => {
-          try {
-            const responseLocations = await api.get(`/friends/locations/all/`);
-            setData(responseLocations.data);
-            setEditModes(new Array(responseLocations.data.length).fill(false));
-            setLocationTitles(responseLocations.data.map(location => location.title || ''));
-            setLocationExperiences(responseLocations.data.map(location => location.personal_experience_info || '')); // Initialize location experiences state
-            setLocationFriends(responseLocations.data.map(location => location.friends || [])); // Initialize location friends state
-          } catch (error) {
-            console.error('Error fetching data:', error);
-          }
-        };
-        fetchData();
-      }
-    }, [showLocations]); // Fetch data only when showLocations state changes
-  
-    const toggleEditMode = (index) => {
-      setEditModes(prevModes => {
-        const updatedModes = [...prevModes];
-        updatedModes[index] = !updatedModes[index];
-        return updatedModes;
-      });
-      setCurrentlyEditedIndex(index); // Set the currently edited index when toggling edit mode
-    };
+import Location from './Location'; 
 
-    const handleDelete = async (locationId) => {
-      try {
-        await api.delete(`/friends/location/${locationId}/`);
-        // Remove the deleted location from the state
-        setData(prevData => prevData.filter(location => location.id !== locationId));
-      } catch (error) {
-        console.error('Error deleting location:', error);
-      }
-    };
+const TabBarPageUserLocationsAll = () => {
+  const [data, setData] = useState(null);
+  const [editModes, setEditModes] = useState([]);
+  const [locationTitles, setLocationTitles] = useState([]);
+  const [locationExperiences, setLocationExperiences] = useState([]);
+  const [locationFriends, setLocationFriends] = useState([]);
+  const [currentlyEditedIndex, setCurrentlyEditedIndex] = useState(null);
+  const [showLocations, setShowLocations] = useState(false);
+  const [deletedMessage, setDeletedMessage] = useState(null); // New state for deleted message
+  const { authUser } = useAuthUser();
+  const { friendList } = useFriendList();
+
+  useEffect(() => {
+    if (showLocations) {
+      const fetchData = async () => {
+        try {
+          const responseLocations = await api.get(`/friends/locations/all/`);
+          setData(responseLocations.data);
+          setEditModes(new Array(responseLocations.data.length).fill(false));
+          setLocationTitles(responseLocations.data.map(location => location.title || ''));
+          setLocationExperiences(responseLocations.data.map(location => location.personal_experience_info || ''));
+          setLocationFriends(responseLocations.data.map(location => location.friends || []));
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        }
+      };
+      fetchData();
+    }
+  }, [showLocations]);
+
+  const toggleEditMode = (index) => {
+    setEditModes(prevModes => {
+      const updatedModes = [...prevModes];
+      updatedModes[index] = !updatedModes[index];
+      return updatedModes;
+    });
+    setCurrentlyEditedIndex(index);
+  };
+
+  const handleDelete = async (locationId) => {
+    try {
+      await api.delete(`/friends/location/${locationId}/`);
+      setData(prevData => prevData.filter(location => location.id !== locationId));
+      setDeletedMessage('Location deleted successfully.'); 
+       
+      setTimeout(() => {
+        setDeletedMessage(null);
+      }, 3000);
+    } catch (error) {
+      console.error('Error deleting location:', error);
+    }
+  };
   
     const handleInputChange = (e, index) => {
       const { name, value } = e.target;
@@ -95,7 +100,7 @@ const TabBarPageUserLocationsAll = () => {
           title: locationName,
           address: locationAddress,
           personal_experience_info: locationExperience,
-          friends: locationFriends // Include selected friends in the request body
+          friends: locationFriends
         });
         const response = await api.get(`/friends/location/${locationId}/`);
         const updatedLocation = response.data;
@@ -106,7 +111,6 @@ const TabBarPageUserLocationsAll = () => {
           return location;
         });
         setData(updatedData);
-        // Toggle edit mode back to view mode for the currently edited location
         setEditModes(prevModes => {
           const updatedModes = [...prevModes];
           updatedModes[currentlyEditedIndex] = false;
@@ -120,60 +124,25 @@ const TabBarPageUserLocationsAll = () => {
     return (
       <div>
         <CreateLocation />
-
         <button className="mass-function-button" onClick={() => setShowLocations(!showLocations)}>
           {showLocations ? 'Hide Locations' : 'Expand Saved Locations'}
         </button>
-
+        {deletedMessage && <p>{deletedMessage}</p>} {/* Render deleted message */}
         {showLocations && (
           <>
             {data ? (
               data.map((location, index) => (
-                <EditCard key={location.id} title={location.title || "Location"} onEditButtonClick={() => toggleEditMode(index)}>
-                  <div className="edit-card-header">
-                    <h5>Location</h5>
-                    <button className="edit-button" onClick={() => toggleEditMode(index)}>
-                      <FaWrench />
-                    </button>
-                  </div>
-                  {editModes[index] ? (
-                    <div>
-                      <div>
-                        <h1>Location:</h1>
-                        <input type="text" name="location-name" value={locationTitles[index]} onChange={(e) => handleInputChange(e, index)} />
-                      </div>
-                      <div>
-                        <h1>Personal Experience:</h1>
-                        <textarea name="location-experience" value={locationExperiences[index]} onChange={(e) => handleInputChange(e, index)} />
-                      </div>
-                      <div>
-                        <h1>Friends:</h1>
-                        {friendList.map(friend => (
-                          <label key={friend.id}>
-                            <input
-                              type="checkbox"
-                              checked={locationFriends[index].includes(friend.id)}
-                              onChange={() => handleFriendSelect(index, friend.id)}
-                            />
-                            {friend.name}
-                          </label>
-                        ))}
-                      </div>
-                      <div>
-                        <button onClick={() => handleSubmit(location.id, locationTitles[index], location.address, locationExperiences[index], locationFriends[index])}>Submit</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <p><h1>Location:</h1>{location.title}</p>
-                      <p><h1>Address:</h1>{location.address}</p>
-                      <p><h1>Personal Experience Info:</h1>{location.personal_experience_info}</p>
-                      <p><h1>Associated friends:</h1>{location.friends.map(friendId => friendList.find(friend => friend.id === friendId).name).join(', ')}</p>
-                    </div>
-                  )}
-                  {/* Delete button */}
-                  <button onClick={() => handleDelete(location.id)}>Delete</button>
-                </EditCard>
+                <Location
+                  key={location.id}
+                  location={location}
+                  index={index}
+                  editMode={editModes[index]}
+                  handleToggleEditMode={toggleEditMode}
+                  handleInputChange={handleInputChange}
+                  handleSubmit={handleSubmit}
+                  handleDelete={handleDelete}
+                  friendList={friendList}
+                />
               ))
             ) : (
               <TabSpinner />
