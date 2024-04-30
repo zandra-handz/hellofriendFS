@@ -3,6 +3,7 @@ import api from '../api';
 import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
 import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
+import { FaWrench } from 'react-icons/fa';
 
 const UserSettings = () => {
   const [data, setData] = useState(null);
@@ -12,6 +13,7 @@ const UserSettings = () => {
   const [largeText, setLargeText] = useState(false);
   const [highContrastMode, setHighContrastMode] = useState(false);
   const [screenReader, setScreenReader] = useState(false);
+  const [expanded, setExpanded] = useState(false); // State for managing expanded/collapsed state
   const { authUser } = useAuthUser();
 
   useEffect(() => {
@@ -78,61 +80,85 @@ const UserSettings = () => {
   };
 
   return (
-    <CardExpandAndConfig title="User Settings" onEditButtonClick={toggleEditMode}>
-      {isEditMode ? (
-        <div>
+    <CardExpandAndConfig
+      title="User Settings"
+      expanded={expanded}
+      onEditButtonClick={() => setExpanded(prevExpanded => !prevExpanded)}
+    >
+      <>
+        {expanded ? (
           <div>
-            <label>
-              Receive Notifications:
-              <input type="checkbox" name="receiveNotifications" checked={receiveNotifications} onChange={handleInputChange} />
-            </label>
-          </div>
-          <div>
-            <label>
-              Language Preference:
-              <select name="languagePreference" value={languagePreference} onChange={handleInputChange}>
-                <option value="en">English</option>
-                <option value="es">Spanish</option>
-              </select>
-            </label>
-          </div>
-          <div>
-            <label>
-              Large Text:
-              <input type="checkbox" name="largeText" checked={largeText} onChange={handleInputChange} />
-            </label>
-          </div>
-          <div>
-            <label>
-              High Contrast Mode:
-              <input type="checkbox" name="highContrastMode" checked={highContrastMode} onChange={handleInputChange} />
-            </label>
-          </div>
-          <div>
-            <label>
-              Screen Reader:
-              <input type="checkbox" name="screenReader" checked={screenReader} onChange={handleInputChange} />
-            </label>
-          </div>
-          <div>
-            <button onClick={handleSubmit}>Submit</button>
-          </div>
-        </div>
-      ) : (
-        <div>
-          {data ? (
-            <div>
-              <p>Receive Notifications: {receiveNotifications ? 'Enabled' : 'Disabled'}</p>
-              <p>Language Preference: {languagePreference}</p>
-              <p>Large Text: {largeText ? 'Enabled' : 'Disabled'}</p>
-              <p>High Contrast Mode: {highContrastMode ? 'Enabled' : 'Disabled'}</p>
-              <p>Screen Reader: {screenReader ? 'Enabled' : 'Disabled'}</p>
+            <div className="edit-card-header">
+              <h5></h5>
+              <button className="edit-button" onClick={toggleEditMode}>
+                <FaWrench />
+              </button>
             </div>
-          ) : (
-            <Spinner />
-          )}
-        </div>
-      )}
+            {isEditMode ? (
+              <div>
+                <div>
+                  <label>
+                    Receive Notifications:
+                    <input type="checkbox" name="receiveNotifications" checked={receiveNotifications} onChange={handleInputChange} />
+                  </label>
+                </div>
+                <div>
+                  <label>
+                    Language Preference:
+                    <select name="languagePreference" value={languagePreference} onChange={handleInputChange}>
+                      <option value="en">English</option>
+                      <option value="es">Spanish</option>
+                    </select>
+                  </label>
+                </div>
+                <div>
+                  <label>
+                    Large Text:
+                    <input type="checkbox" name="largeText" checked={largeText} onChange={handleInputChange} />
+                  </label>
+                </div>
+                <div>
+                  <label>
+                    High Contrast Mode:
+                    <input type="checkbox" name="highContrastMode" checked={highContrastMode} onChange={handleInputChange} />
+                  </label>
+                </div>
+                <div>
+                  <label>
+                    Screen Reader:
+                    <input type="checkbox" name="screenReader" checked={screenReader} onChange={handleInputChange} />
+                  </label>
+                </div>
+                <div>
+                  <button onClick={handleSubmit}>Submit</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p>Receive Notifications: {receiveNotifications ? 'Enabled' : 'Disabled'}</p>
+                <p>Language Preference: {languagePreference}</p>
+                <p>Large Text: {largeText ? 'Enabled' : 'Disabled'}</p>
+                <p>High Contrast Mode: {highContrastMode ? 'Enabled' : 'Disabled'}</p>
+                <p>Screen Reader: {screenReader ? 'Enabled' : 'Disabled'}</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            {data ? (
+              <div>
+                <p>Receive Notifications: {receiveNotifications ? 'Enabled' : 'Disabled'}</p>
+                <p>Language Preference: {languagePreference}</p>
+                <p>Large Text: {largeText ? 'Enabled' : 'Disabled'}</p>
+                <p>High Contrast Mode: {highContrastMode ? 'Enabled' : 'Disabled'}</p>
+                <p>Screen Reader: {screenReader ? 'Enabled' : 'Disabled'}</p>
+              </div>
+            ) : (
+              <Spinner />
+            )}
+          </div>
+        )}
+      </>
     </CardExpandAndConfig>
   );
 };

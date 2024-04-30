@@ -1,16 +1,18 @@
+// FriendSuggestionSettings.jsx
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
+import CardExpandAndConfigSliders from './DashboardStyling/CardExpandAndConfigSliders';
 import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
-import useSelectedFriend from '../hooks/UseSelectedFriend'; 
+import useSelectedFriend from '../hooks/UseSelectedFriend';
+import { FaWrench } from 'react-icons/fa';
 
 const FriendSuggestionSettings = () => {
   const [data, setData] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [effortRequired, setEffortRequired] = useState('');
   const [priorityLevel, setPriorityLevel] = useState('');
-  const [maxCategories, setMaxCategories] = useState('');
+  const [expanded, setExpanded] = useState(false); // State for managing expanded/collapsed state
   const { authUser } = useAuthUser();
   const { selectedFriend, friendDashboardData } = useSelectedFriend();
 
@@ -20,9 +22,9 @@ const FriendSuggestionSettings = () => {
         if (friendDashboardData && friendDashboardData.length > 0) {
           const suggestionSettings = friendDashboardData[0].suggestion_settings;
           if (suggestionSettings) {
+            setData(suggestionSettings);
             setEffortRequired(suggestionSettings.effort_required);
             setPriorityLevel(suggestionSettings.priority_level);
-            setMaxCategories(suggestionSettings.category_limit_formula);
           }
         }
       } catch (error) {
@@ -63,44 +65,70 @@ const FriendSuggestionSettings = () => {
         priority_level: priorityLevel
       });
       setIsEditMode(false);
-      fetchData();
     } catch (error) {
       console.error('Error updating settings:', error);
     }
   };
 
+  if (!selectedFriend) {
+    return <p>No friend selected.</p>;
+  }
+
   return (
-    <CardExpandAndConfig title="Friend Settings" onEditButtonClick={toggleEditMode}>
-      {isEditMode ? (
-        <div>
-          <div>
-            <h1>Effort:</h1>
-            <input type="range" name="effort" min="1" max="5" value={effortRequired} onChange={handleInputChange} />
-            <span>{effortRequired}</span>
-          </div>
-          <div>
-            <h1>Priority:</h1>
-            <input type="range" name="priority" min="1" max="3" value={priorityLevel} onChange={handleInputChange} />
-            <span>{priorityLevel}</span>
-          </div>
-          <div>
-            <button onClick={handleSubmit}>Submit</button>
-          </div>
-        </div>
-      ) : (
-        <div>
-          {friendDashboardData ? (
-            <div>
-              <p><h1>Effort:</h1> {effortRequired}</p>
-              <p><h1>Priority:</h1> {priorityLevel}</p>
-              <p><h1>Max categories:</h1> {maxCategories}</p>
+    <CardExpandAndConfigSliders title="Friend Settings" expanded={expanded} onEditButtonClick={() => setExpanded(prevExpanded => !prevExpanded)}>
+      <>
+        {expanded ? (
+          <>
+            <div className="edit-card-header" onClick={toggleEditMode}>
+              <h5>Friend Settings</h5>
+              <button className="edit-button">
+                <FaWrench />
+              </button>
             </div>
-          ) : (
-            <p></p>
-          )}
-        </div>
-      )}
-    </CardExpandAndConfig>
+            {isEditMode ? (
+              <div>
+                <h6>Effort Required:</h6>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value={effortRequired}
+                  onChange={handleInputChange}
+                  name="effort"
+                />
+                <h6>Priority Level:</h6>
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  value={priorityLevel}
+                  onChange={handleInputChange}
+                  name="priority"
+                />
+                <button onClick={handleSubmit}>Submit</button>
+              </div>
+            ) : (
+              <div>
+                <h6>Effort Required: {effortRequired}</h6>
+                <h6>Priority Level: {priorityLevel}</h6>
+              </div>
+            )}
+          </>
+        ) : (
+          <div>
+            <h5>Friend Settings</h5>
+            {data ? (
+              <>
+                <p>Effort Required: {data.effort_required}</p>
+                <p>Priority Level: {data.priority_level}</p>
+              </>
+            ) : (
+              <Spinner />
+            )}
+          </div>
+        )}
+      </>
+    </CardExpandAndConfigSliders>
   );
 };
 

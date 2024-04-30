@@ -1,12 +1,16 @@
+// FriendFaves.jsx
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
 import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
-import useSelectedFriend from '../hooks/UseSelectedFriend'; 
+import useSelectedFriend from '../hooks/UseSelectedFriend';
+import { FaWrench } from 'react-icons/fa';
 
 const FriendFaves = () => {
   const [data, setData] = useState(null);
+  const [expanded, setExpanded] = useState(false); // State to manage expanded/collapsed state
+  const [isEditMode, setIsEditMode] = useState(false);
   const { authUser } = useAuthUser();
   const { selectedFriend, friendDashboardData } = useSelectedFriend();
 
@@ -28,24 +32,63 @@ const FriendFaves = () => {
     fetchData();
   }, [friendDashboardData]);
 
+  const toggleExpand = () => {
+    setExpanded(prevExpanded => !prevExpanded);
+  };
+
+  const toggleEditMode = () => {
+    setIsEditMode(prevMode => !prevMode);
+  };
+
   if (!selectedFriend) {
     return <p>No friend selected.</p>;
   }
 
   return (
-    <CardExpandAndConfig title="Friend Favez">
-      {data ? (
-        <div>
-          <h1>Locations:</h1>
-          <select>
-            {data.locations.map(location => (
-              <option key={location.id} value={location.id}>{location.name}</option>
-            ))}
-          </select>
-        </div>
-      ) : (
-        <p></p>
-      )}
+    <CardExpandAndConfig title="Friend Favez" expanded={expanded} onEditButtonClick={toggleExpand}>
+      <div className="edit-card-content">
+        {expanded ? (
+          <>
+            <div className="edit-card-header" onClick={toggleEditMode}>
+              <h5>Friend Faves</h5>
+              <button className="edit-button">
+                <FaWrench />
+              </button>
+            </div>
+            {isEditMode ? (
+              <div>
+                {/* Edit mode content */}
+                <h1>Edit mode content</h1>
+                {/* Place your editable content here */}
+                {/* Example: */}
+                {/* <input type="text" value={value} onChange={handleChange} /> */}
+              </div>
+            ) : (
+              <div>
+                {/* View mode content */}
+                {data ? (
+                  <div>
+                    <h1>Locations:</h1>
+                    <select>
+                      {data.locations.map(location => (
+                        <option key={location.id} value={location.id}>{location.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <Spinner />
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <div>
+            {/* Collapsed mode content */}
+            <h1>Friend Faves</h1>
+            {/* Place your non-editable content here */}
+          </div>
+        )}
+      </div>
     </CardExpandAndConfig>
   );
 };

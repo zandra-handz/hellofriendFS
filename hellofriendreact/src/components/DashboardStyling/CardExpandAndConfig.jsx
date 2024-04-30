@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaArrowDown, FaArrowRight } from 'react-icons/fa';
+import { FaWrench, FaCaretDown, FaCaretRight } from 'react-icons/fa';
 import '/src/styles/OldStyles.css';
 import Spinner from './Spinner';
 import useThemeMode from '/src/hooks/UseThemeMode';
 
-const CardExpand = ({ title, children, expanded, onExpandButtonClick }) => { 
+const CardExpandAndConfig = ({ title, children, expanded, onEditButtonClick }) => {
   const [loading, setLoading] = useState(true); // State for loading spinner
   const { themeMode } = useThemeMode();
   const contentRef = useRef(null); // Ref for the content element
@@ -17,10 +17,8 @@ const CardExpand = ({ title, children, expanded, onExpandButtonClick }) => {
   }, []);
 
   const handleHeaderClick = () => {
-    onExpandButtonClick(); // Call the provided onExpandButtonClick function
-    // Focus on content when expanded
-    if (!expanded && contentRef.current) {
-      contentRef.current.focus();
+    if (onEditButtonClick) {
+      onEditButtonClick();
     }
   };
 
@@ -30,7 +28,7 @@ const CardExpand = ({ title, children, expanded, onExpandButtonClick }) => {
         <div className="edit-card-header" onClick={handleHeaderClick}>
           <h5>{title}</h5>
           <button className="edit-button">
-            {expanded ? <FaArrowDown /> : <FaArrowRight />}
+            {expanded ? <FaCaretDown /> : <FaCaretRight />}
           </button>
         </div>
         {loading ? ( // Conditionally render loading spinner if data isn't ready yet
@@ -50,4 +48,4 @@ const CardExpand = ({ title, children, expanded, onExpandButtonClick }) => {
   );
 };
 
-export default CardExpand;
+export default CardExpandAndConfig;

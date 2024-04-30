@@ -6,7 +6,7 @@ import useAuthUser from '../hooks/UseAuthUser';
 import CreateLocation from './CreateLocation';
 import useFriendList from '../hooks/UseFriendList'; // Import the useFriendList hook
 import TabSpinner from './DashboardStyling/TabSpinner';
-
+import { FaWrench } from 'react-icons/fa';
 
 const TabBarPageUserLocationsAll = () => {
     const [data, setData] = useState(null);
@@ -130,6 +130,12 @@ const TabBarPageUserLocationsAll = () => {
             {data ? (
               data.map((location, index) => (
                 <EditCard key={location.id} title={location.title || "Location"} onEditButtonClick={() => toggleEditMode(index)}>
+                  <div className="edit-card-header">
+                    <h5>Location</h5>
+                    <button className="edit-button" onClick={() => toggleEditMode(index)}>
+                      <FaWrench />
+                    </button>
+                  </div>
                   {editModes[index] ? (
                     <div>
                       <div>
