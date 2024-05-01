@@ -11,6 +11,7 @@ import { UpcomingHelloesProvider } from './context/UpcomingHelloesProvider';
 import { SelectedFriendProvider } from './context/SelectedFriendProvider'; 
 import { FriendListProvider } from './context/FriendListProvider'; 
 import { CapsuleListProvider } from './context/CapsuleListProvider'; 
+import { LocationListProvider } from './context/LocationListProvider'; 
 import { FocusModeProvider } from './context/FocusModeProvider'; 
 import { ThemeModeProvider } from './context/ThemeModeProvider'; 
 
@@ -39,11 +40,13 @@ function App() {
                   <SelectedFriendProvider>
                     <FriendListProvider>
                       <CapsuleListProvider>  
-                        <FocusModeProvider>
-                          <ThemeModeProvider>
-                            <Home />
-                          </ThemeModeProvider>
-                        </FocusModeProvider>
+                        <LocationListProvider>
+                          <FocusModeProvider>
+                            <ThemeModeProvider>
+                              <Home />
+                            </ThemeModeProvider>
+                          </FocusModeProvider>
+                        </LocationListProvider>
                       </CapsuleListProvider>
                     </FriendListProvider>
                   </SelectedFriendProvider>

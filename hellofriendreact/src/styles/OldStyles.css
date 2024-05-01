@@ -599,7 +599,7 @@ margin-bottom: 8px;
 /* Style for the container of each button */
 .upcoming-button-container {
   display: inline-block; /* Ensure the container doesn't take full width */
-  min-width: 100px;
+  
   max-width: 200px; /* Maximum width for the container */
 }
 

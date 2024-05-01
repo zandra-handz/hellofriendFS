@@ -5,28 +5,24 @@ import useAuthUser from '/src/hooks/UseAuthUser';
 import useSelectedFriend from '/src/hooks/UseSelectedFriend';
 import useThemeMode from '../hooks/UseThemeMode';
 import '/src/styles/OldStyles.css';
+import useLocationList from '../hooks/UseLocationList'; // Import the useLocationList hook
 
 const ValidateAddress = ({ headerText, onValidationChange }) => {
   const { themeMode } = useThemeMode();
   const [selectedAddress, setSelectedAddress] = useState('');
   const [inputAddress, setInputAddress] = useState('');
-  const [savedAddresses, setSavedAddresses] = useState([]);
   const [validatedText, setValidatedText] = useState('');
   const { selectedFriend } = useSelectedFriend();
   const { authUser } = useAuthUser();
+  const { locationList } = useLocationList(); // Get locationList from context
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await api.get(`/friends/dropdown/validated-user-locations/`);
-        setSavedAddresses(response.data);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-    };
-
-    fetchData(); // Fetch saved addresses when the component mounts
-  }, []); // Empty dependency array means this effect runs only once when the component mounts
+    console.log('Location List in ValidateAddress:', locationList);
+    // Fetch saved addresses when the component mounts
+    setInputAddress('');
+    setSelectedAddress('');
+    setValidatedText('');
+  }, [locationList]); // Reload data when locationList changes
 
   const handleValidation = async () => {
     try {
@@ -54,7 +50,7 @@ const ValidateAddress = ({ headerText, onValidationChange }) => {
     setInputAddress('');
     if (value) {
       // Only call onValidationChange if a saved address is selected
-      const selectedOption = savedAddresses.find(address => address.address === value);
+      const selectedOption = locationList.find(location => location.address === value);
       if (selectedOption) {
         const { address, latitude, longitude } = selectedOption;
         onValidationChange(true, address, latitude, longitude);
@@ -75,7 +71,6 @@ const ValidateAddress = ({ headerText, onValidationChange }) => {
     
   return (
     <div style={{ position: 'relative' }}>
-      
       <div style={{ position: 'relative', zIndex: 0 }}>
         <div style={{ padding: '0px' }}>
           <h2>{headerText}</h2>
@@ -102,33 +97,27 @@ const ValidateAddress = ({ headerText, onValidationChange }) => {
               onChange={handleSelectChange}
             >
               <option value="">Select saved address</option>
-              {savedAddresses.map(address => (
-                <option key={address.id} value={address.address}>
-                  {address.title} - {address.address}
+              {locationList && locationList.map(location => (
+                <option key={location.id} value={location.address}>
+                  {location.title} - {location.address}
                 </option>
               ))}
             </select>
           </div>
-
         </div>
       </div>
       {validatedText && (
         <div style={{ position: 'absolute', right: 0, left: -2, top: 28, color: 'black', display: 'flex', fontSize: '21px', zIndex: 0 }}>
-        <label>{validatedText}  <FaCheck style={{ color: 'transparent' }} /></label>
-        <div className="undo-wrapper" style={{ position: 'relative' }}>
-          <button onClick={() => setValidatedText('')} className="fa-undo-button" style={{ borderRadius: '0%', zIndex: 0, background: 'transparent' }}>
-            <FaUndo />
-          </button>
+          <label>{validatedText}  <FaCheck style={{ color: 'transparent' }} /></label>
+          <div className="undo-wrapper" style={{ position: 'relative' }}>
+            <button onClick={() => setValidatedText('')} className="fa-undo-button" style={{ borderRadius: '0%', zIndex: 0, background: 'transparent' }}>
+              <FaUndo />
+            </button>
+          </div>
         </div>
-      </div>
-    )}
+      )}
     </div>
   );
-  
-
-
-
-  
 };
 
 export default ValidateAddress;

@@ -1,5 +1,5 @@
 // Location.js
-import React, { useState } from 'react'; 
+import React, { useState, useEffect } from 'react'; 
 import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
 import MessageSave from './DashboardStyling/MessageSave';
 import MessageDelete from './DashboardStyling/MessageDelete';
@@ -24,6 +24,10 @@ const Location = ({ location, friendList }) => {
   const [showErrorMessage, setShowErrorMessage] = useState(false);
   const [isCardVisible, setIsCardVisible] = useState(true); // State to manage card visibility
   const { authUser } = useAuthUser();
+
+  useEffect(() => {
+    console.log('Location prop:', location);
+  }, [location]);
 
   const toggleForm = () => {
     setShowForm(prevState => !prevState);
@@ -124,7 +128,7 @@ const Location = ({ location, friendList }) => {
               />
             ) : (
               <div>
-                <p><strong>Friends:</strong> {locationFriends.map(friendId => friendList.find(friend => friend.id === friendId).name).join(', ')}</p>
+                <p><strong>Friends:</strong> {locationFriends.map(friendId => friendList.find(friend => friend.id === friendId)).join(', ')}</p>
                 {location.personal_experience_info && (
                   <p><strong>Notes about this location:</strong> {location.personal_experience_info}</p>
                 )}

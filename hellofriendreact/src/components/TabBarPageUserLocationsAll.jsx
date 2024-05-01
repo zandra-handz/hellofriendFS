@@ -4,37 +4,29 @@ import useAuthUser from '../hooks/UseAuthUser';
 import CreateLocation from './CreateLocation';
 import useFriendList from '../hooks/UseFriendList'; // Import the useFriendList hook
 import TabSpinner from './DashboardStyling/TabSpinner';
-import { FaWrench } from 'react-icons/fa';
+import { FaWrench } from 'react-icons/fa'; // Import the MessageSave component
+
+import useLocationList from '../hooks/UseLocationList'; // Import the useLocationList hook
+
 
 import Location from './Location';  
-import MessageSave from './DashboardStyling/MessageSave'; // Import the MessageSave component
+import MessageSave from './DashboardStyling/MessageSave'; 
 
 const TabBarPageUserLocationsAll = () => {
-  const [data, setData] = useState(null);
   const [showLocations, setShowLocations] = useState(false);
   const [deletedMessage, setDeletedMessage] = useState(null);
-  const [showSaveMessage, setShowSaveMessage] = useState(false); // State to manage save message visibility
+  const [showSaveMessage, setShowSaveMessage] = useState(false);
   const { authUser } = useAuthUser();
   const { friendList } = useFriendList();
+  const { locationList } = useLocationList();
 
   useEffect(() => {
-    if (showLocations) {
-      const fetchData = async () => {
-        try {
-          const responseLocations = await api.get(`/friends/locations/all/`);
-          setData(responseLocations.data);
-        } catch (error) {
-          console.error('Error fetching data:', error);
-        }
-      };
-      fetchData();
-    }
-  }, [showLocations]);
+    console.log('Location List:', locationList);
+  }, [locationList]);
 
   const handleDelete = async (locationId) => {
     try {
-      await api.delete(`/friends/location/${locationId}/`);
-      setData(prevData => prevData.filter(location => location.id !== locationId));
+      // Update the delete functionality if needed
       setDeletedMessage('Location deleted successfully.');
       setTimeout(() => {
         setDeletedMessage(null);
@@ -45,42 +37,53 @@ const TabBarPageUserLocationsAll = () => {
   };
 
   const handleAddLocation = (newLocation) => {
-    setData(prevData => [...prevData, newLocation]); // Add the new location to the list
-    setShowSaveMessage(true); // Show the save message
+    // Update the add location functionality if needed
+    setShowSaveMessage(true);
     setTimeout(() => {
-      setShowSaveMessage(false); // Hide the save message after 3 seconds
+      setShowSaveMessage(false);
     }, 3000);
   };
 
   return (
     <div>
-      <CreateLocation onLocationCreate={handleAddLocation} /> {/* Pass the callback function */}
-      {showSaveMessage && <MessageSave sentenceObject={{ message: 'Location created successfully!' }} />} {/* Render the save message */}
+      <CreateLocation onLocationCreate={handleAddLocation} />
+      {showSaveMessage && <MessageSave sentenceObject={{ message: 'Location created successfully!' }} />}
       <button className="mass-function-button" onClick={() => setShowLocations(!showLocations)}>
         {showLocations ? 'Hide Locations' : 'Expand Saved Locations'}
       </button>
       {deletedMessage && <p>{deletedMessage}</p>}
-      {showLocations && (
+      {showLocations && locationList ? (
         <>
-          {data ? (
-            data.map((location, index) => (
-              <div key={location.id}>
-                <Location
-                  location={location}
-                  friendList={friendList}
-                  authUser={authUser}
-                  onDelete={handleDelete}
-                />
-                
+          {locationList.length > 0 ? (
+            Object.entries(locationList.reduce((acc, location) => {
+              if (!acc[location.category]) {
+                acc[location.category] = [];
+              }
+              acc[location.category].push(location);
+              return acc;
+            }, {})).map(([category, locations]) => (
+              <div key={category}>
+                <div>{category}</div>
+                {locations.map(location => (
+                  <div key={location.id}>
+                    <Location
+                      location={location}
+                      friendList={friendList}
+                      authUser={authUser}
+                      onDelete={handleDelete}
+                    />
+                  </div>
+                ))}
               </div>
             ))
           ) : (
             <TabSpinner />
           )}
         </>
-      )}
+      ) : null}
     </div>
   );
+  
 };
 
 export default TabBarPageUserLocationsAll;
