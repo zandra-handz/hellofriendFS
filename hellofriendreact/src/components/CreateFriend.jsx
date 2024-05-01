@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import api from '../api';  
+import React, { useState } from 'react'; 
 import CardCreate from './DashboardStyling/CardCreate';
 import CreateFriendForm from './CreateFriendForm'; 
 

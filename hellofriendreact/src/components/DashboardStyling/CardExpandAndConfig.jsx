@@ -4,7 +4,7 @@ import '/src/styles/OldStyles.css';
 import Spinner from './Spinner';
 import useThemeMode from '/src/hooks/UseThemeMode';
 
-const CardExpandAndConfig = ({ title, children, expanded, onEditButtonClick }) => {
+const CardExpandAndConfig = ({ title, children, expanded, onCardExpandClick }) => {
   const [loading, setLoading] = useState(true); // State for loading spinner
   const { themeMode } = useThemeMode();
   const contentRef = useRef(null); // Ref for the content element
@@ -17,8 +17,8 @@ const CardExpandAndConfig = ({ title, children, expanded, onEditButtonClick }) =
   }, []);
 
   const handleHeaderClick = () => {
-    if (onEditButtonClick) {
-      onEditButtonClick();
+    if (onCardExpandClick) {
+      onCardExpandClick();
     }
   };
 

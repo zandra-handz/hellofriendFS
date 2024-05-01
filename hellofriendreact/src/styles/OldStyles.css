@@ -806,8 +806,8 @@ margin-bottom: 8px;
   align-items: center;
   background-color:rgb(160, 241, 67);
   background-color: white;
-  border-radius: 18px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 10px;
   
 }
 
@@ -822,10 +822,9 @@ margin-bottom: 8px;
   align-items: center;
   max-width: 400px;
   width: auto;
-  padding: 0px;
   background-color: white;
-  border-radius: 18px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 10px;
 }
 
 
@@ -2147,7 +2146,7 @@ v
 .custom-dropdown {
   position: relative;
   width: 90%;
-  border-radius: 18px; 
+  border-radius: 12px; 
   
 }
 
@@ -2157,8 +2156,7 @@ v
   -moz-appearance: none; 
   border: 2px solid rgb(160, 241, 67);
  
-  border-bottom: 2px solid #4caf50;
-  border-radius: 18px;
+  border-bottom: 2px solid #4caf50; 
   background-color: #fff;
   cursor: pointer;
   border-radius: 18px; 
@@ -2202,6 +2200,11 @@ v
   border-left-color: rgb(83, 175, 25); 
   border-radius: 50%;
   animation: spin 1s linear infinite;
+}
+
+.dark-mode .tab-spinner {
+  border-left-color:#04D9FF;
+
 }
 
 

@@ -754,8 +754,9 @@ class PastMeet(models.Model):
 class Location(models.Model):
 
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
-    title = models.CharField(max_length=64, unique=True)
-    address = models.CharField(max_length=64, unique=True, null=True)
+    # When remake database, take null off of title
+    title = models.CharField(max_length=64, unique=True, null=True, blank=False)
+    address = models.CharField(max_length=64, unique=True, null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     friends = models.ManyToManyField(Friend, blank=True)
@@ -777,6 +778,8 @@ class Location(models.Model):
     def calculate_coordinates(self):
 
         if not self.address:
+
+            
             self.address = self.title
  
         coordinates = utils.get_coordinates(self.address)

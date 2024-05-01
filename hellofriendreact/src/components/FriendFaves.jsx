@@ -46,7 +46,7 @@ const FriendFaves = () => {
   }
 
   return (
-    <CardExpandAndConfig title="Friend Favez" expanded={expanded} onEditButtonClick={toggleExpand}>
+    <CardExpandAndConfig title="Friend Favez" expanded={expanded} onCardExpandClick={toggleExpand}>
       <div className="edit-card-content">
         {expanded ? (
           <>

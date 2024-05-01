@@ -1,0 +1,39 @@
+/* Styling for the display and editable content */
+.display-editable-content {
+    border: 0px solid pink;
+    border-radius: 5px;
+    margin-top: 0;
+    top: 0;
+    color: black;
+    line-height: 2;
+  }
+  
+.dark-mode .display-editable-content {
+  color: white;
+}
+ 
+  
+  /* Styling for the display and editable content content */
+  .display-editable-content-content {
+    margin-top: 10px;
+  }
+
+  .display-editable-content-header {
+    display: flex;
+    top: 0;
+    justify-content: space-between; /* Align items to the start and end of the container */
+    align-items: flex-start; /* Align items to the start of the container */
+    
+    border-radius: 5px;
+    color: black;
+    padding: 0;
+ 
+  }
+  
+  .display-editable-content-container h4 {
+    margin: 0; /* Remove default margin */
+  }
+  
+  .display-editable-content-container button {
+    align-self: flex-start; /* Align the button to the start of the container */
+  }

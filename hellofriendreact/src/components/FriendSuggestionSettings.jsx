@@ -1,7 +1,7 @@
 // FriendSuggestionSettings.jsx
 import React, { useEffect, useState } from 'react';
 import api from '../api';
-import CardExpandAndConfigSliders from './DashboardStyling/CardExpandAndConfigSliders';
+import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
 import FormFriendSettings from './Forms/FormFriendSettings';
 import Spinner from './DashboardStyling/Spinner';
 import useAuthUser from '../hooks/UseAuthUser';
@@ -76,7 +76,7 @@ const FriendSuggestionSettings = () => {
   }
 
   return (
-    <CardExpandAndConfigSliders title="Friend Settings" expanded={expanded} onEditButtonClick={() => setExpanded(prevExpanded => !prevExpanded)}>
+    <CardExpandAndConfig title="Friend Settings" expanded={expanded} onCardExpandClick={() => setExpanded(prevExpanded => !prevExpanded)}>
       <>
         {expanded ? (
           <>
@@ -114,7 +114,7 @@ const FriendSuggestionSettings = () => {
           </div>
         )}
       </>
-    </CardExpandAndConfigSliders>
+    </CardExpandAndConfig>
   );
 };
 

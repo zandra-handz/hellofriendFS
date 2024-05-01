@@ -84,7 +84,7 @@ const UserSettings = () => {
     <CardExpandAndConfig
       title="User Settings"
       expanded={expanded}
-      onEditButtonClick={() => setExpanded(prevExpanded => !prevExpanded)}
+      onCardExpandClick={() => setExpanded(prevExpanded => !prevExpanded)}
     >
       <>
         {expanded ? (
