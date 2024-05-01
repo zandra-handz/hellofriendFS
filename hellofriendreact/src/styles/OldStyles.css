@@ -596,20 +596,31 @@ margin-bottom: 8px;
   -webkit-text-fill-color: white;  
 }
 
+/* Style for the container of each button */
+.upcoming-button-container {
+  display: inline-block; /* Ensure the container doesn't take full width */
+  min-width: 100px;
+  max-width: 200px; /* Maximum width for the container */
+}
+
+/* Style for the buttons */
 .upcoming-button {
   background-color: lightgray;
   border: 1px solid darkgray;
   cursor: pointer;
-  outline: none; 
-  
+  outline: none;
   border-radius: 18px;
-  padding: 10px;  
+  padding: 10px;
   color: white;
   animation: none;
   white-space: nowrap; /* Prevent text from wrapping */
   overflow: hidden; /* Hide overflowing text */
   text-overflow: ellipsis; /* Display ellipsis for overflow text */
+  width: 100%; /* Ensure buttons take up full width of container */
 }
+
+
+
 
 .dark-mode .upcoming-button {
   background-color: gray;
@@ -2308,12 +2319,25 @@ v
   margin-left: 8px;
 }
 
-.hello-grid {
+
+/* Ensure single column for narrow screens */
+.grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Adjust minmax value as needed */
-  gap: 20px; /* Adjust gap between items */
+  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); /* Two columns, auto-fit */
 }
 
-.hello-item {
-  font-size: 29px;
+
+/* Two columns if screen width is at least 401px */
+@media (min-width: 401px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)); /* Evenly spaced columns */
+  }
+}
+
+/* One column if screen width is at most 400px */
+@media (max-width: 400px) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr); /* Single column, full width */
+  }
 }

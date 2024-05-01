@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import api from '../api';
 import Card from './DashboardStyling/Card';
+import GridOneOrTwoColsAnyRows from './DashboardStyling/GridOneOrTwoColsAnyRows';
 import MainNextHelloButton from './DashboardStyling/MainNextHelloButton';
 import useUpcomingHelloes from '../hooks/UseUpcomingHelloes';
 
@@ -10,17 +11,16 @@ const NextHelloes = () => {
     return (
         <div>
             <Card title='Next Helloes'>
-                <div className="hello-grid">
+                <GridOneOrTwoColsAnyRows>
                     {upcomingHelloes && upcomingHelloes.map((item) => (
-                        <div className="hello-item" key={item.id}>
-                            <MainNextHelloButton
-                                friendName={item.friend_name}
-                                futureDate={item.future_date_in_words}
-                                friendObject={item.friend}
-                            />
-                        </div>
+                        <MainNextHelloButton
+                            friendName={item.friend_name}
+                            futureDate={item.future_date_in_words}
+                            friendObject={item.friend}
+                            key={item.id}
+                        />
                     ))}
-                </div>
+                </GridOneOrTwoColsAnyRows>
             </Card>
         </div>
     );
