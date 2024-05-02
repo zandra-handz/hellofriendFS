@@ -26,9 +26,10 @@ import useThemeMode from '../hooks/UseThemeMode';
 import TabBarPageUserLocationsAll from '../components/TabBarPageUserLocationsAll';
 import TabBarPageUserFriendsAll from '../components/TabBarPageUserFriendsAll';
 
+
 const Home = () => {
   const { themeMode } = useThemeMode();
-  const { selectedFriend } = useSelectedFriend();  
+  const { selectedFriend, loadingNewFriend } = useSelectedFriend(); // Accessing selected friend and friend dashboard data
   const { focusMode } = useFocusMode();
   const [loading, setLoading] = useState(true); 
 
@@ -47,7 +48,6 @@ const Home = () => {
     fetchData();
   }, []); // Empty dependency array to run once when component mounts
 
-
   return (
     <div className="App">
       <Header />
@@ -55,68 +55,102 @@ const Home = () => {
       {/* <FriendSelectorContainer /> */}
       
       <TabBar>
-      {!selectedFriend && (
-        <Tab label="Home">
-
-        {loading ? (
-          // Render the Spinner component while data is loading
-          <TabSpinner />
+        {!selectedFriend && (
+          <Tab label="Home">
+            {loading ? (
+              <TabSpinner />
             ) : (
-            <NextHelloes />
+              <NextHelloes />
             )}
-        </Tab>
-      )}
-      {selectedFriend && !focusMode && (
-        <Tab label="Dash">
-            <FriendDashHeader
-              friendDaysSince={<FriendDaysSince />}
-              friendNextHello={<FriendNextHello />}
-            />
-            <FriendFaves />
-            <FriendSuggestionSettings />
-        </Tab>
-      )}
-
-      {selectedFriend && (
-        <Tab label="Thoughts">
-          <FriendIdeas />
-          <FriendImages />
-        </Tab>
-      )}
-      {selectedFriend && (
-        <Tab label="Places">
-          <TabBarPageConsiderTheDrive />
-        </Tab>
-      )}
-      {selectedFriend && !focusMode && (
-        <Tab label="Meetups">
-          <TabBarPageHelloes />
-        </Tab>
-      )}
-
-
-      {!selectedFriend && (
-        <Tab label="Friends"> 
-          <TabBarPageUserFriendsAll />
-        </Tab>
-      )}
-      {!selectedFriend && (
-        <Tab label="Locations"> 
-          <TabBarPageUserLocationsAll />
-        
-        </Tab>
-      )}
-      {!selectedFriend && (
-        <Tab label="Settings"> 
-          <UserSettings />
-          <UserProfile />
-        </Tab>
-      )}
-        
-      
+          </Tab>
+        )}
+  
+        {selectedFriend && !focusMode && (
+          <Tab label="Dash">
+            {loadingNewFriend ? (
+              <TabSpinner />
+            ) : (
+              <>
+                <FriendDashHeader
+                  friendDaysSince={<FriendDaysSince />}
+                  friendNextHello={<FriendNextHello />}
+                />
+                <FriendFaves />
+                <FriendSuggestionSettings />
+              </>
+            )}
+          </Tab>
+        )}
+  
+        {selectedFriend && (
+          <Tab label="Thoughts">
+            {loadingNewFriend ? (
+              <TabSpinner />
+            ) : (
+              <>
+                <FriendIdeas />
+                <FriendImages />
+              </>
+            )}
+          </Tab>
+        )}
+  
+        {selectedFriend && (
+          <Tab label="Places">
+            {loadingNewFriend ? (
+              <TabSpinner />
+            ) : (
+              <TabBarPageConsiderTheDrive />
+            )}
+          </Tab>
+        )}
+  
+        {selectedFriend && !focusMode && (
+          <Tab label="Meetups">
+            {loadingNewFriend ? (
+              <TabSpinner />
+            ) : (
+              <TabBarPageHelloes />
+            )}
+          </Tab>
+        )}
+  
+        {!selectedFriend && (
+          <Tab label="Friends"> 
+            {loadingNewFriend ? (
+              <TabSpinner />
+            ) : (
+              <TabBarPageUserFriendsAll />
+            )}
+          </Tab>
+        )}
+  
+        {!selectedFriend && (
+          <Tab label="Locations"> 
+            {loadingNewFriend ? (
+              <TabSpinner />
+            ) : (
+              <TabBarPageUserLocationsAll />
+            )}
+          </Tab>
+        )}
+  
+        {!selectedFriend && (
+          <Tab label="Settings"> 
+            {loadingNewFriend ? (
+              <TabSpinner />
+            ) : (
+              <>
+                <UserSettings />
+                <UserProfile />
+              </>
+            )}
+          </Tab>
+        )}
       </TabBar>
     </div>
   );
+  
 };
 
 export default Home;

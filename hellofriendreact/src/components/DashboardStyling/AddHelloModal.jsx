@@ -3,11 +3,13 @@ import api from '/src/api';
 import useAuthUser from '/src/hooks/UseAuthUser';
 import useSelectedFriend from '/src/hooks/UseSelectedFriend';
 import useCapsuleList from '/src/hooks/UseCapsuleList'; 
+import useLocationList from '/src/hooks/UseLocationList';
 import useThemeMode from '/src/hooks/UseThemeMode';
 import useUpcomingHelloes from '/src/hooks/UseUpcomingHelloes'; 
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '/src/styles/OldStyles.css';
+
 
 const AddHelloModal = ({ onClose, onSave }) => {
   const { themeMode } = useThemeMode();
@@ -34,12 +36,13 @@ const AddHelloModal = ({ onClose, onSave }) => {
   const [capsuleData, setCapsuleData] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [shouldClose, setShouldClose] = useState(false);
-  const { selectedFriend } = useSelectedFriend();
+  const { selectedFriend, setFriend } = useSelectedFriend();
   const { capsuleList, setCapsuleList } = useCapsuleList(); // Destructure fetchCapsuleList from the hook
   const { authUser } = useAuthUser(); 
 
+  
   const { updateTrigger, setUpdateTrigger } = useUpcomingHelloes(); // Destructure updateTrigger and setUpdateTrigger from the hook
-
+  
 
   const handleInputChange = (e) => {
     setTextInput(e.target.value);
@@ -126,6 +129,16 @@ const AddHelloModal = ({ onClose, onSave }) => {
     }
   };
 
+  const handleSetFriend = (friend) => {
+    setFriend(null);
+    const friendData = {
+      id: friend.id,
+      name: friend.name
+    };
+    setFriend(friendData);
+  };
+
+
   const handleSave = async () => {
     try {
       if (selectedFriend) {
@@ -156,6 +169,13 @@ const AddHelloModal = ({ onClose, onSave }) => {
         // Call the fetchCapsuleList function to refetch the capsule list data after saving
         fetchCapsuleListData();
   
+        handleSetFriend(selectedFriend); // Call handleSetFriend to set the selected friend
+
+        // Log a message to confirm if setFriend is being called
+        console.log('handleSetFriend called with:', selectedFriend);
+  
+
+  
         setIdeaLimit('limit feature disabled');
         setTextInput('');
         setLocationInput('');
@@ -169,26 +189,18 @@ const AddHelloModal = ({ onClose, onSave }) => {
   
         setTimeout(() => {
           setSuccessMessage('');
+          setShouldClose(false); // Reset shouldClose after displaying success message
         }, 4000);
   
-        setTimeout(() => {
-          setShouldClose((prevShouldClose) => {
-            if (prevShouldClose) {
-              onClose();
-            }
-            return prevShouldClose;
-          });
-        }, 4000);
-  
-        onSave(textInput);
-  
-        // Trigger update
         setUpdateTrigger(prev => !prev);
+        // onClose(); // Move this line to ensure modal is closed after the success message is displayed
       }
     } catch (error) {
       console.error('Error creating idea:', error);
     }
   };
+  
+  
   
 
   useEffect(() => {

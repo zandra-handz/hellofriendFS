@@ -242,7 +242,7 @@ class NextMeet(models.Model):
                 elif days <= 18:
                     x = days + 18
                     x = x - self.friend_suggestion_settings.effort_required
-            elif self.friend_suggestion_settings.priority_levely == 3:
+            elif self.friend_suggestion_settings.priority_level == 3:
                 if days > 30:
                     x = 15 - self.friend_suggestion_settings.effort_required
                 elif days <= 30:

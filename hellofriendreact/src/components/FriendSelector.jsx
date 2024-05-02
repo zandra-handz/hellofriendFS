@@ -15,6 +15,7 @@ const FriendSelector = () => {
             setFriend(null);
         } else {
             const selectedFriendData = selectedOption ? selectedOption.data : null;
+            setFriend(null);
             setFriend(selectedFriendData);
         }
     }, [setFriend]);
