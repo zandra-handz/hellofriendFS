@@ -64,7 +64,7 @@ const Home = () => {
             )}
           </Tab>
         )}
-  
+
         {selectedFriend && !focusMode && (
           <Tab label="Dash">
             {loadingNewFriend ? (
@@ -81,9 +81,10 @@ const Home = () => {
             )}
           </Tab>
         )}
-  
+
         {selectedFriend && (
-          <Tab label="Thoughts">
+          <Tab label="Thoughts" active={focusMode}>
+            {/* Render the content for the Thoughts tab */}
             {loadingNewFriend ? (
               <TabSpinner />
             ) : (
@@ -94,6 +95,8 @@ const Home = () => {
             )}
           </Tab>
         )}
+      
+
   
         {selectedFriend && (
           <Tab label="Places">

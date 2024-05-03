@@ -9,8 +9,7 @@ const CardPlacesSetSearch = ({ children, showRedoButton, onRedoButtonClick, isRe
   return (
     <div className={`${themeMode === 'dark' ? 'dark-mode' : ''}`}>
       <div className="places-card"> 
-        <div className="places-card-header">
-            <h2> </h2>
+        <div className="places-card-header"> 
             <div>
               {showRedoButton && (  
                 <button onClick={onRedoButtonClick} className="redo-button">

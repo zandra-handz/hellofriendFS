@@ -29,6 +29,7 @@ const AddHelloModal = ({ onClose, onSave }) => {
 
   const [selectedType, setSelectedType] = useState('');
   const [locationData, setLocationData] = useState([]);
+  
   const textareaRef = useRef();
   const [textboxPlaceholder, setTextboxPlaceholder] = useState('Start typing your thought here');
   
@@ -37,12 +38,15 @@ const AddHelloModal = ({ onClose, onSave }) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [shouldClose, setShouldClose] = useState(false);
   const { selectedFriend, setFriend } = useSelectedFriend();
+ const { locationList, setLocationList } = useLocationList();
   const { capsuleList, setCapsuleList } = useCapsuleList(); // Destructure fetchCapsuleList from the hook
   const { authUser } = useAuthUser(); 
 
   
   const { updateTrigger, setUpdateTrigger } = useUpcomingHelloes(); // Destructure updateTrigger and setUpdateTrigger from the hook
   
+  const filteredLocationList = locationList.filter(location => location.validatedAddress);
+
 
   const handleInputChange = (e) => {
     setTextInput(e.target.value);
@@ -138,7 +142,6 @@ const AddHelloModal = ({ onClose, onSave }) => {
     setFriend(friendData);
   };
 
-
   const handleSave = async () => {
     try {
       if (selectedFriend) {
@@ -170,11 +173,6 @@ const AddHelloModal = ({ onClose, onSave }) => {
         fetchCapsuleListData();
   
         handleSetFriend(selectedFriend); // Call handleSetFriend to set the selected friend
-
-        // Log a message to confirm if setFriend is being called
-        console.log('handleSetFriend called with:', selectedFriend);
-  
-
   
         setIdeaLimit('limit feature disabled');
         setTextInput('');
@@ -185,15 +183,14 @@ const AddHelloModal = ({ onClose, onSave }) => {
         setLocationLabelValue('');
         setSelectedLocation('');
         setSuccessMessage('Hello saved successfully!');
-        setShouldClose(true);
   
         setTimeout(() => {
+          // Reset success message and close the modal
           setSuccessMessage('');
-          setShouldClose(false); // Reset shouldClose after displaying success message
-        }, 4000);
+          onClose(); // Close the modal
+        }, 4000); // Close the modal after 4 seconds (4000 milliseconds)
   
         setUpdateTrigger(prev => !prev);
-        // onClose(); // Move this line to ensure modal is closed after the success message is displayed
       }
     } catch (error) {
       console.error('Error creating idea:', error);
@@ -247,39 +244,7 @@ const AddHelloModal = ({ onClose, onSave }) => {
     fetchLimit();
   }, [selectedFriend]);
 
-  const fetchData = async () => {
-    try {
-      if (selectedFriend) {
-        const response = await api.get(`/friends/dropdown/all-user-locations/`);
-        setLocationData(response.data);
-  
-        // Set initial location label value based on the first location in the data
-        if (response.data.length > 0) {
-          setLocationLabelValue(response.data[0].address); // Set to the first address, for example
-        }
-  
-        console.log("Location Data:", response.data); // Log locationData after setting state
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    }
-  };
-  
 
-  const fetchUpdatedData = async () => {
-    try {
-      await fetchData();
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 2000);
-    } catch (error) {
-      console.error('Error fetching updated data:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchUpdatedData(); // Fetch initial data
-  }, [selectedFriend]);
 
   return (
     <div className={`${themeMode === 'dark' ? 'dark-mode' : ''}`}>
@@ -367,24 +332,24 @@ const AddHelloModal = ({ onClose, onSave }) => {
                     placeholder="(leave empty to keep address unvalidated)"
                   />
                 </div>   
-                {locationData.length > 0 && (
-                  <div className="input-container">
-                    <label htmlFor="location"> </label>
-                    <select
-                      id="location-select"
-                      className="modal-select"
-                      value={selectedLocation}
-                      onChange={handleLocationChange} // Ensure this is correctly bound
-                    >
-                      <option value="">Been here before: </option>
-                      {locationData.map((locationInfo) => (
-                        <option key={locationInfo.title} value={locationInfo.id || ''}>
-                          {locationInfo.title} {locationInfo.address || 'No address'}
-                        </option>
-                      ))}
-                    </select>
-
-                  </div>
+                {locationList.length > 0 && (
+                <div className="input-container">
+                  <label htmlFor="location"> </label>
+                  <select
+                    id="location-select"
+                    className="modal-select"
+                    value={selectedLocation}
+                    onChange={handleLocationChange}
+                  >
+                    <option value="">Been here before: </option>
+                    {/* Use the filteredLocationList here instead of locationData */}
+                    {filteredLocationList.map((locationInfo) => (
+                      <option key={locationInfo.id} value={locationInfo.id || ''}>
+                        {locationInfo.title} {locationInfo.address || 'No address'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 )}
 
 
@@ -457,17 +422,20 @@ const AddHelloModal = ({ onClose, onSave }) => {
               <button className="modal-save-button" onClick={handleSave} disabled={(!selectedType) || (!selectedType && !selectedLocation && (!locationInput && !locationNameInput)) || (!selectedLocation && (!locationInput && !locationNameInput))}>
                 Save
               </button> 
+
               {/* Checkbox to set deleteChoice state */}
               {(selectedType && (selectedLocation || locationInput || locationNameInput)) && (
-                <label className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={deleteChoice}
-                    onChange={(e) => setDeleteChoice(e.target.checked)}
-                    className="checkbox-input"
-                  />
-                  Delete choice
-                </label>
+                <div className="checkbox-section">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={deleteChoice}
+                      onChange={(e) => setDeleteChoice(e.target.checked)}
+                      
+                    />
+                    Delete all unused capsules? 
+                  </label>
+                </div>
               )}
             </div>
           </div>

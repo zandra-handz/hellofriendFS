@@ -72,8 +72,8 @@ const ValidateAddress = ({ headerText, onValidationChange }) => {
   return (
     <div style={{ position: 'relative' }}>
       <div style={{ position: 'relative', zIndex: 0 }}>
-        <div style={{ padding: '0px' }}>
-          <h2>{headerText}</h2>
+        <div style={{ padding: '0px', fontWeight: '300' }}>
+          <h3>{headerText}</h3>
         </div>
         <div style={{ position: 'relative' }}>
           <input
@@ -81,7 +81,7 @@ const ValidateAddress = ({ headerText, onValidationChange }) => {
             placeholder=""
             value={inputAddress}
             onChange={handleInputChange}
-            style={{ position: 'absolute', borderRadius: '20px',  left: '6px', top: '3px', zIndex: 1, width: '80%', paddingRight: '0' }}
+            style={{ position: 'absolute', borderRadius: '20px',  height: '20px', left: '6px', fontSize: '14px', top: '7px', zIndex: 1, width: '80%', paddingRight: '0' }}
           />
           <button
             onClick={handleValidation}
@@ -107,7 +107,7 @@ const ValidateAddress = ({ headerText, onValidationChange }) => {
         </div>
       </div>
       {validatedText && (
-        <div style={{ position: 'absolute', right: 0, left: -2, top: 28, color: 'black', display: 'flex', fontSize: '21px', zIndex: 0 }}>
+        <div style={{ position: 'absolute', right: 0, left: -2, top: 27, display: 'flex', fontSize: '16px', zIndex: 0 }}>
           <label>{validatedText}  <FaCheck style={{ color: 'transparent' }} /></label>
           <div className="undo-wrapper" style={{ position: 'relative' }}>
             <button onClick={() => setValidatedText('')} className="fa-undo-button" style={{ borderRadius: '0%', zIndex: 0, background: 'transparent' }}>
