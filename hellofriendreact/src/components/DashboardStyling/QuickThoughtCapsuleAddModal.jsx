@@ -10,28 +10,36 @@ import useCapsuleList from '/src/hooks/UseCapsuleList';
 
 const QuickThoughtCapsuleAddModal = ({ onClose, onSave }) => {
   const { themeMode } = useThemeMode();
-  const { selectedFriend } = useSelectedFriend();
+  const {selectedFriend, friendDashboardData, updateFriendDashboardData  } = useSelectedFriend();
+ 
+  
   const { capsuleList, setCapsuleList } = useCapsuleList();
-  const [loading, setLoading] = useState(true); // State to track loading
   const [textInput, setTextInput] = useState('');
   const [categoryInput, setCategoryInput] = useState('');
   const [categoryLabelValue, setCategoryLabelValue] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const textareaRef = useRef();
   const [textboxPlaceholder, setTextboxPlaceholder] = useState('Start typing your thought here');
-  const [nextMeetData, setNextMeetData] = useState('');
   const [categoryLimit, setCategoryLimit] = useState('');
   const [remainingCategories, setRemainingCategories] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isDeleted, setIsDeleted] = useState(false); 
   const { authUser } = useAuthUser();
-  const calculateRemainingCategories = (categoryLimit, capsuleList) => {
+  
+
+  const calculateUniqueCategoriesCount = (capsuleList) => {
     const uniqueCategories = [...new Set(capsuleList.map(capsule => capsule.typedCategory))];
-    const uniqueCategoriesCount = uniqueCategories.length;
-    console.log("Unique Categories:", uniqueCategories);
-    console.log("Unique Categories Count:", uniqueCategoriesCount);
+    console.log('Caculate category count', uniqueCategories.length)
+    return uniqueCategories.length;
+  };
+  
+
+  const calculateRemainingCategories = (categoryLimit, capsuleList) => {
+    const uniqueCategoriesCount = calculateUniqueCategoriesCount(capsuleList);
     return categoryLimit - uniqueCategoriesCount;
   };
+  
+   
   
   useEffect(() => {
     if (selectedFriend) {
@@ -41,15 +49,15 @@ const QuickThoughtCapsuleAddModal = ({ onClose, onSave }) => {
   
   const fetchInitialData = async () => {
     try {
-      const [categoryLimitResponse] = await Promise.all([
-        api.get(`/friends/${selectedFriend.id}/category-limit/`)
-      ]);
-      const categoryLimitValue = parseInt(categoryLimitResponse.data.category_limit_formula, 10); // Parse the value to an integer
-      console.log("Category Limit Value:", categoryLimitValue);
-      const remainingCategoriesCount = calculateRemainingCategories(categoryLimitValue, capsuleList);
-      console.log("Remaining Categories Count:", remainingCategoriesCount);
+
+      const firstFriendData = friendDashboardData[0]; 
+      const categoryLimitResponse = firstFriendData.suggestion_settings.category_limit_formula
+      const categoryActivationsLeft = firstFriendData.category_activations_left
+      const categoryLimitValue = parseInt(categoryLimitResponse); 
       setCategoryLimit(categoryLimitValue);
-      setRemainingCategories(remainingCategoriesCount);
+      setRemainingCategories(categoryActivationsLeft);
+
+      
     } catch (error) {
       console.error('Error fetching initial data:', error);
     }
@@ -80,7 +88,6 @@ const QuickThoughtCapsuleAddModal = ({ onClose, onSave }) => {
       textareaRef.current.focus();
     }
   };
-
   const handleSave = async () => {
     try {
       if (selectedFriend) {
@@ -98,14 +105,16 @@ const QuickThoughtCapsuleAddModal = ({ onClose, onSave }) => {
         console.log('Category Input:', categoryInput);
   
         // Add the saved capsule to the capsuleList
-        setCapsuleList(prevCapsuleList => [
-          ...prevCapsuleList,
+        const updatedCapsuleList = [
+          ...capsuleList,
           {
             id: response.data.id,
             typedCategory: selectedCategory || categoryInput, // Make sure typedCategory is set
             capsule: textInput  
           }
-        ]);
+        ];
+  
+        setCapsuleList(updatedCapsuleList);
   
         // Clear input fields and set success message
         setTextInput('');
@@ -113,15 +122,35 @@ const QuickThoughtCapsuleAddModal = ({ onClose, onSave }) => {
         setCategoryLabelValue('');
         setSelectedCategory('');
         setSuccessMessage('Idea saved successfully!');
-        onSave(textInput);
+        onSave(textInput); 
+         
+        const updatedDashboardData = friendDashboardData.map(friendData => {
+                  // Recalculate remaining categories using the updated capsuleList
+          const calculation = calculateRemainingCategories(categoryLimit, updatedCapsuleList);
+          console.log('Calculation:', calculation);
+          setRemainingCategories(calculation);
+          
+          
+          if (friendData.id === selectedFriend.id) {
+            return {
+              ...friendData,
+              category_activations_left: calculation
+
+            };
+          }
+          return friendData;
+        });
+
+        console.log('Updated dashboard: ', updatedDashboardData);
+  
+        updateFriendDashboardData(updatedDashboardData); 
       }
     } catch (error) {
       console.error('Error creating idea:', error);
     }
   };
+    
   
-  
-
   const handleTrashClick = async (capsuleId) => {
     try {
       await api.delete(`/friends/${selectedFriend.id}/thoughtcapsule/${capsuleId}/`);
@@ -129,11 +158,29 @@ const QuickThoughtCapsuleAddModal = ({ onClose, onSave }) => {
       // Remove the deleted capsule from the capsuleList
       setCapsuleList(prevCapsuleList => prevCapsuleList.filter(capsule => capsule.id !== capsuleId));
   
+      // Set success message and update remaining categories
       setSuccessMessage('Idea deleted successfully!');
-      setIsDeleted(true); 
+      setIsDeleted(true);
       setTimeout(() => {
-        setIsDeleted(false);  
+        setIsDeleted(false);
       }, 3000);
+  
+      // Recalculate remaining categories using the updated capsuleList
+      const calculation = calculateRemainingCategories(categoryLimit, capsuleList.filter(capsule => capsule.id !== capsuleId));
+      setRemainingCategories(calculation);
+  
+      // Update the dashboard data with the new remaining categories
+      updateFriendDashboardData(prevData => {
+        return prevData.map(friendData => {
+          if (friendData.id === selectedFriend.id) {
+            return {
+              ...friendData,
+              category_activations_left: calculation // Update category_activations_left with the new calculation
+            };
+          }
+          return friendData;
+        });
+      });
     } catch (error) {
       console.error('Error deleting capsule:', error);
     }

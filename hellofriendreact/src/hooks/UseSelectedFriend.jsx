@@ -10,6 +10,7 @@ const useSelectedFriend = () => {
 
   return {
     ...context,
+    setFriendDashboardData: context.setFriendDashboardData, // Include setFriendDashboardData in the returned object
     friendDashboardData: context.friendDashboardData // Include dashboard data in the returned object
   };
 };

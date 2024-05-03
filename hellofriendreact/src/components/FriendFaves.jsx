@@ -13,7 +13,6 @@ const FriendFaves = () => {
   const [data, setData] = useState(null);
   const [expanded, setExpanded] = useState(false); // State to manage expanded/collapsed state
   const [isEditMode, setIsEditMode] = useState(false);
-  const { authUser } = useAuthUser();
   const { selectedFriend, friendDashboardData } = useSelectedFriend();
 
   useEffect(() => {

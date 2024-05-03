@@ -51,13 +51,25 @@ export const SelectedFriendProvider = ({ children }) => {
     fetchFriendDashboard();
   }, [selectedFriend]);
 
+  const updateFriendDashboardData = (newData) => {
+    setFriendDashboardData(newData);
+  };
+
+
   // Log what is being passed into setFriend
   useEffect(() => {
     console.log('Selected friend being set:', selectedFriend);
   }, [selectedFriend]);
 
   return (
-    <SelectedFriendContext.Provider value={{ selectedFriend, setFriend: setSelectedFriend, friendList, friendDashboardData, loadingNewFriend }}>
+    <SelectedFriendContext.Provider value={{ 
+      selectedFriend, 
+      setFriend: setSelectedFriend, 
+      friendList, 
+      friendDashboardData, 
+      loadingNewFriend,
+      updateFriendDashboardData // Provide the function to update friend dashboard data
+    }}>
       {children}
     </SelectedFriendContext.Provider>
   );
