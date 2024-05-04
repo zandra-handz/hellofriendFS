@@ -1,4 +1,3 @@
-// FriendFaves.jsx
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
@@ -8,12 +7,11 @@ import useAuthUser from '../hooks/UseAuthUser';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
 import { FaWrench } from 'react-icons/fa';
 
-
 const FriendFaves = () => {
   const [data, setData] = useState(null);
   const [expanded, setExpanded] = useState(false); // State to manage expanded/collapsed state
   const [isEditMode, setIsEditMode] = useState(false);
-  const { selectedFriend, friendDashboardData } = useSelectedFriend();
+  const { selectedFriend, friendDashboardData, updateFriendDashboardData } = useSelectedFriend();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,6 +38,24 @@ const FriendFaves = () => {
     setIsEditMode(prevMode => !prevMode);
   };
 
+  const handleSubmit = async (updatedData) => {
+    try {
+      // Update friend faves settings
+      await api.put(`/friends/${selectedFriend.id}/faves/update/`, updatedData);
+
+      // Fetch updated dashboard data
+      const dashboardResponse = await api.get(`/friends/${selectedFriend.id}/dashboard/`);
+      const updatedDashboardData = dashboardResponse.data;
+
+      // Update dashboard data
+      updateFriendDashboardData(updatedDashboardData);
+
+      setIsEditMode(false);
+    } catch (error) {
+      console.error('Error updating settings:', error);
+    }
+  };
+
   if (!selectedFriend) {
     return <p>No friend selected.</p>;
   }
@@ -58,7 +74,7 @@ const FriendFaves = () => {
             {isEditMode ? (
               <div>
                 {/* Edit mode content */}
-                <FormFriendFaves locations={data.locations} />
+                <FormFriendFaves locations={data.locations} handleSubmit={handleSubmit} />
               </div>
             ) : (
               <div>

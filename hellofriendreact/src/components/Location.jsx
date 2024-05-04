@@ -128,7 +128,11 @@ const Location = ({ location, friendList }) => {
               />
             ) : (
               <div>
-                <p><strong>Friends:</strong> {locationFriends.map(friendId => friendList.find(friend => friend.id === friendId)).join(', ')}</p>
+                  <p><strong>Friends:</strong> {locationFriends.map(friendId => {
+                    const friend = friendList.find(friend => friend.id === friendId);
+                    return friend ? friend.name : 'hi';
+                  }).join(', ')}</p>
+                                
                 {location.personal_experience_info && (
                   <p><strong>Notes about this location:</strong> {location.personal_experience_info}</p>
                 )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
-import { FaCheck, FaUndo, FaArrowCircleUp } from 'react-icons/fa';
+import { FaCheck, FaUndo, FaArrowCircleUp, FaRoad, FaCompass } from 'react-icons/fa';
 import useAuthUser from '/src/hooks/UseAuthUser';
 import useSelectedFriend from '/src/hooks/UseSelectedFriend';
 import useThemeMode from '../hooks/UseThemeMode';
@@ -88,7 +88,7 @@ const ValidateAddress = ({ headerText, onValidationChange }) => {
             style={{ position: 'absolute', right: 0, zIndex: 0, width: '40px'}}
             className="places-card-validate-button"  
           >
-            <FaArrowCircleUp />
+            <FaCompass/>
           </button>
           <div className="custom-dropdown">
             <select

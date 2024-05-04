@@ -1,4 +1,3 @@
-// FriendSuggestionSettings.jsx
 import React, { useEffect, useState } from 'react';
 import api from '../api';
 import CardExpandAndConfig from './DashboardStyling/CardExpandAndConfig';
@@ -15,7 +14,7 @@ const FriendSuggestionSettings = () => {
   const [priorityLevel, setPriorityLevel] = useState('');
   const [expanded, setExpanded] = useState(false); // State for managing expanded/collapsed state
   const { authUser } = useAuthUser();
-  const { selectedFriend, friendDashboardData } = useSelectedFriend();
+  const { selectedFriend, friendDashboardData, updateFriendDashboardData } = useSelectedFriend();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,6 +64,14 @@ const FriendSuggestionSettings = () => {
         effort_required: effortRequired,
         priority_level: priorityLevel
       });
+
+      // Fetch updated dashboard data
+      const dashboardResponse = await api.get(`/friends/${selectedFriend.id}/dashboard/`);
+      const updatedDashboardData = dashboardResponse.data;
+
+      // Update dashboard data
+      updateFriendDashboardData(updatedDashboardData);
+
       setIsEditMode(false);
     } catch (error) {
       console.error('Error updating settings:', error);

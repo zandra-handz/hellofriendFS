@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import CardExpand from './DashboardStyling/CardExpand';
+import CardExpandCapsules from './DashboardStyling/CardExpandCapsules';
 import ButtonExpandAll from './DashboardStyling/ButtonExpandAll';
 import ItemCapsule from './DashboardStyling/ItemCapsule';
 import TabSpinner from './DashboardStyling/TabSpinner';
@@ -66,7 +66,7 @@ const FriendIdeas = () => {
           return acc;
         }, {})).map(([category, capsules]) => (
           <div key={category}>
-            <CardExpand
+            <CardExpandCapsules
               title={`Category: ${category}`}
               expanded={expandedCategories[category]}
               onExpandButtonClick={() => toggleCategory(category)}
@@ -74,7 +74,7 @@ const FriendIdeas = () => {
               {expandedCategories[category] && capsules.map(capsule => (
                 <ItemCapsule key={capsule.id} capsule={capsule.capsule} />
               ))}
-            </CardExpand>
+            </CardExpandCapsules>
           </div>
         ))
       ) : (

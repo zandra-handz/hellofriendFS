@@ -8,6 +8,7 @@ import useSelectedFriend from '../hooks/UseSelectedFriend';
 import useAuthUser from '../hooks/UseAuthUser';
 import useThemeMode from '../hooks/UseThemeMode';
 import '/src/styles/OldStyles.css';
+import { FaRoad } from 'react-icons/fa';
 
 const TabBarPageConsiderTheDrive = () => {
   const { themeMode } = useThemeMode();
@@ -190,7 +191,7 @@ const TabBarPageConsiderTheDrive = () => {
         <div className="places-card-content">
           <div className="places-restrictor">
             <button className="submit-button" onClick={handleSubmit} disabled={!addressA || !addressB || !destinationAddress}>
-              {loading ? 'Loading...' : 'Get travel times'} {/* Change button text based on loading state */}
+              {loading ? 'Loading...' : 'Get travel times' } <FaRoad /> {/* Change button text based on loading state */}
             </button>
           </div>
         </div>
