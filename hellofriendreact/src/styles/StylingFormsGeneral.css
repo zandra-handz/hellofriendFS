@@ -12,16 +12,37 @@
     border-radius: 4px;
   }
   
-  .form-general-button {
-    padding: 10px 20px;
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+
+  .form-button-container {
+    display: flex; /* Use flexbox */
+    justify-content: flex-start; /* Align items to the start */
+    width: 100%;
   }
   
-  .form-general-button:hover {
-    background-color: #0056b3;
+  .form-general-button { 
+    padding: 8px;
+    margin: 4px;
+    border: none;
+    font-size: 11px;
+    border-radius: 12px;
+    background-color: rgb(83, 175, 25);
+    color: white;
+    
+  }
+  
+  .form-general-button:hover  {
+    background:  rgb(119, 249, 38); 
+  }
+  
+  .dark-mode .form-general-button {
+    background-color:rgb(1, 99, 210); 
+    color: white;
+  
+  }
+  
+  .dark-mode .form-general-button:hover {
+    background-color:#04D9FF;
+    color: white;
+  
   }
   

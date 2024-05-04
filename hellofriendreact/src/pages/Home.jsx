@@ -8,7 +8,10 @@ import TabSpinner from '../components/DashboardStyling/TabSpinner';
 import NextHelloes from '../components/NextHelloes';
 import FriendDashHeader from '../components/FriendDashHeader';
 import FriendDaysSince from '../components/FriendDaysSince';
-import FriendNextHello from '../components/FriendNextHello';
+import FriendNextHello from '../components/FriendNextHello'; 
+import FriendInfo from '../components/FriendInfo';
+import FriendSuggestionSettings from '../components/FriendSuggestionSettings';
+import FriendFaves from '../components/FriendFaves';
 import FriendIdeas from '../components/FriendIdeas';
 import FriendImages from '../components/FriendImages';
 import UserSettings from '../components/UserSettings';
@@ -17,8 +20,7 @@ import TabBarPageHelloes from '../components/TabBarPageHelloes';
 import TabBarPageConsiderTheDrive from '../components/TabBarPageConsiderTheDrive';
 import ThoughtCapsules from '../components/ThoughtCapsules'; // Import ThoughtCapsules component
 import AddThoughtCapsule from '../components/AddThoughtCapsule'; // Import AddThoughtCapsule component
-import FriendSuggestionSettings from '../components/FriendSuggestionSettings';
-import FriendFaves from '../components/FriendFaves';
+
 import useAuthUser from '../hooks/UseAuthUser';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
 import useFocusMode from '../hooks/UseFocusMode';
@@ -75,6 +77,7 @@ const Home = () => {
                   friendDaysSince={<FriendDaysSince />}
                   friendNextHello={<FriendNextHello />}
                 />
+                <FriendInfo />
                 <FriendFaves />
                 <FriendSuggestionSettings />
               </>

@@ -2274,7 +2274,8 @@ v
   width: 100%;
 }
 
-.mass-function-button { 
+.mass-function-button,
+.friend-container { 
   padding: 8px;
   margin: 4px;
   border: none;
@@ -2282,20 +2283,24 @@ v
   border-radius: 12px;
   background-color: rgb(83, 175, 25);
   color: white;
+  min-width: 60px;
   
 }
 
-.mass-function-button:hover  {
+.mass-function-button:hover,
+.friend-container:hover  {
   background:  rgb(119, 249, 38); 
 }
 
-.dark-mode .mass-function-button {
+.dark-mode .mass-function-button,
+.dark-mode .friend-container {
   background-color:rgb(1, 99, 210); 
   color: white;
 
 }
 
-.dark-mode .mass-function-button:hover {
+.dark-mode .mass-function-button:hover,
+.dark-mode .friend-container:hover {
   background-color:#04D9FF;
   color: white;
 
@@ -2382,3 +2387,8 @@ v
     grid-template-columns: minmax(0, 1fr); /* Single column, full width */
   }
 }
+
+
+
+ 
+

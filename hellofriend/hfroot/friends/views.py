@@ -47,9 +47,20 @@ class FriendCreateView(APIView):
     "first_meet_entered": "2024-03-31"
     }
     '''
+
+class FriendDetail(generics.RetrieveUpdateAPIView):
+    serializer_class = serializers.FriendSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id']
+        return models.Friend.objects.filter(user=user, id=friend_id)
     
 
-class FriendDetail(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
+
+class FriendProfile(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
     serializer_class = serializers.FriendProfileSerializer
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
@@ -114,6 +125,25 @@ class NextMeetView(generics.ListAPIView):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
         return models.NextMeet.objects.filter(user=user, friend_id=friend_id)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def remix_all_next_meets(request):
+    user = request.user
+
+    # Check if user is authenticated
+    if not user.is_authenticated:
+        return response.Response({"message": "User is not authenticated."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    next_meets = models.NextMeet.objects.filter(user=user)
+
+    for next_meet in next_meets:
+        next_meet.reset_date()
+        next_meet.create_new_date_if_needed()
+        next_meet.save()
+
+    return response.Response({"message": "All next meets have been remixed successfully."})
 
 
 class FriendDashboardView(generics.ListAPIView):

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../api';
 import CardUneditable from './DashboardStyling/CardUneditable';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
-import DetailImageModal from './DashboardStyling/DetailImageModal';  
+import DetailImageModal from './DashboardStyling/DetailImageModal';
 import TabSpinner from './DashboardStyling/TabSpinner';
 
 const FriendImages = () => {
@@ -13,19 +13,19 @@ const FriendImages = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        if (selectedFriend) {
+        if (selectedFriend && selectedFriend.id !== imagesByCategory.friendId) {
           const imagesResponse = await api.get(`/friends/${selectedFriend.id}/images/by-category/`);
-          setImagesByCategory(imagesResponse.data);
+          setImagesByCategory({ data: imagesResponse.data, friendId: selectedFriend.id });
         }
       } catch (error) {
         console.error('Error fetching data:', error);
         setImagesByCategory({});
       }
     };
-  
+
     fetchData();
-  }, [selectedFriend]);
-  
+  }, [selectedFriend, imagesByCategory.friendId]); // Include imagesByCategory.friendId in the dependencies array
+
   const handleImageClick = (imageId) => {
     setSelectedImageId(imageId); // Set the selected image ID
   };
@@ -33,11 +33,11 @@ const FriendImages = () => {
   return (
     <div>
       {Object.keys(imagesByCategory).length > 0 && (
-        Object.keys(imagesByCategory).map(category => (
+        Object.keys(imagesByCategory.data).map(category => (
           <div key={category}>
             <CardUneditable title={category}>
               <div className="image-button" style={{ display: 'flex', flexWrap: 'wrap' }}>
-                {imagesByCategory[category].map(image => (
+                {imagesByCategory.data[category].map(image => (
                   <div key={image.id} style={{ margin: '10px' }}>
                     <h3>{image.title}</h3>
                     <div onClick={() => handleImageClick(image.id)}>

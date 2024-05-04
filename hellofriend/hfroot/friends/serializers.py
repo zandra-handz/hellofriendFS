@@ -94,10 +94,14 @@ class NextMeetSerializer(serializers.ModelSerializer):
 class FriendDashboardSerializer(serializers.ModelSerializer):
     suggestion_settings = FriendSuggestionSettingsSerializer(source='friend_suggestion_settings', read_only=True)
     friend_faves = serializers.SerializerMethodField()
+    name = serializers.CharField(source='friend.name')
+    first_name = serializers.CharField(source='friend.first_name')
+    last_name = serializers.CharField(source='friend.last_name')
+    first_meet_entered = serializers.DateField(source='friend.first_meet_entered')
 
     class Meta:
         model = models.NextMeet
-        fields = ['id', 'date', 'friend', 'days_since', 'days_since_words', 
+        fields = ['id', 'date', 'name', 'first_name', 'last_name', 'first_meet_entered', 'days_since', 'days_since_words', 
                   'time_score', 'future_date_in_words', 'category_activations_left', 
                   'suggestion_settings', 'friend_faves']
 
@@ -108,6 +112,7 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
             return FriendFavesSerializer(instance=friend_faves_instance).data
         else:
             return None
+
 
 
 class UpcomingMeetsSerializer(serializers.ModelSerializer):

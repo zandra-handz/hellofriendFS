@@ -68,7 +68,7 @@ class Friend(models.Model):
         p = date.strftime("%B") + " " + str(date.day)
         s = date.strftime("%Y")
         words = f"{l}, {p}, {s}"
-        return words.lower()
+        return words
 
     def save(self, *args, **kwargs):
 
@@ -583,7 +583,7 @@ class PastMeet(models.Model):
         p = date.strftime("%B") + " " + str(date.day)
         s = date.strftime("%Y")
         words = f"{l}, {p}" #, {s}"
-        return words.lower()
+        return words
 
 
 

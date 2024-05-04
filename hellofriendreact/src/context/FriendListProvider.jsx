@@ -18,7 +18,7 @@ export const FriendListProvider = ({ children }) => {
         console.error('Error fetching friend list:', error);
       }
     };
-
+    console.log('Friendlist data: ', friendList)
     fetchData();
   }, []);
 

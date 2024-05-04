@@ -30,7 +30,7 @@ const FormLocation = ({ title, address, personalExperience, friends, friendList,
             <label key={friend.id}>
               <input
                 type="checkbox"
-                checked={friends.includes(friend.id)}
+                checked={friends.includes(friend)}
                 onChange={() => handleFriendSelect(friend.id)}
               />
               {friend.name}

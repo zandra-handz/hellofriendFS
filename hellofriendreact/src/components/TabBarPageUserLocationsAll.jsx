@@ -2,13 +2,10 @@ import React, { useEffect, useState } from 'react';
 import api from '../api';
 import useAuthUser from '../hooks/UseAuthUser'; 
 import CreateLocation from './CreateLocation';
-import useFriendList from '../hooks/UseFriendList'; // Import the useFriendList hook
+import useFriendList from '../hooks/UseFriendList';
 import TabSpinner from './DashboardStyling/TabSpinner';
-import { FaWrench } from 'react-icons/fa'; // Import the MessageSave component
-
-import useLocationList from '../hooks/UseLocationList'; // Import the useLocationList hook
-
-
+import { FaWrench } from 'react-icons/fa';
+import useLocationList from '../hooks/UseLocationList';
 import Location from './Location';  
 import MessageSave from './DashboardStyling/MessageSave'; 
 
@@ -18,23 +15,11 @@ const TabBarPageUserLocationsAll = () => {
   const [showSaveMessage, setShowSaveMessage] = useState(false);
   const { authUser } = useAuthUser();
   const { friendList } = useFriendList();
-  const { locationList } = useLocationList();
+  const { locationList, setLocationList } = useLocationList();
 
   useEffect(() => {
     console.log('Location List:', locationList);
   }, [locationList]);
-
-  const handleDelete = async (locationId) => {
-    try {
-      // Update the delete functionality if needed
-      setDeletedMessage('Location deleted successfully.');
-      setTimeout(() => {
-        setDeletedMessage(null);
-      }, 3000);
-    } catch (error) {
-      console.error('Error deleting location:', error);
-    }
-  };
 
   const handleAddLocation = (newLocation) => {
     // Update the add location functionality if needed
@@ -70,7 +55,8 @@ const TabBarPageUserLocationsAll = () => {
                       location={location}
                       friendList={friendList}
                       authUser={authUser}
-                      onDelete={handleDelete}
+                      locationList={locationList} // Pass locationList as a prop
+                      setLocationList={setLocationList} // Pass setLocationList as a prop
                     />
                   </div>
                 ))}
@@ -83,7 +69,6 @@ const TabBarPageUserLocationsAll = () => {
       ) : null}
     </div>
   );
-  
 };
 
 export default TabBarPageUserLocationsAll;
