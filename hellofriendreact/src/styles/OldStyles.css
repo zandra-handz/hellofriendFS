@@ -1423,6 +1423,7 @@ v
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.2); }
 }
+
 .dark-mode .quick-buttons-container .capsule-button:hover,
 .dark-mode .quick-buttons-container .image-button:hover,
 .dark-mode .quick-buttons-container .hello-button:hover { 
@@ -2266,7 +2267,10 @@ v
   }
 }
 
-
+.friends-container {
+  display: flex;
+  flex-wrap: wrap;
+}
 
 .expand-all-button-container {
   display: flex; /* Use flexbox */
@@ -2284,6 +2288,7 @@ v
   background-color: rgb(83, 175, 25);
   color: white;
   min-width: 60px;
+  text-align: center;
   
 }
 

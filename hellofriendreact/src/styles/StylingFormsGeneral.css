@@ -46,3 +46,14 @@
   
   }
   
+  .friend-checkboxes-container {
+    padding: 10px;
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .checkbox-pair-container {
+    margin-left: 14px;
+    margin-right: 14px;
+  }

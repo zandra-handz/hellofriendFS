@@ -10,7 +10,7 @@ const NextHelloes = () => {
 
     return (
         <div>
-            <Card title='Next Helloes'>
+            <Card title='Say hi!'>
                 <GridOneOrTwoColsAnyRows>
                     {upcomingHelloes && upcomingHelloes.map((item) => (
                         <MainNextHelloButton

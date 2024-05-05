@@ -6,7 +6,7 @@ const FormLocation = ({ title, address, personalExperience, friends, friendList,
     return (
       <div className='form-general-container'> 
         <div>
-          <h1>Location:</h1>
+          <h5>Edit name?</h5>
           <input
             className='form-general-input'  
             type="text"
@@ -16,7 +16,7 @@ const FormLocation = ({ title, address, personalExperience, friends, friendList,
           />
         </div>
         <div>
-          <h1>Personal Experience:</h1>
+          <h5>Edit notes?</h5>
           <textarea
             className='form-general-input'  
             name="location-experience"
@@ -25,16 +25,18 @@ const FormLocation = ({ title, address, personalExperience, friends, friendList,
           />
         </div>
         <div className="friend-checkboxes-container"> 
-          <h1>Friends:</h1>
+          <h4>Edit friends?</h4>
           {friendList.map(friend => (
-            <label key={friend.id}>
-              <input
-                type="checkbox"
-                checked={friends.includes(friend)}
-                onChange={() => handleFriendSelect(friend.id)}
-              />
-              {friend.name}
-            </label>
+            <div className="checkbox-pair-container">
+              <label key={friend.id}>
+                <input
+                  type="checkbox"
+                  checked={friends.includes(friend)}
+                  onChange={() => handleFriendSelect(friend.id)}
+                />
+                {friend.name}
+              </label>
+            </div>
           ))}
         </div>
         <div>

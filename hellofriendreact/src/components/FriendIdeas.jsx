@@ -3,6 +3,7 @@ import CardExpandCapsules from './DashboardStyling/CardExpandCapsules';
 import ButtonExpandAll from './DashboardStyling/ButtonExpandAll';
 import ItemCapsule from './DashboardStyling/ItemCapsule';
 import TabSpinner from './DashboardStyling/TabSpinner';
+import CreateCapsuleFirst from './CreateCapsuleFirst';
 import useSelectedFriend from '../hooks/UseSelectedFriend';
 import useCapsuleList from '../hooks/UseCapsuleList'; 
 
@@ -78,7 +79,7 @@ const FriendIdeas = () => {
           </div>
         ))
       ) : (
-        <p>You haven't added any thoughts here yet.</p>
+        <CreateCapsuleFirst />
       )}
     </>
   );
