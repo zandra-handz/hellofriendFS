@@ -23,19 +23,19 @@ class FriendsView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user 
         return models.Friend.objects.filter(user=user)
+ 
 
-
-# Front end can use or not use this requirement; nothing on the backend depends on app_setup_complete to work
 class UpdateAppSetupComplete(APIView):
-    serializer_class = serializers.FriendSerializer
     permission_classes = [IsAuthenticated]
     def post(self, request):
         user = request.user
+
+        # Query the user's friends
+        user_friends_count = models.Friend.objects.filter(user=user).count()
         
-        user_friends_count = user.friends.count()
-        
+        # Check if the user has at least one friend
         if user_friends_count > 0:
-          
+            # Update the user's app_setup_complete field if it's not already true
             if not user.app_setup_complete:
                 user.app_setup_complete = True
                 user.save()
@@ -44,8 +44,6 @@ class UpdateAppSetupComplete(APIView):
                 return response.Response({"message": "User's app setup was already complete."}, status=status.HTTP_200_OK)
         else:
             return response.Response({"message": "User does not have any friends."}, status=status.HTTP_200_OK)
-
-
 
 
 
