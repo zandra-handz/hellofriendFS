@@ -25,8 +25,32 @@ class FriendsView(generics.ListAPIView):
         return models.Friend.objects.filter(user=user)
 
 
+# Front end can use or not use this requirement; nothing on the backend depends on app_setup_complete to work
+class UpdateAppSetupComplete(APIView):
+    serializer_class = serializers.FriendSerializer
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        user = request.user
+        
+        user_friends_count = user.friends.count()
+        
+        if user_friends_count > 0:
+          
+            if not user.app_setup_complete:
+                user.app_setup_complete = True
+                user.save()
+                return response.Response({"message": "User's app setup is now complete."}, status=status.HTTP_200_OK)
+            else:
+                return response.Response({"message": "User's app setup was already complete."}, status=status.HTTP_200_OK)
+        else:
+            return response.Response({"message": "User does not have any friends."}, status=status.HTTP_200_OK)
+
+
+
+
 
 class FriendCreateView(APIView):
+    
     def post(self, request):
         user = request.user
         data = request.data
@@ -170,25 +194,35 @@ class NextMeetsAllView(generics.ListCreateAPIView):
 
 # Limits to four here instead of in the front end
 
+import datetime
+from django.utils import timezone
+
 class UpcomingMeetsView(generics.ListCreateAPIView):
-    serializer_class = serializers.UpcomingMeetsSerializer  # Use the new serializer
+    serializer_class = serializers.UpcomingMeetsSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-        
+
+        # Get today's date
+        today = timezone.now().date()
+
+        # Calculate the date seven days from today
+        seven_days_from_now = today + datetime.timedelta(days=7)
+
+        # Filter meetings that fall within the next seven days
+        queryset = models.NextMeet.objects.filter(user=user, date__range=[today, seven_days_from_now])
+
+        # Update the last upcoming update
         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
-
-        if update_tracker.last_upcoming_update != datetime.datetime.today().date():
+        if update_tracker.last_upcoming_update != today:
             update_tracker.upcoming_updated()
-
-            queryset = models.NextMeet.objects.expired_dates().filter(user=user)
 
             for instance in queryset:
                 instance.save()
 
-        # Return the full list of NextMeet instances for the user
-        return models.NextMeet.objects.filter(user=user)[:4]
+        return queryset
+
 
 
 

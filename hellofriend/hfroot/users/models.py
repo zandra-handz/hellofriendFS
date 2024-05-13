@@ -42,6 +42,8 @@ class BadRainbowzUser(AbstractUser):
     created_on = models.DateTimeField(default=timezone.now)
     last_updated_at = models.DateTimeField(auto_now=True)
 
+    app_setup_complete = models.BooleanField(default=False)
+
     # I think this can be taken out because already exists automatically.
     last_login_at = models.DateTimeField(blank=True, null=True)
 
