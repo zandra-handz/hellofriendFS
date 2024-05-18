@@ -104,6 +104,17 @@ class FriendSuggestionSettingsDetail(generics.RetrieveUpdateAPIView):
         return models.FriendSuggestionSettings.objects.filter(user=user, friend_id=friend_id)
     
 
+    def perform_update(self, serializer):
+        instance = serializer.save()  # Save the FriendSuggestionSettings instance first
+        friend = instance.friend
+        next_meet = models.NextMeet.objects.filter(user=self.request.user, friend=friend).first()
+ 
+        if next_meet:
+            next_meet.create_new_date_clean()
+            next_meet.save()
+
+        return instance
+
 
 
 class FriendSuggestionSettingsCategoryLimit(generics.RetrieveAPIView):

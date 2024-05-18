@@ -110,6 +110,14 @@ class Friend(models.Model):
             )
             next_meet.save()
 
+            # To test
+            try:
+                next_meet.create_new_date_clean()
+                next_meet.save()
+            except Exception as e:
+                print("Error creating new date for friend") 
+            
+
             self.suggestion_settings = suggestion_settings
             self.next_meet = next_meet
 
