@@ -219,7 +219,7 @@ class NextMeet(models.Model):
     def timespan(self):
 
         priority = self.friend_suggestion_settings.priority_level
-        effort = self.friend_suggestion_settings.effort_level
+        effort = self.friend_suggestion_settings.effort_required
 
         span = None
 
@@ -371,7 +371,7 @@ class NextMeet(models.Model):
 
             self.friend.editable = True
             self.friend_suggestion_settings.editable = True
-            
+
             # Creates new date that aligns with timeframes outlined in onboarding process
             self.create_new_date_clean()
             
@@ -796,8 +796,8 @@ class PastMeet(models.Model):
                 self.friend.next_meet.create_new_date_clean()
             except Exception as e:
                 self.friend.next_meet.reset_date()
-            finally:
-                self.friend.next_meet.save()
+            
+            self.friend.next_meet.save()
 
 
     def __str__(self):
