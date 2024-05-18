@@ -45,9 +45,9 @@ class UpdatesTracker(models.Model):
 class Friend(models.Model):
 
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
-    name = models.CharField(max_length=64, null=False, blank=False, unique=True)
-    first_name = models.CharField(max_length=64, blank=True)
-    last_name = models.CharField(max_length=64, blank=True)
+    name = models.CharField(max_length=64, null=False, blank=False)
+    first_name = models.CharField(max_length=64, null=True, blank=True)
+    last_name = models.CharField(max_length=64, null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
@@ -60,6 +60,7 @@ class Friend(models.Model):
 
     class Meta:
         ordering = ('next_meet',)
+        unique_together = ('user', 'name')
 
     @property
     def first_meet_entered_in_words(self):
