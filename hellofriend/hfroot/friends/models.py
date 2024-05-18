@@ -107,7 +107,6 @@ class Friend(models.Model):
                 friend=self,
                 friend_suggestion_settings=suggestion_settings,
                 user=self.user,
-                # You might want to set other fields here
             )
             next_meet.save()
 
@@ -216,9 +215,56 @@ class NextMeet(models.Model):
             return 2
         else:
             return 1
+
+    def timespan(self):
+
+        priority = self.friend_suggestion_settings.priority_level
+        effort = self.friend_suggestion_settings.effort_level
+
+        span = None
+
+        if effort < 4:
+            if effort == 1:
+                span = (120, 200)
+            elif effort == 2:
+                span = (60, 90)
+            else:
+                span = (26, 40)
+        else:
+            if effort == 4:
+                span = (6, 20)
+            else:
+                span = (0, 8) 
+
+        if span:
+            tiers = (span[1] - span[0]) / 3
+            tiers = int(tiers)
+
+            max = (tiers * priority)
+            min = max - tiers
+        
+        else:
+            # Just for debugging 
+            min = 300
+            max = 400
+
+        
+        return min, max
+        
+
+
+    # first calculation and every calculation after a logged hello
+    def create_new_date_clean(self):
+        min_range, max_range = self.timespan()
+        random_day = random.randint(min_range, max_range)
+        random_day = float(random_day)
+        new_date = datetime.date.today() + datetime.timedelta(days=random_day)
+        self.date = new_date
+        return new_date
+      
         
     # This is probably the first 'algorithm' I ever wrote and I do not have the energy or moral fortitude to sift through this chaos at this time I'm so sorry! Soon
-   
+
     def create_new_date_if_needed(self):
         if self.date < datetime.date.today():
 
@@ -325,6 +371,9 @@ class NextMeet(models.Model):
 
             self.friend.editable = True
             self.friend_suggestion_settings.editable = True
+            
+            # Creates new date that aligns with timeframes outlined in onboarding process
+            self.create_new_date_clean()
             
         most_recent_past_meet = PastMeet.objects.filter(friend=self.friend).order_by('-date').first()
         self.previous = most_recent_past_meet
@@ -743,8 +792,13 @@ class PastMeet(models.Model):
         super().save(*args, **kwargs)
 
         if self.friend.next_meet:
-            self.friend.next_meet.reset_date()
-            self.friend.next_meet.save()
+            try:
+                self.friend.next_meet.create_new_date_clean()
+            except Exception as e:
+                self.friend.next_meet.reset_date()
+            finally:
+                self.friend.next_meet.save()
+
 
     def __str__(self):
 
