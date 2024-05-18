@@ -240,8 +240,9 @@ class NextMeet(models.Model):
             tiers = (span[1] - span[0]) / 3
             tiers = int(tiers)
 
-            max = (tiers * priority)
+            max = ((tiers * priority) + span[0])
             min = max - tiers
+
         
         else:
             # Just for debugging 
