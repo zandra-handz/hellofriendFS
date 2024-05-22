@@ -359,9 +359,10 @@ class HelloesAll(generics.ListAPIView):
         return models.PastMeet.objects.filter(user=user, friend_id=friend_id)
 
 
-
 class ImagesByCategoryView(APIView):
-    permission_classes = [IsAuthenticated]
+
+    # For testing
+    permission_classes = [AllowAny]
 
     def get(self, request, *args, **kwargs):
         user = self.request.user
@@ -372,21 +373,12 @@ class ImagesByCategoryView(APIView):
         # Group images by category
         images_by_category = {}
         for image in images:
-            if image.image_category not in images_by_category:
-                images_by_category[image.image_category] = []
-            image_data = {
-                'id': image.id,
-                'image': request.build_absolute_uri(image.image.url),  # Construct absolute URL
-                'image_category': image.image_category,
-                'title': image.title,
-                'image_notes': image.image_notes,
-                'created_on': image.created_on,
-                'updated_on': image.updated_on,
-                'friend': image.friend.id,
-                'user': image.user.id,
-                'thought_capsule': image.thought_capsule.id if image.thought_capsule else None
-            }
-            images_by_category[image.image_category].append(image_data)
+            category = image.image_category
+            if category not in images_by_category:
+                images_by_category[category] = []
+            
+            serializer = serializers.ImageSerializer(image, context={'request': request})
+            images_by_category[category].append(serializer.data)
 
         return response.Response(images_by_category, status=status.HTTP_200_OK)
 
