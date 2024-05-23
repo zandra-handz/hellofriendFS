@@ -206,32 +206,29 @@ class NextMeetsAllView(generics.ListCreateAPIView):
 import datetime
 from django.utils import timezone
 
+from django.utils import timezone
+import datetime
+
 class UpcomingMeetsView(generics.ListCreateAPIView):
     serializer_class = serializers.UpcomingMeetsSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-
-        # Get today's date
         today = timezone.now().date()
-
-        # Calculate the date seven days from today
         seven_days_from_now = today + datetime.timedelta(days=7)
 
-        # Filter meetings that fall within the next seven days
         queryset = models.NextMeet.objects.filter(user=user, date__range=[today, seven_days_from_now])
+ 
+        expired_meets = models.NextMeet.objects.expired_dates().filter(user=user)
+        for meet in expired_meets:
+            meet.save()
 
-        # Update the last upcoming update
         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
         if update_tracker.last_upcoming_update != today:
             update_tracker.upcoming_updated()
 
-            for instance in queryset:
-                instance.save()
-
         return queryset
-
 
 
 
@@ -261,13 +258,10 @@ class ThoughtCapsulesByCategory(generics.ListAPIView):
         queryset = self.get_queryset()
         friend_id = self.kwargs['friend_id']
         
-        # Fetch all categories associated with the friend
         categories = models.Category.objects.filter(user=request.user, friend_id=friend_id)
         
-        # Dictionary to store capsules grouped by category
         capsules_by_category = {}
         
-        # Group capsules by category
         for category in categories:
             capsules = queryset.filter(category=category)
             serialized_capsules = self.get_serializer(capsules, many=True).data
