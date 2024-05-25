@@ -58,7 +58,7 @@ class ImageSerializer(serializers.ModelSerializer):
 
 class LocationSerializer(serializers.ModelSerializer):
 
-    #friend_list = serializers.SerializerMethodField()
+    friends = FriendSerializer(many=True, read_only=True)
 
     class Meta():
         model = models.Location
