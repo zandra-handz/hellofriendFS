@@ -34,3 +34,7 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
             models.UserSettings.objects.create(user=user, **settings_data)
         return user
 
+
+class AddAddressSerializer(serializers.Serializer):
+    address = serializers.CharField()
+    title = serializers.CharField()
