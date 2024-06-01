@@ -27,6 +27,8 @@ def get_current_user(request):
 
 
 class AddAddressView(APIView):
+    permission_classes = [IsAuthenticated] 
+
     def post(self, request, *args, **kwargs):
         serializer = serializers.AddAddressSerializer(data=request.data)
         if serializer.is_valid():
@@ -54,6 +56,8 @@ class AddAddressView(APIView):
 
 
 class DeleteAddressView(APIView):
+    permission_classes = [IsAuthenticated] 
+    
     def post(self, request, *args, **kwargs):
         user = request.user
         title_to_delete = request.data.get('title', None)  # Get the title from the request data
