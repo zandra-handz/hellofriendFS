@@ -32,8 +32,6 @@ urlpatterns = [
     path('users/sign-up/', users.views.CreateUserView.as_view(), name='sign_up'),
     path('users/token/', TokenObtainPairView.as_view(), name='get_token'),
     path('users/token/refresh/', TokenRefreshView.as_view(), name='refresh_token'),
-    path('users/<int:user_id>/addresses/add/', users.views.AddAddressView.as_view(), name='add-address'),
-    path('users/<int:user_id>/addresses/delete/', users.views.DeleteAddressView.as_view(), name='delete-address'),
     path('api-auth/', include('rest_framework.urls')),
 ]
 
