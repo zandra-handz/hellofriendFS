@@ -52,20 +52,25 @@ class AddAddressView(APIView):
         else:
             return response.Response("Address index not provided", status=status.HTTP_400_BAD_REQUEST)
 
-    def delete(self, request, *args, **kwargs):
+
+class DeleteAddressView(APIView):
+    def post(self, request, *args, **kwargs):
         user = request.user
-        if 'address_index' in kwargs:
-            address_index = kwargs['address_index']
+        title_to_delete = request.data.get('title', None)  # Get the title from the request data
+        if title_to_delete is not None:
             addresses = user.addresses
-            if address_index < len(addresses):
-                del addresses[address_index]
-                user.addresses = addresses
-                user.save()
-                return response.Response("Address deleted successfully", status=status.HTTP_204_NO_CONTENT)
-            else:
-                return response.Response("Address index out of range", status=status.HTTP_404_NOT_FOUND)
+            for address in addresses:
+                if address.get('title') == title_to_delete:  # Check if the address title matches
+                    addresses.remove(address)  # Remove the matching address
+                    user.addresses = addresses
+                    user.save()
+                    return response.Response("Address deleted successfully", status=status.HTTP_204_NO_CONTENT)
+            return response.Response("Address not found", status=status.HTTP_404_NOT_FOUND)
         else:
-            return response.Response("Address index not provided", status=status.HTTP_400_BAD_REQUEST)
+            return response.Response("Title not provided", status=status.HTTP_400_BAD_REQUEST)
+
+
+
 
 class UserSettingsDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.UserSettingsSerializer

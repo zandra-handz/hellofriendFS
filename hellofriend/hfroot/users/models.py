@@ -64,15 +64,17 @@ class BadRainbowzUser(AbstractUser):
         """
         Add address if valid.
         """
-        address_value = address_data[0]['address']
+
+        print(address_data)
+        if self.addresses is None:
+            self.addresses = []
+
+        address_value = address_data['address']  # Access 'address' directly
         coordinates = get_coordinates(address_value)
 
         if coordinates:
-            if 'addresses' not in self.__dict__:
-                self.addresses = []
-            
             new_address_entry = {
-                'title': address_data[0]['title'],
+                'title': address_data['title'],  # Access 'title' directly
                 'address': address_value,
                 'coordinates': coordinates
             }
@@ -87,6 +89,9 @@ class BadRainbowzUser(AbstractUser):
         """
         Append validated address to addresses list.
         """
+        if self.addresses is None:
+            self.addresses = []
+
         if 'addresses' not in self.__dict__:
             self.addresses = []
 
