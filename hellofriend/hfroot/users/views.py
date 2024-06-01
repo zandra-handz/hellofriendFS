@@ -29,15 +29,18 @@ def get_current_user(request):
 class AddAddressView(APIView):
     permission_classes = [IsAuthenticated] 
 
-    def post(self, request, *args, **kwargs):
+    def post(self, request, user_id, *args, **kwargs):
         serializer = serializers.AddAddressSerializer(data=request.data)
         if serializer.is_valid():
             address_data = serializer.validated_data
             user = request.user
-            user.add_address(address_data)
-            return response.Response("Address added successfully", status=status.HTTP_201_CREATED)
+            if user_id == user.id:  # Ensure the authenticated user matches the provided user_id
+                user.add_address(address_data)
+                return response.Response("Address added successfully", status=status.HTTP_201_CREATED)
+            else:
+                return response.Response("Unauthorized", status=status.HTTP_403_FORBIDDEN)
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+    
     def put(self, request, *args, **kwargs):
         user = request.user
         address_data = request.data
