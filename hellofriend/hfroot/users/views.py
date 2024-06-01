@@ -26,33 +26,21 @@ def get_current_user(request):
     return JsonResponse(serializer.data)
 
 
-class AddAddressView(generics.UpdateAPIView):
-    serializer_class = serializers.BadRainbowzUserSerializer
-    permission_classes = [IsAuthenticated]
+@api_view(['POST'])
+@login_required
+def add_address_to_user(request, user_id):
+    user = get_object_or_404(models.BadRainbowzUser, pk=user_id)
 
-    def get_object(self):
-        user_id = self.kwargs['user_id']
-        try:
-            return models.BadRainbowzUser.objects.get(id=user_id)
-        except models.BadRainbowzUser.DoesNotExist:
-            raise serializers.ValidationError("User does not exist")
-
-    def put(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        address_data = request.data.get('address')  # Extract address data from request
-        title_data = request.data.get('title')  # Extract title data from request
-        if address_data and title_data:
-            instance.add_address({'address': address_data, 'title': title_data})  # Pass address and title data
-            instance.save()
-            return response.Response("Address added successfully", status=status.HTTP_201_CREATED)
-        else:
-            return response.Response("Address data is required", status=status.HTTP_400_BAD_REQUEST)
+    serializer = serializers.AddAddressSerializer(data=request.data)
+    if serializer.is_valid():
+        address_data = serializer.validated_data
+        user.add_address(address_data)
+        return response.Response("Address added successfully", status=status.HTTP_201_CREATED)
+    else:
+        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-class AddAddressesView(APIView):
+class AddAddressView(APIView):
     permission_classes = [IsAuthenticated] 
 
     def post(self, request, user_id, *args, **kwargs):

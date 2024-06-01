@@ -36,5 +36,5 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
 
 
 class AddAddressSerializer(serializers.Serializer):
-    address = serializers.CharField()
-    title = serializers.CharField()
+    title = serializers.CharField(max_length=100)
+    address = serializers.CharField(max_length=255)
