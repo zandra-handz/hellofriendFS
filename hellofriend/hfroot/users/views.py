@@ -28,7 +28,7 @@ def get_current_user(request):
 
 class AddAddressView(generics.UpdateAPIView):
     serializer_class = serializers.BadRainbowzUserSerializer
-    permission_classes = [IsAuthenticated]  # Add permission class for authenticated users
+    permission_classes = [IsAuthenticated]
 
     def get_object(self):
         user_id = self.kwargs['user_id']
@@ -37,14 +37,15 @@ class AddAddressView(generics.UpdateAPIView):
         except models.BadRainbowzUser.DoesNotExist:
             raise serializers.ValidationError("User does not exist")
 
-    def update(self, request, *args, **kwargs):
+    def put(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        address_data = serializer.validated_data.pop('addresses', None)
-        if address_data:
-            instance.add_address(address_data)
+        address_data = request.data.get('address')  # Extract address data from request
+        title_data = request.data.get('title')  # Extract title data from request
+        if address_data and title_data:
+            instance.add_address({'address': address_data, 'title': title_data})  # Pass address and title data
             instance.save()
             return response.Response("Address added successfully", status=status.HTTP_201_CREATED)
         else:
