@@ -110,3 +110,24 @@ class UserProfileDetail(generics.RetrieveUpdateAPIView):
         return get_object_or_404(models.UserProfile, user__id=user_id)
     
 
+
+class AddAddressToUserProfile(generics.UpdateAPIView):
+    serializer_class = serializers.UserProfileSerializer  # Use UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'user_id'
+
+    def get_object(self):
+        user_id = self.kwargs['user_id']
+        return get_object_or_404(models.UserProfile, user__id=user_id)
+
+    def update(self, request, *args, **kwargs):
+        user_profile = self.get_object()
+        serializer = self.get_serializer(user_profile, data=request.data, partial=True)
+
+        if serializer.is_valid():
+            # Call the add_address method of the UserProfile model to add the address
+            user_profile.add_address(serializer.validated_data)
+            return response.Response("Address added successfully", status=status.HTTP_201_CREATED)
+        else:
+            return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+

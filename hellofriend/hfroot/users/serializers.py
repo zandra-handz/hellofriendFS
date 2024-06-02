@@ -5,7 +5,7 @@ from rest_framework import serializers
 class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.UserProfile
-        fields = ['first_name', 'last_name', 'date_of_birth', 'gender']
+        fields = ['first_name', 'last_name', 'date_of_birth', 'gender', 'addresses']
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     class Meta:

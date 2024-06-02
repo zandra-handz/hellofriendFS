@@ -139,10 +139,51 @@ class UserProfile(models.Model):
     last_name = models.CharField(_('last name'), max_length=30, blank=True, default='')
     date_of_birth = models.DateField(_('date of birth'), blank=True, null=True)
     #profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
-    gender = models.CharField(_('gender'), max_length=10, choices=[('NB', 'Non-Binary'), ('M', 'Male'), ('F', 'Female'), ('O', 'Other'), ('No answer', 'Uninterested in answering this')], blank=True, default='')
+    gender = models.CharField(_('gender'), max_length=10, choices=[('NB', 'Non-Binary'), ('M', 'Male'), ('F', 'Female'), ('O', 'Other'), ('No answer', 'No answer')], blank=True, default='')
 
+    addresses = models.JSONField(blank=True, null=True)
+    
     def __str__(self):
         return f"Profile for {self.user.username}"
+
+
+    def add_address(self, address_data):
+        """
+        Add address for the user profile.
+        """
+        if self.addresses is None:
+            self.addresses = []
+
+        address_value = address_data['address']
+        coordinates = get_coordinates(address_value)
+
+        if coordinates:
+            new_address_entry = {
+                'title': address_data['title'],
+                'address': address_value,
+                'coordinates': coordinates
+            }
+
+            self.addresses.append(new_address_entry)
+            self.save()
+            return True
+        return False
+
+    def add_validated_address(self, title, address, coordinates):
+        """
+        Append validated address to addresses list.
+        """
+        if self.addresses is None:
+            self.addresses = []
+
+        new_address_entry = {
+            'title': title,
+            'address': address,
+            'coordinates': coordinates
+        }
+
+        self.addresses.append(new_address_entry)
+        self.save()
 
 
 '''
