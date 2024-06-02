@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+import users.views
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -42,4 +43,10 @@ urlpatterns = [
     path('dropdown/hello-type-choices/', views.HelloTypeChoices.as_view(), name='hello-type-choices'),
     path('dropdown/all-user-locations/', views.UserLocationsAll.as_view()),
     path('dropdown/validated-user-locations/', views.UserLocationsValidated.as_view()),
+
+    # Using to debug a 404 issue in React Native app
+    path('addresses/all/', users.views.UserAddressesAll.as_view()),
+    path('addresses/validated/', users.views.UserAddressesValidated.as_view()),  
+    path('addresses/add/', users.views.UserAddressCreate.as_view()),
+    path('address/<int:pk>/', users.views.UserAddressDetail.as_view()),
 ]
