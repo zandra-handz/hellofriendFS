@@ -120,6 +120,11 @@ class AddAddressToUserProfile(generics.UpdateAPIView):
         user_id = self.kwargs['user_id']
         return get_object_or_404(models.UserProfile, user__id=user_id)
 
+    def put(self, request, *args, **kwargs):
+        # Temporarily return a fixed response
+        return JsonResponse({'message': 'Temporary response from AddAddressToUserProfile view'})
+
+'''
     def update(self, request, *args, **kwargs):
         user_profile = self.get_object()
         serializer = self.get_serializer(user_profile, data=request.data, partial=True)
@@ -130,4 +135,4 @@ class AddAddressToUserProfile(generics.UpdateAPIView):
             return response.Response("Address added successfully", status=status.HTTP_201_CREATED)
         else:
             return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+'''
