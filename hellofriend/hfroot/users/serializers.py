@@ -2,10 +2,42 @@ from . import models
 from rest_framework import serializers
 
 
+
+class AddressSerializer(serializers.Serializer):
+    title = serializers.CharField()
+    address = serializers.CharField()
+
 class UserProfileSerializer(serializers.ModelSerializer):
+    addresses = AddressSerializer(many=True)
+
     class Meta:
         model = models.UserProfile
         fields = ['first_name', 'last_name', 'date_of_birth', 'gender', 'addresses']
+
+    def validate_correct_formatted_addresses(self, value):
+        for address_data in value:
+            if 'title' not in address_data or 'address' not in address_data:
+                raise serializers.ValidationError("Address data must include 'title' and 'address' fields.")
+        return value
+
+    def update(self, instance, validated_data):
+        # Update standard fields
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        instance.date_of_birth = validated_data.get('date_of_birth', instance.date_of_birth)
+        instance.gender = validated_data.get('gender', instance.gender)
+
+        # Update addresses field
+        addresses_data = validated_data.get('addresses', [])
+        for address_data in addresses_data:
+            title = address_data.get('title')
+            address = address_data.get('address')
+            instance.add_address({'title': title, 'address': address})
+
+        # Save the instance
+        instance.save()
+        return instance
+
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     class Meta:
