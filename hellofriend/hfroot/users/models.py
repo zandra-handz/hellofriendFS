@@ -2,6 +2,7 @@ from django.db import models
 
 # Create your models here.
 from datetime import datetime
+from . import utils
 
 
 def format_date(dt):
@@ -24,7 +25,6 @@ from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from .managers import CustomUserManager
-from .utils import get_coordinates
 
 
 # Create your models here.
@@ -114,6 +114,50 @@ class BadRainbowzUser(AbstractUser):
             UserSettings.objects.create(user=self)
 
 
+class UserAddress(models.Model): 
+    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='address')
+    title = models.CharField(max_length=64, unique=True, null=True, blank=False)
+    address = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+
+    # Determines whether you can use it with Consider The Drive util
+    validated_address = models.BooleanField(default=False)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('-created_on',)
+
+
+    def calculate_coordinates(self):
+
+        if not self.address:
+            self.address = self.title
+ 
+        coordinates = utils.get_coordinates(self.address)
+
+        if coordinates:
+            self.latitude = coordinates[0]
+            self.longitude = coordinates[1]
+            self.validated_address = True 
+
+    
+    def save(self, *args, **kwargs):
+
+        if not self.pk:
+            self.calculate_coordinates()
+
+
+        super().save(*args, **kwargs)
+
+
+    def __str__(self):
+        return f"User address: {self.address}, validated: {self.validated_address}"
+
+
+
 class UserSettings(models.Model):
     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='settings')
     receive_notifications = models.BooleanField(default=False)
@@ -141,49 +185,9 @@ class UserProfile(models.Model):
     #profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
     gender = models.CharField(_('gender'), max_length=10, choices=[('NB', 'Non-Binary'), ('M', 'Male'), ('F', 'Female'), ('O', 'Other'), ('No answer', 'No answer')], blank=True, default='')
 
-    addresses = models.JSONField(blank=True, null=True)
     
     def __str__(self):
         return f"Profile for {self.user.username}"
-
-
-    def add_address(self, address_data):
-        """
-        Add address for the user profile.
-        """
-        if self.addresses is None:
-            self.addresses = []
-
-        address_value = address_data['address']
-        coordinates = get_coordinates(address_value)
-
-        if coordinates:
-            new_address_entry = {
-                'title': address_data['title'],
-                'address': address_value,
-                'coordinates': coordinates
-            }
-
-            self.addresses.append(new_address_entry)
-            self.save()
-            return True
-        return False
-
-    def add_validated_address(self, title, address, coordinates):
-        """
-        Append validated address to addresses list.
-        """
-        if self.addresses is None:
-            self.addresses = []
-
-        new_address_entry = {
-            'title': title,
-            'address': address,
-            'coordinates': coordinates
-        }
-
-        self.addresses.append(new_address_entry)
-        self.save()
 
 
 '''

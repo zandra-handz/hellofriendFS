@@ -110,3 +110,37 @@ class UserProfileDetail(generics.RetrieveUpdateAPIView):
         return get_object_or_404(models.UserProfile, user__id=user_id)
     
 
+class UserAddressesAll(generics.ListAPIView):
+    serializer_class = serializers.UserAddressSerializer
+    permissions_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return models.UserAddress.objects.filter(user=user)
+
+
+class UserAddressesValidated(generics.ListAPIView):
+    serializer_class = serializers.UserAddressSerializer
+    permissions_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return models.UserAddress.objects.filter(user=user, validated_address=True)
+
+
+class UserAddressCreate(generics.CreateAPIView):
+    serializer_class = serializers.UserAddressSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class UserAddressDetail(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
+    serializer_class = serializers.UserAddressSerializer
+    permission_classes = [IsAuthenticated] 
+
+    def get_queryset(self):
+        user = self.request.user 
+        return models.UserAddress.objects.filter(user=user)
+   
