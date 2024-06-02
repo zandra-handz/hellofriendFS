@@ -70,7 +70,7 @@ class BadRainbowzUser(AbstractUser):
             self.addresses = []
 
         address_value = address_data['address']  # Access 'address' directly
-        coordinates = get_coordinates(address_value)
+        coordinates = utils.get_coordinates(address_value)
 
         if coordinates:
             new_address_entry = {
