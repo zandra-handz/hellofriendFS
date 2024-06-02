@@ -28,18 +28,16 @@ def get_current_user(request):
 
 @api_view(['POST'])
 @login_required
-def add_address_to_user(request, user_id):
-    user = get_object_or_404(models.BadRainbowzUser, pk=user_id)
+def add_address_to_current_user(request):
+    user = request.user
 
-    serializer = serializers.AddAddressSerializer(data=request.data)
+    serializer = serializers.BadRainbowzUserAddressSerializer(user, data=request.data, partial=True)
     if serializer.is_valid():
-        address_data = serializer.validated_data
-        user.add_address(address_data)
+        serializer.save()  # Save the updated user object with the added address
         return response.Response("Address added successfully", status=status.HTTP_201_CREATED)
     else:
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
+    
 class AddAddressView(APIView):
     permission_classes = [IsAuthenticated] 
 

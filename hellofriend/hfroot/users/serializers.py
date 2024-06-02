@@ -38,3 +38,15 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
 class AddAddressSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=100)
     address = serializers.CharField(max_length=255)
+
+class AddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.BadRainbowzUser
+        fields = ['addresses']  # Only include the address field
+
+class BadRainbowzUserAddressSerializer(serializers.ModelSerializer):
+    addresses = AddressSerializer()
+
+    class Meta:
+        model = models.BadRainbowzUser
+        fields = ['addresses']
