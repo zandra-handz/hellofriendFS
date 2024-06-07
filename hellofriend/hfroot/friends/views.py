@@ -573,14 +573,13 @@ def consider_midpoint_locations(request):
 
         origin_a = data.get('address_a_address')
         friend_address = data.get('address_b_address')
-        perform_search = data.get('perform_search')
-        search = data.get('search', "restaurants")  # Default search term to "restaurants"
-        radius = data.get('radius', 5000)  # Default radius to 5000 meters
-        length = data.get('length', 8)  # Default suggested length to 8 places
-        friend_origins = {'friend': friend_address}
+        friend_origins = {'friend':friend_address}
+        search = data.get('search', "restaurants")   
+        radius = data.get('radius', 5000)   
+        length = data.get('length', 8) 
 
         try:
-            distance_object = Distance(origin_a=origin_a, search=search, radius=radius, suggested_length=length, perform_search=perform_search, **friend_origins)
+            distance_object = Distance(origin_a=origin_a, search=search, radius=radius, suggested_length=length, perform_search=True, search_only=True, **friend_origins)
         except ValueError as e:
             return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

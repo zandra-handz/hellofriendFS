@@ -73,13 +73,14 @@ def calculate_distance(origin, destination):
 
 class Distance():
 
-    def __init__(self, origin_a, destination=None, radius=5000, search="restaurants", suggested_length=8, perform_search=False, **friend_origins):
+    def __init__(self, origin_a, destination=None, radius=5000, search="restaurants", suggested_length=8, perform_search=False, search_only=False, **friend_origins):
         self.api_key = api_key
         self.origin_a = origin_a
         self.friend_origins = friend_origins
         self.destination = destination
         self.midpoint = None
         self.perform_search = perform_search
+        self.search_only = search_only
         self.search = search
         self.radius = radius
         self.suggested_length = suggested_length
@@ -91,8 +92,9 @@ class Distance():
             if not self.validate_address(friend_address):
                 raise ValueError(f"Invalid address for {friend_name}: {friend_address}")
 
-        if not self.validate_address(destination):
-            raise ValueError(f"Invalid address: {destination}")
+        if not self.search_only:
+            if not self.validate_address(destination):
+                raise ValueError(f"Invalid address: {destination}")
 
 
     def validate_address(self, address):
