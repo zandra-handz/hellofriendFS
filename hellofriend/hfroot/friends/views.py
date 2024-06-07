@@ -555,6 +555,47 @@ def consider_the_drive(request):
  
     return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
+@api_view(['POST', 'GET', 'OPTIONS'])
+@permission_classes([IsAuthenticated])
+def consider_midpoint_locations(request):
+    
+    if request.method == 'OPTIONS':
+        return response.Response(status=status.HTTP_200_OK)
+
+    if request.method == 'GET':
+        if not request.user.is_authenticated:
+            return response.Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return response.Response({'message': 'Enter address'}, status=status.HTTP_200_OK)
+
+    if request.method == 'POST':
+        data = request.data
+
+        origin_a = data.get('address_a_address')
+        friend_address = data.get('address_b_address')
+        perform_search = data.get('perform_search')
+        search = data.get('search', "restaurants")  # Default search term to "restaurants"
+        radius = data.get('radius', 5000)  # Default radius to 5000 meters
+        length = data.get('length', 8)  # Default suggested length to 8 places
+        friend_origins = {'friend': friend_address}
+
+        try:
+            distance_object = Distance(origin_a=origin_a, search=search, radius=radius, suggested_length=length, perform_search=perform_search, **friend_origins)
+        except ValueError as e:
+            return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        response_data = {
+            'origin_a': distance_object.origin_a,
+            'friend_origins': distance_object.friend_origins,
+            'midpoint': distance_object.get_midpoint(),  # Calculate midpoint
+            'suggested_places': distance_object.get_directions_to_midpoint_places(many=False),  # Call with many=False
+        }
+
+        return response.Response(response_data, status=status.HTTP_200_OK)
+
+    return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
 
 class LocationDetail(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
     serializer_class = serializers.LocationSerializer

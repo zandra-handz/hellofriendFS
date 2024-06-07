@@ -73,7 +73,7 @@ def calculate_distance(origin, destination):
 
 class Distance():
 
-    def __init__(self, origin_a, destination, radius=5000, search="restaurants", suggested_length=8, perform_search=False, **friend_origins):
+    def __init__(self, origin_a, destination=None, radius=5000, search="restaurants", suggested_length=8, perform_search=False, **friend_origins):
         self.api_key = api_key
         self.origin_a = origin_a
         self.friend_origins = friend_origins
