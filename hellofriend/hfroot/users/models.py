@@ -115,21 +115,18 @@ class BadRainbowzUser(AbstractUser):
 
 
 class UserAddress(models.Model): 
-    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='address')
-    title = models.CharField(max_length=64, unique=True, null=True, blank=False)
-    address = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='address')
+    title = models.CharField(max_length=64, null=True, blank=False)
+    address = models.CharField(max_length=64, null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-
-    # Determines whether you can use it with Consider The Drive util
     validated_address = models.BooleanField(default=False)
-
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ('-created_on',)
-
+        unique_together = (('user', 'title'), ('user', 'address'))
 
     def calculate_coordinates(self):
 

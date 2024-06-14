@@ -162,18 +162,18 @@ class FriendSuggestionSettings(models.Model):
 class FriendAddress(models.Model):
     friend = models.ForeignKey('Friend', on_delete=models.CASCADE, related_name='addresses')
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
-    title = models.CharField(max_length=64, unique=True, null=True, blank=False)
-    address = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    title = models.CharField(max_length=64, null=True, blank=False)
+    address = models.CharField(max_length=64, null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-
     validated_address = models.BooleanField(default=False)
-
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ('-created_on',)
+        unique_together = (('friend', 'title'), ('friend', 'address'))
+
 
     def calculate_coordinates(self):
         if not self.address:
@@ -849,28 +849,21 @@ class PastMeet(models.Model):
 
 # locations will not be attached to any specific friend, but friend will attach to them via the faves model
 class Location(models.Model):
-
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
-    # When remake database, take null off of title
-    title = models.CharField(max_length=64, unique=True, null=True, blank=False)
-    address = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    title = models.CharField(max_length=64, null=True, blank=False)
+    address = models.CharField(max_length=64, null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
-    friends = models.ManyToManyField(Friend, blank=True)
+    friends = models.ManyToManyField('Friend', blank=True)
     personal_experience_info = models.CharField(max_length=750, null=True, blank=True)
-
-    # Not currently using
     calculate_distances_only = models.BooleanField(default=False)
-
-    # Determines whether you can use it with Consider The Drive util
     validated_address = models.BooleanField(default=False)
-
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ('-created_on',)
-
+        unique_together = (('user', 'title'), ('user', 'address'))
 
     def calculate_coordinates(self):
 
