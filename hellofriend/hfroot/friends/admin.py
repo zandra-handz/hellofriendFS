@@ -4,6 +4,7 @@ from . import models
 # Register your models here.
 admin.site.register(models.Category)
 admin.site.register(models.Friend)
+admin.site.register(models.FriendAddress)
 admin.site.register(models.FriendSuggestionSettings)
 admin.site.register(models.FriendFaves)
 admin.site.register(models.Image)

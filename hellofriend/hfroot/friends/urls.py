@@ -41,6 +41,12 @@ urlpatterns = [
     # What is this being used for?
     path('<int:pk>/', views.FriendDetail.as_view()),
 
+    # Friend addresses, currently React Native only
+    path('<int:friend_id>/addresses/all/', views.FriendAddressesAll.as_view()),
+    path('<int:friend_id>/addresses/validated/', views.FriendAddressesValidated.as_view()),  
+    path('<int:friend_id>/addresses/add/', views.FriendAddressCreate.as_view()),
+    path('<int:friend_id>/address/<int:pk>/', views.FriendAddressDetail.as_view()),
+
     path('dropdown/hello-type-choices/', views.HelloTypeChoices.as_view(), name='hello-type-choices'),
     path('dropdown/all-user-locations/', views.UserLocationsAll.as_view()),
     path('dropdown/validated-user-locations/', views.UserLocationsValidated.as_view()),

@@ -73,6 +73,18 @@ class LocationSerializer(serializers.ModelSerializer):
         validated_data.pop('address', None)
         return super().update(instance, validated_data)
         
+class FriendAddressSerializer(serializers.ModelSerializer):
+ 
+    class Meta():
+        model = models.FriendAddress
+        fields = '__all__'
+        
+    def update(self, instance, validated_data): 
+        validated_data.pop('address', None)
+        return super().update(instance, validated_data)
+
+
+
 
 class ValidateOnlyLocationSerializer(serializers.ModelSerializer):
     class Meta:

@@ -158,6 +158,47 @@ class FriendSuggestionSettings(models.Model):
         return f"Suggestion settings for {self.friend.name} are effort {self.effort_required}, priority {self.priority_level}"
 
 
+class FriendAddress(models.Model): 
+    friend = models.OneToOneField(Friend, on_delete=models.CASCADE, editable=False, related_name='friend_address_friend')
+    user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    title = models.CharField(max_length=64, unique=True, null=True, blank=False)
+    address = models.CharField(max_length=64, unique=True, null=True, blank=True)
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+
+    validated_address = models.BooleanField(default=False)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('-created_on',)
+
+
+    def calculate_coordinates(self):
+
+        if not self.address:
+            self.address = self.title
+ 
+        coordinates = utils.get_coordinates(self.address)
+
+        if coordinates:
+            self.latitude = coordinates[0]
+            self.longitude = coordinates[1]
+            self.validated_address = True 
+
+    
+    def save(self, *args, **kwargs):
+
+        if not self.pk:
+            self.calculate_coordinates()
+
+
+        super().save(*args, **kwargs)
+
+
+    def __str__(self):
+        return f"User address: {self.address}, validated: {self.validated_address}"
 
 
 
