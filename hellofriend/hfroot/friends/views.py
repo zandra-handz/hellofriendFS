@@ -1,7 +1,7 @@
 import datetime
 from . import models
 from . import serializers
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, response, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.decorators import api_view, throttle_classes, authentication_classes, permission_classes
@@ -83,13 +83,13 @@ class FriendDetail(generics.RetrieveUpdateAPIView):
 
 class FriendAddressesAll(generics.ListAPIView):
     serializer_class = serializers.FriendAddressSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
 
     def get_queryset(self):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
-        return models.FriendAddress.objects.filter(user=user, id=friend_id)
+        return models.FriendAddress.objects.filter(user=user, friend_id=friend_id)
 
 
 class FriendAddressesValidated(generics.ListAPIView):
@@ -109,20 +109,21 @@ class FriendAddressCreate(generics.CreateAPIView):
     lookup_url_kwarg = 'friend_id'
 
     def perform_create(self, serializer):
-        friend_id = self.kwargs['friend_id'], 
-        serializer.save(user=self.request.user, id=friend_id)
+        friend_id = self.kwargs['friend_id']
+        friend = get_object_or_404(models.Friend, pk=friend_id)
+        serializer.save(user=self.request.user, friend=friend)
 
 
-class FriendAddressDetail(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
+class FriendAddressDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.FriendAddressSerializer
-    permission_classes = [IsAuthenticated] 
-    lookup_url_kwarg = 'friend_id'
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        user = self.request.user 
+        user = self.request.user
         friend_id = self.kwargs['friend_id']
-        return models.UserAddress.objects.filter(user=user, id=friend_id)
-   
+        address_id = self.kwargs['pk']  
+        return models.FriendAddress.objects.filter(user=user, friend_id=friend_id, id=address_id)
+
 
 class FriendProfile(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
     serializer_class = serializers.FriendProfileSerializer

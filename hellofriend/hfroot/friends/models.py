@@ -158,8 +158,9 @@ class FriendSuggestionSettings(models.Model):
         return f"Suggestion settings for {self.friend.name} are effort {self.effort_required}, priority {self.priority_level}"
 
 
-class FriendAddress(models.Model): 
-    friend = models.OneToOneField(Friend, on_delete=models.CASCADE, editable=False, related_name='friend_address_friend')
+
+class FriendAddress(models.Model):
+    friend = models.ForeignKey('Friend', on_delete=models.CASCADE, related_name='addresses')
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
     title = models.CharField(max_length=64, unique=True, null=True, blank=False)
     address = models.CharField(max_length=64, unique=True, null=True, blank=True)
@@ -174,12 +175,10 @@ class FriendAddress(models.Model):
     class Meta:
         ordering = ('-created_on',)
 
-
     def calculate_coordinates(self):
-
         if not self.address:
             self.address = self.title
- 
+
         coordinates = utils.get_coordinates(self.address)
 
         if coordinates:
@@ -187,20 +186,13 @@ class FriendAddress(models.Model):
             self.longitude = coordinates[1]
             self.validated_address = True 
 
-    
     def save(self, *args, **kwargs):
-
         if not self.pk:
             self.calculate_coordinates()
-
-
         super().save(*args, **kwargs)
 
-
     def __str__(self):
-        return f"User address: {self.address}, validated: {self.validated_address}"
-
-
+        return f"Friend address: {self.address}, validated: {self.validated_address}"
 
 # All this knows is the friend it is connected to, the settings, and the last meet up it is connected to
 class NextMeet(models.Model):
