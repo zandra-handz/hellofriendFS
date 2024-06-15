@@ -102,9 +102,11 @@ class NextMeetSerializer(serializers.ModelSerializer):
         model = models.NextMeet
         fields = '__all__'
 
+
 class FriendDashboardSerializer(serializers.ModelSerializer):
     suggestion_settings = FriendSuggestionSettingsSerializer(source='friend_suggestion_settings', read_only=True)
     friend_faves = serializers.SerializerMethodField()
+    friend_addresses = serializers.SerializerMethodField()
     name = serializers.CharField(source='friend.name')
     first_name = serializers.CharField(source='friend.first_name')
     last_name = serializers.CharField(source='friend.last_name')
@@ -114,15 +116,20 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
         model = models.NextMeet
         fields = ['id', 'date', 'name', 'first_name', 'last_name', 'first_meet_entered', 'days_since', 'days_since_words', 
                   'time_score', 'future_date_in_words', 'category_activations_left', 
-                  'suggestion_settings', 'friend_faves']
+                  'suggestion_settings', 'friend_faves', 'friend_addresses']
 
     def get_friend_faves(self, obj):
-        friend = obj.friend  # Get the friend associated with the NextMeet instance
+        friend = obj.friend  
         friend_faves_instance = models.FriendFaves.objects.filter(friend=friend).first()
         if friend_faves_instance:
             return FriendFavesSerializer(instance=friend_faves_instance).data
         else:
             return None
+
+    def get_friend_addresses(self, obj):
+        friend = obj.friend   
+        addresses = friend.addresses.all()   
+        return FriendAddressSerializer(addresses, many=True).data
 
 
 
