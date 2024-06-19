@@ -644,8 +644,9 @@ class LocationDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.LocationSerializer
     permission_classes = [IsAuthenticated]
 
-    def perform_update(self, serializer): 
-        serializer.save()
+    def perform_update(self, serializer):
+        # Ensure user association if necessary
+        serializer.save(user=self.request.user)
 
     def perform_create(self, serializer):  
         serializer.save(user=self.request.user)
