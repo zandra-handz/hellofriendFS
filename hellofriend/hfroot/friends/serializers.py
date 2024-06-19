@@ -75,9 +75,9 @@ class LocationSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         friends_data = validated_data.pop('friends', [])
         instance.friends.set(friends_data)
-        instance.personal_experience_info = validated_data.get('personal_experience_info', instance.personal_experience_info)
-        validated_data.pop('address', None)
+        validated_data.pop('address', None)  # Optionally remove the address field if not updating
         return super().update(instance, validated_data)
+
 
 
 class FriendAddressSerializer(serializers.ModelSerializer):
