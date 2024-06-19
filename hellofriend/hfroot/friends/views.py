@@ -639,11 +639,14 @@ def consider_midpoint_locations(request):
 
 
 
-class LocationDetail(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
+class LocationDetail(generics.RetrieveUpdateAPIView):
+    queryset = models.Location.objects.all()
     serializer_class = serializers.LocationSerializer
-    permission_classes = [IsAuthenticated] 
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        user = self.request.user 
-        return models.Location.objects.filter(user=user)
+    def perform_update(self, serializer): 
+        serializer.save()
+
+    def perform_create(self, serializer):  
+        serializer.save(user=self.request.user)
    

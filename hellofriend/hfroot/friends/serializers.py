@@ -57,14 +57,11 @@ class ImageSerializer(serializers.ModelSerializer):
 
 
 class LocationSerializer(serializers.ModelSerializer):
-    friends = serializers.SerializerMethodField()
+    friends = serializers.PrimaryKeyRelatedField(queryset=models.Friend.objects.all(), many=True)
 
     class Meta:
         model = models.Location
         fields = '__all__'
-
-    def get_friends(self, obj):
-        return [{'id': friend.id, 'name': friend.name} for friend in obj.friends.all()]
 
     def create(self, validated_data):
         friends_data = validated_data.pop('friends', [])
@@ -75,9 +72,7 @@ class LocationSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         friends_data = validated_data.pop('friends', [])
         instance.friends.set(friends_data)
-        validated_data.pop('address', None)  # Optionally remove the address field if not updating
         return super().update(instance, validated_data)
-
 
 
 class FriendAddressSerializer(serializers.ModelSerializer):
