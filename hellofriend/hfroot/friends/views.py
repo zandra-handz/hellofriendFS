@@ -350,15 +350,13 @@ class ThoughtCapsuleDetail(generics.RetrieveDestroyAPIView):
 
 class ImagesAll(generics.ListAPIView):
     serializer_class = serializers.ImageSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
 
     def get_queryset(self):
         user = self.request.user
-        friend_id = self.kwargs['friend_id'] 
+        friend_id = self.kwargs['friend_id']
         return models.Image.objects.filter(user=user, friend_id=friend_id)
-
-
 
 
 class ImageCreate(generics.CreateAPIView):
@@ -368,7 +366,7 @@ class ImageCreate(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         user = self.request.user
-        friend_id = self.kwargs['friend_id']  # Accessing friend_id from URL kwargs
+        friend_id = self.kwargs['friend_id']
         friend = models.Friend.objects.get(pk=friend_id)
         serializer.save(user=user, friend=friend)
 
@@ -378,7 +376,6 @@ class ImageCreate(generics.CreateAPIView):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return response.Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-    
 
 class ImageDetail(generics.RetrieveDestroyAPIView):
     serializer_class = serializers.ImageSerializer

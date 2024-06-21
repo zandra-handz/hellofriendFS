@@ -184,9 +184,14 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
 
 
 class ImageSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
     class Meta:
         model = models.Image
         fields = '__all__'
+
+    def get_image(self, obj):
+        return obj.image.url  
 
 
 
@@ -217,6 +222,8 @@ class ImagesByCategorySerializer(serializers.ModelSerializer):
                 images_by_category[category_name] = []
             images_by_category[category_name].append(image_data)
         return images_by_category
+    
+
 
 class UpdatesTrackerSerializer(serializers.ModelSerializer):
 
