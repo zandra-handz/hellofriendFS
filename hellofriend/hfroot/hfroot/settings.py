@@ -211,3 +211,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Typically would just allow a specific origin; change later to make more secure
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+
+
+# needs pip install boto3
+# and pip install django-storages
+AWS_ACCESS_KEY_ID = 'AKIATCKAOXH7OSKLXPOK'
+AWS_SECRET_ACCESS_KEY = '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'
+AWS_STORAGE_BUCKET_NAME = 'hfriendbucket'
+AWS_S3_SIGNATURE_NAME = 's3v4'
+AWS_S3_REGION_NAME = 'us-east-2'
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL =  None
+AWS_S3_VERIFY = True
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
