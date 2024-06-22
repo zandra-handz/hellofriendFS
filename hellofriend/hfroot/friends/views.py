@@ -358,7 +358,6 @@ class ImagesAll(generics.ListAPIView):
         friend_id = self.kwargs['friend_id']
         return models.Image.objects.filter(user=user, friend_id=friend_id)
 
-
 class ImageCreate(generics.CreateAPIView):
     queryset = models.Image.objects.all()
     serializer_class = serializers.ImageCreateSerializer
@@ -367,7 +366,8 @@ class ImageCreate(generics.CreateAPIView):
     def perform_create(self, serializer):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
-        friend = models.Friend.objects.get(pk=friend_id)
+        friend = get_object_or_404(models.Friend, pk=friend_id, user=user)
+        
         serializer.save(user=user, friend=friend)
 
     def post(self, request, *args, **kwargs):
@@ -376,6 +376,7 @@ class ImageCreate(generics.CreateAPIView):
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return response.Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
 
 class ImageDetail(generics.RetrieveDestroyAPIView):
     serializer_class = serializers.ImageSerializer
