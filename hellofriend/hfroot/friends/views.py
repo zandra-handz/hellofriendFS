@@ -408,7 +408,8 @@ class ImagesByCategoryView(APIView):
         user = self.request.user
         friend_id = kwargs.get('friend_id')
 
-        images = models.Image.objects.filter(user=user, friend_id=friend_id)
+        # Filter images for the specific user and friend_id, excluding images where image field is null
+        images = models.Image.objects.filter(user=user, friend_id=friend_id).exclude(image='')
 
         # Group images by category
         images_by_category = {}
@@ -416,11 +417,11 @@ class ImagesByCategoryView(APIView):
             category = image.image_category
             if category not in images_by_category:
                 images_by_category[category] = []
-            
+
             serializer = serializers.ImageSerializer(image, context={'request': request})
             images_by_category[category].append(serializer.data)
 
-        return response.Response(images_by_category, status=status.HTTP_200_OK)
+        return Response(images_by_category, status=status.HTTP_200_OK)
 
 class HelloCreate(generics.ListCreateAPIView):
     serializer_class = serializers.PastMeetSerializer
