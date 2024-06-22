@@ -361,7 +361,7 @@ class ImagesAll(generics.ListAPIView):
 
 class ImageCreate(generics.CreateAPIView):
     queryset = models.Image.objects.all()
-    serializer_class = serializers.ImageSerializer
+    serializer_class = serializers.ImageCreateSerializer
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):

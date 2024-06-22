@@ -193,6 +193,12 @@ class ImageSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         return obj.image.url  
 
+class ImageCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Image
+        fields = ['id', 'image', 'image_category', 'title', 'image_notes', 'friend', 'user', 'thought_capsule']
+
+
 
 
 class ImagesByCategorySerializer(serializers.ModelSerializer):
