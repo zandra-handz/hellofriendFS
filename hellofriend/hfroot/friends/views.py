@@ -378,7 +378,7 @@ class ImageCreate(generics.CreateAPIView):
         return response.Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
 
-class ImageDetail(generics.RetrieveDestroyAPIView):
+class ImageDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.ImageSerializer
     permission_classes = [IsAuthenticated]
 
