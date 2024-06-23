@@ -421,7 +421,7 @@ class ImagesByCategoryView(APIView):
             serializer = serializers.ImageSerializer(image, context={'request': request})
             images_by_category[category].append(serializer.data)
 
-        return Response(images_by_category, status=status.HTTP_200_OK)
+        return response.Response(images_by_category, status=status.HTTP_200_OK)
 
 class HelloCreate(generics.ListCreateAPIView):
     serializer_class = serializers.PastMeetSerializer
