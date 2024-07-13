@@ -181,14 +181,60 @@ class FriendFavesDetail(generics.RetrieveUpdateAPIView):
         friend_id = self.kwargs['friend_id']
         return models.FriendFaves.objects.filter(user=user, friend_id=friend_id)
 
-    def post(self, request, *args, **kwargs):
-        serializer = serializers.FriendFavesSerializer(data=request.data)
-        if serializer.is_valid():
-            # Customize the data if needed before saving
-            serializer.save(user=request.user, friend_id=self.kwargs['friend_id'])
-            return response.Response(serializer.data, status=status.HTTP_201_CREATED)
-        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+    # send user, friend, and location_id
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+        user = request.data.get('user')
+        friend = request.data.get('friend')
+        location_id = request.data.get('location_id')
+
+        if user == instance.user.id and friend == instance.friend.id:
+            if location_id:
+                location = models.Location.objects.get(id=location_id)
+                instance.locations.add(location)
+                instance.save()
+                serializer = self.get_serializer(instance)
+                return response.Response(serializer.data)
+            else:
+                return response.Response({"error": "location_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return response.Response({"error": "User or Friend mismatch"}, status=status.HTTP_403_FORBIDDEN)
+
+
+
+class FriendFavesLocationRemove(generics.UpdateAPIView):
+    serializer_class = serializers.FriendFavesSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id']
+        return models.FriendFaves.objects.filter(user=user, friend_id=friend_id)
+
+    # send user, friend, and location_id
+    def patch(self, request, *args, **kwargs):
+        user = request.user
+        friend_id = self.kwargs['friend_id']
+        location_id = request.data.get('location_id')
+
+        try:
+            friend_faves = models.FriendFaves.objects.get(user=user, friend_id=friend_id)
+            location = models.Location.objects.get(id=location_id)
+
+            if location in friend_faves.locations.all():
+                friend_faves.locations.remove(location)
+                serializer = serializers.FriendFavesSerializer(friend_faves)
+                return response.Response(serializer.data)
+            else:
+                return response.Response({"error": "Location not found in friend's favorites"}, status=status.HTTP_400_BAD_REQUEST)
+
+        except models.FriendFaves.DoesNotExist:
+            return response.Response({"error": "Friend faves not found"}, status=status.HTTP_404_NOT_FOUND)
+        except models.Location.DoesNotExist:
+            return response.Response({"error": "Location not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
 class CategoriesView(generics.ListAPIView):
     serializer_class = serializers.CategorySerializer
     permission_classes = [IsAuthenticated]
