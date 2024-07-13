@@ -180,8 +180,15 @@ class FriendFavesDetail(generics.RetrieveUpdateAPIView):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
         return models.FriendFaves.objects.filter(user=user, friend_id=friend_id)
-    
 
+    def post(self, request, *args, **kwargs):
+        serializer = serializers.FriendFavesSerializer(data=request.data)
+        if serializer.is_valid():
+            # Customize the data if needed before saving
+            serializer.save(user=request.user, friend_id=self.kwargs['friend_id'])
+            return response.Response(serializer.data, status=status.HTTP_201_CREATED)
+        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 class CategoriesView(generics.ListAPIView):
     serializer_class = serializers.CategorySerializer
     permission_classes = [IsAuthenticated]
