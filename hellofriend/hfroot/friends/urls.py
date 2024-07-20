@@ -33,6 +33,9 @@ urlpatterns = [
     path('<int:friend_id>/helloes/<uuid:pk>/', views.HelloDetail.as_view()),
     path('places/', views.consider_the_drive, name='consider-the-drive'),
     path('places/near-midpoint/', views.consider_midpoint_locations, name='consider-midpoint-locations'),
+    path('places/get-details/', views.place_details, name='get_nearby_places'),
+    path('places/get-id/', views.place_id, name='get_place_id'),
+    
     path('locations/all/', views.UserLocationsAll.as_view()),
     path('locations/validated/', views.UserLocationsValidated.as_view()),
     path('location/validate-only/', views.ValidateLocation.as_view(), name='validate-location-only'),

@@ -8,7 +8,7 @@ from rest_framework.decorators import api_view, throttle_classes, authentication
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
-from .utils import Distance
+from .utils import Distance, NearbyDetails, PlaceDetailsFetcher, GeocodingFetcher
 
 
 # Create your views here.
@@ -302,9 +302,6 @@ class NextMeetsAllView(generics.ListCreateAPIView):
 import datetime
 from django.utils import timezone
 
-from django.utils import timezone
-import datetime
-
 class UpcomingMeetsView(generics.ListCreateAPIView):
     serializer_class = serializers.UpcomingMeetsSerializer
     permission_classes = [IsAuthenticated]
@@ -390,6 +387,7 @@ class ThoughtCapsuleCreate(generics.ListCreateAPIView):
         context = super().get_serializer_context()
         context['friend_id'] = self.kwargs['friend_id']
         return context
+
 
 class ThoughtCapsuleDetail(generics.RetrieveDestroyAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer
@@ -683,6 +681,201 @@ def consider_midpoint_locations(request):
             'friend_origins': distance_object.friend_origins,
             'midpoint': distance_object.get_midpoint(),  # Calculate midpoint
             'suggested_places': distance_object.get_directions_to_midpoint_places(many=False),  # Call with many=False
+        }
+
+        return response.Response(response_data, status=status.HTTP_200_OK)
+
+    return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+ 
+
+@api_view(['POST', 'GET', 'OPTIONS'])
+@permission_classes([IsAuthenticated])
+def place_id(request):
+    
+    if request.method == 'OPTIONS':
+        return response.Response(status=status.HTTP_200_OK)
+
+    if request.method == 'GET':
+        if not request.user.is_authenticated:
+            return response.Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return response.Response({'message': 'Provide origin address and search criteria'}, status=status.HTTP_200_OK)
+
+    if request.method == 'POST':
+        data = request.data
+
+        origin_address = data.get('origin_address')
+        origin_lat = data.get('origin_lat')
+        origin_lon = data.get('origin_lon')
+
+        if not origin_address and (not origin_lat or not origin_lon):
+            return response.Response({'detail': 'Either origin address or coordinates are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            place_details = PlaceDetailsFetcher(
+                origin_address=origin_address,
+                origin_lat=origin_lat,
+                origin_lon=origin_lon
+            )
+
+            place_id = place_details.get_nearest_place_id()  # Get the nearest place ID
+            
+            response_data = {
+                'place_id': place_id
+            }
+
+        except ValueError as e:
+            return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return response.Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return response.Response(response_data, status=status.HTTP_200_OK)
+
+    return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@api_view(['POST', 'GET', 'OPTIONS'])
+@permission_classes([IsAuthenticated])
+def place_details(request):
+    if request.method == 'OPTIONS':
+        return response.Response(status=status.HTTP_200_OK)
+
+    if request.method == 'GET':
+        if not request.user.is_authenticated:
+            return response.Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return response.Response({'message': 'Provide address or coordinates to retrieve place details'}, status=status.HTTP_200_OK)
+
+    if request.method == 'POST':
+        data = request.data
+        address = data.get('address')
+        lat = data.get('lat')
+        lon = data.get('lon')
+
+        if not address and (not lat or not lon):
+            return response.Response({'detail': 'Either address or coordinates are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try: 
+            geocoding_fetcher = GeocodingFetcher(address=address, lat=lat, lon=lon)
+            place_id = geocoding_fetcher.get_place_id()  # Get the place ID
+
+            place_details_fetcher = PlaceDetailsFetcher(place_id=place_id)
+            place_details = place_details_fetcher.get_place_details()  # Get the place details
+
+            if place_details:
+                response_data = place_details_fetcher.extract_place_details(place_details)  # Extract and format place details
+                response_data['place_id'] = place_id  # Include place ID in the response
+            else:
+                response_data = {'detail': 'No details found for the place.'}
+
+        except ValueError as e:
+            return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return response.Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return response.Response(response_data, status=status.HTTP_200_OK)
+
+    return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+@api_view(['POST', 'GET', 'OPTIONS'])
+@permission_classes([IsAuthenticated])
+def place_details_new(request):
+    
+    if request.method == 'OPTIONS':
+        return response.Response(status=status.HTTP_200_OK)
+
+    if request.method == 'GET':
+        if not request.user.is_authenticated:
+            return response.Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return response.Response({'message': 'Provide origin address and search criteria'}, status=status.HTTP_200_OK)
+
+    if request.method == 'POST':
+        data = request.data
+
+        origin_address = data.get('origin_address')
+        origin_lat = data.get('origin_lat')
+        origin_lon = data.get('origin_lon')
+
+        if not origin_address and (not origin_lat or not origin_lon):
+            return response.Response({'detail': 'Either origin address or coordinates are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            place_details_fetcher = PlaceDetailsFetcher(
+                  # Make sure to replace this with your actual API key
+                origin_address=origin_address,
+                origin_lat=origin_lat,
+                origin_lon=origin_lon
+            )
+
+            place_id = place_details_fetcher.get_nearest_place_id()  # Get the nearest place ID
+            place_details = place_details_fetcher.get_place_details(place_id)  # Get the place details
+
+            if place_details:
+                response_data = place_details_fetcher.extract_place_details(place_details)  # Extract and format place details
+                response_data['place_id'] = place_id  # Include place ID in the response
+            else:
+                response_data = {'detail': 'No details found for the place.'}
+
+        except ValueError as e:
+            return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return response.Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return response.Response(response_data, status=status.HTTP_200_OK)
+
+    return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+@api_view(['POST', 'GET', 'OPTIONS'])
+@permission_classes([IsAuthenticated])
+def place_details_newer(request):
+    
+    if request.method == 'OPTIONS':
+        return response.Response(status=status.HTTP_200_OK)
+
+    if request.method == 'GET':
+        if not request.user.is_authenticated:
+            return response.Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        return response.Response({'message': 'Provide origin address and search criteria'}, status=status.HTTP_200_OK)
+
+    if request.method == 'POST':
+        data = request.data
+
+        origin_address = data.get('origin_address')
+        origin_lat = data.get('origin_lat')
+        origin_lon = data.get('origin_lon')
+        radius = data.get('radius', 1000)
+        search = data.get('search', "groceries")
+        use_search = data.get('use_search', False)
+        return_items = data.get('return_items', 3)
+
+        if not origin_address and (not origin_lat or not origin_lon):
+            return response.Response({'detail': 'Either origin address or coordinates are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            nearby_details = NearbyDetails(
+                origin_address=origin_address,
+                origin_lat=origin_lat,
+                origin_lon=origin_lon,
+                radius=radius,
+                search=search,
+                use_search=use_search,
+                return_items=return_items
+            )
+            
+            places = nearby_details.find_places()  # Call find_places to get the nearby places
+
+        except ValueError as e:
+            return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return response.Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        response_data = {
+            'origin_address': nearby_details.origin_address,
+            'search_results': places
         }
 
         return response.Response(response_data, status=status.HTTP_200_OK)

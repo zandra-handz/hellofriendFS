@@ -71,6 +71,324 @@ def calculate_distance(origin, destination):
     return distance.distance(origin, destination).miles
 
 
+class PlaceDetailsFetcher:
+    def __init__(self, place_id):
+        self.place_id = place_id
+        self.api_key = api_key
+
+    def get_place_details(self):
+        url = f"https://maps.googleapis.com/maps/api/place/details/json?place_id={self.place_id}&fields=name,formatted_address,formatted_phone_number,rating,photos,reviews,opening_hours,geometry&key={self.api_key}"
+        response = requests.get(url)
+        response.raise_for_status()
+        return response.json()
+
+    def extract_place_details(self, data):
+        result = data.get('result', {})
+        photos = result.get('photos', [])
+        photo_references = [photo.get('photo_reference') for photo in photos]
+        photo_urls = [f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={ref}&key={self.api_key}" for ref in photo_references]
+
+        reviews = result.get('reviews', [])
+        review_details = [
+            {
+                'author_name': review.get('author_name'),
+                'rating': review.get('rating'),
+                'text': review.get('text'),
+                'time': review.get('time')
+            }
+            for review in reviews
+        ]
+
+        hours = result.get('opening_hours', {}).get('weekday_text', [])
+
+        return {
+            'name': result.get('name'),
+            'address': result.get('formatted_address'),
+            'phone': result.get('formatted_phone_number'),
+            'rating': result.get('rating'),
+            'photos': photo_urls,
+            'reviews': review_details,
+            'hours': result.get('opening_hours'),
+        }
+
+
+
+class GeocodingFetcher:
+    def __init__(self, address=None, lat=None, lon=None):
+        self.address = address
+        self.lat = lat
+        self.lon = lon
+        self.api_key = api_key
+
+    def get_place_id(self):
+        if self.address:
+            url = f"https://maps.googleapis.com/maps/api/geocode/json?address={self.address}&key={self.api_key}"
+        else:
+            url = f"https://maps.googleapis.com/maps/api/geocode/json?latlng={self.lat},{self.lon}&key={self.api_key}"
+
+        response = requests.get(url)
+        response.raise_for_status()
+        results = response.json().get('results', [])
+
+        if results:
+            return results[0].get('place_id')
+        else:
+            raise ValueError("No place ID found for the given address or coordinates.")
+
+class PlaceDetailsFetcherOld:
+    def __init__(self, origin_address=None, origin_lat=None, origin_lon=None, get_coords_from_google=True):
+        self.api_key = api_key
+        self.origin_address = origin_address
+        self.origin_lat = origin_lat
+        self.origin_lon = origin_lon
+        self.get_coords_from_google = get_coords_from_google
+
+        if self.get_coords_from_google:
+            if self.origin_address:
+                if not self.validate_address(origin_address):
+                    raise ValueError(f"Invalid address: {origin_address}")
+                else:
+                    try:
+                        descriptive_data = self.get_coordinates_and_formatted_address(self.origin_address)
+                        self.assign_origin_coords(descriptive_data[0], descriptive_data[1])
+                        self.assign_address(descriptive_data[2])
+                    except Exception as e:
+                        print(f"An error occurred: {e}")
+        else:
+            if not self.origin_lat or not self.origin_lon:
+                raise ValueError("Coordinates not provided")
+
+    def validate_address(self, address):
+        return validate_address(address)
+
+    def get_coordinates_and_formatted_address(self, address):
+        base_url = "https://maps.googleapis.com/maps/api/geocode/json"
+        params = {
+            "address": address,
+            "key": self.api_key,
+        }
+
+        response = requests.get(base_url, params=params)
+        data = response.json()
+
+        if data["status"] == "OK":
+            location = data["results"][0]["geometry"]["location"]
+            return location['lat'], location['lng'], data['results'][0]['formatted_address']
+        else:
+            raise ValueError(f"Unable to retrieve coordinates for {address}")
+
+
+    def assign_origin_coords(self, latitude, longitude):
+        self.origin_lat = latitude
+        self.origin_lon = longitude
+        return self.origin_lat, self.origin_lon
+
+    def assign_address(self, formatted_address):
+        self.origin_address = formatted_address
+        return self.origin_address
+    
+    def get_nearest_place_id(self):
+        if not self.origin_lat or not self.origin_lon:
+            raise ValueError("Coordinates are required.")
+        
+        base_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+        params = {
+            "location": f"{self.origin_lat},{self.origin_lon}",
+            "radius": 3,  # Small radius to get the closest place
+            "key": self.api_key,
+        }
+
+        response = requests.get(base_url, params=params)
+        data = response.json()
+
+        if data.get("results"):
+            nearest_place = data["results"][0]  # Get the first result
+            return nearest_place.get("place_id")  # Ensure place_id is correctly returned
+        else:
+            raise ValueError("No nearby place found.")
+
+    def get_place_details(self, place_id):
+        details_url = "https://maps.googleapis.com/maps/api/place/details/json"
+        params = {
+            "place_id": place_id,
+            "key": self.api_key,
+        }
+
+        response = requests.get(details_url, params=params)
+        details_data = response.json()
+
+        if details_data.get("result"):
+            return details_data["result"]
+        else:
+            print(f"No details found for place_id: {place_id}")
+            return None
+
+    def extract_place_details(self, place_details):
+        return {
+            "name": place_details.get("name"),
+            "formatted_address": place_details.get("formatted_address"),
+            "opening_hours": place_details.get("opening_hours"),
+            "business_status": place_details.get("business_status"),
+            "photos": [photo.get("photo_reference") for photo in place_details.get("photos", [])],
+            "reviews": place_details.get("reviews", []),
+            "formatted_phone_number": place_details.get("formatted_phone_number"),
+            "rating": place_details.get("rating"),
+        }
+
+
+
+
+
+class NearbyDetails:
+    def __init__(self, origin_address, origin_lat=None, origin_lon=None, radius=5000, search="", use_search=False, get_coords_from_google=True, return_items=3):
+        self.api_key = api_key
+        self.origin_address = origin_address
+        self.origin_lat = origin_lat
+        self.origin_lon = origin_lon
+        self.radius = radius
+        self.search = search
+        self.use_search = use_search
+        self.return_items = return_items
+        self.get_coords_from_google = get_coords_from_google
+
+        if self.get_coords_from_google:
+            if self.origin_address:
+                if not self.validate_address(origin_address):
+                    raise ValueError(f"Invalid address: {origin_address}")
+        else:
+            if not self.origin_lat or not self.origin_lon:
+                raise ValueError(f"Coordinates not communicated to backend")
+
+    def validate_address(self, address):
+        # Implement address validation if needed
+        return True
+
+    def assign_origin_coords(self, latitude, longitude):
+        self.origin_lat = latitude
+        self.origin_lon = longitude
+        return self.origin_lat, self.origin_lon
+
+    def assign_address(self, formatted_address):
+        self.origin_address = formatted_address
+        return self.origin_address
+
+    def get_coordinates_and_formatted_address(self, address):
+        base_url = "https://maps.googleapis.com/maps/api/geocode/json"
+        params = {
+            "address": address,
+            "key": self.api_key,
+        }
+
+        response = requests.get(base_url, params=params)
+        data = response.json()
+
+        if data["status"] == "OK":
+            location = data["results"][0]["geometry"]["location"]
+            return location['lat'], location['lng'], data['results'][0]['formatted_address']
+        else:
+            print(f"Error: Unable to retrieve coordinates for {address}")
+            return None
+
+    def find_places(self):
+        if self.get_coords_from_google:
+            try:
+                descriptive_data = self.get_coordinates_and_formatted_address(self.origin_address)
+                self.assign_origin_coords(descriptive_data[0], descriptive_data[1])
+                self.assign_address(descriptive_data[2])
+            except Exception as e:
+                print(f"An error occurred: {e}")
+
+        if not self.origin_lat or not self.origin_lon:
+            raise ValueError("Coordinates are required.")
+
+        nearest_place_id = self.get_nearest_place_id(self.origin_lat, self.origin_lon)
+        nearest_place_details = self.get_place_details(nearest_place_id) if nearest_place_id else None
+
+        base_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+        params = {
+            "location": f"{self.origin_lat},{self.origin_lon}",
+            "radius": self.radius,
+            "keyword": self.search,
+            "key": self.api_key,
+        }
+
+        response = requests.get(base_url, params=params)
+        data = response.json()
+
+        detailed_places = []
+
+        if data.get("results"):
+            places = data["results"]
+
+            # Include nearest place details at the top of the list if available
+            if nearest_place_details:
+                detailed_places.append(self.extract_place_details(nearest_place_details))
+
+            for place in places:
+                place_id = place["place_id"]
+                if place_id != nearest_place_id:  # Skip the nearest place already added
+                    details = self.get_place_details(place_id)
+                    if details:
+                        detailed_places.append(self.extract_place_details(details))
+
+                if len(detailed_places) >= self.return_items:
+                    break
+
+            return detailed_places
+        else:
+            print("No places result data.")
+            return None
+
+    def extract_place_details(self, place_details):
+        return {
+            "name": place_details.get("name"),
+            "formatted_address": place_details.get("formatted_address"),
+            "opening_hours": place_details.get("opening_hours"),
+            "business_status": place_details.get("business_status"),
+            "photos": [photo.get("photo_reference") for photo in place_details.get("photos", [])],
+            "reviews": place_details.get("reviews", []),
+            "formatted_phone_number": place_details.get("formatted_phone_number"),
+            "rating": place_details.get("rating"),
+        }
+
+
+
+    def get_nearest_place_id(self, lat, lon):
+        base_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+        params = {
+            "location": f"{lat},{lon}",
+            "radius": 50,  # Small radius to get the closest place
+            "key": self.api_key,
+        }
+
+        response = requests.get(base_url, params=params)
+        data = response.json()
+
+        if data.get("results"):
+            nearest_place = data["results"][0]  # Get the first result
+            return nearest_place["place_id"]
+        else:
+            print("No nearby place found.")
+            return None
+
+    def get_place_details(self, place_id):
+        details_url = "https://maps.googleapis.com/maps/api/place/details/json"
+        params = {
+            "place_id": place_id,
+            "key": self.api_key,
+        }
+
+        response = requests.get(details_url, params=params)
+        details_data = response.json()
+
+        if details_data.get("result"):
+            return details_data["result"]
+        else:
+            print(f"No details found for place_id: {place_id}")
+            return None
+
+
+
 class Distance():
 
     def __init__(self, origin_a, destination=None, radius=5000, search="restaurants", suggested_length=8, perform_search=False, search_only=False, **friend_origins):

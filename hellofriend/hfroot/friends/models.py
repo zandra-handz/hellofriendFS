@@ -850,6 +850,7 @@ class PastMeet(models.Model):
 # locations will not be attached to any specific friend, but friend will attach to them via the faves model
 class Location(models.Model):
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    place_id = models.CharField(max_length=255, null=True, blank=True) 
     title = models.CharField(max_length=64, null=True, blank=False)
     address = models.CharField(max_length=64, null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
