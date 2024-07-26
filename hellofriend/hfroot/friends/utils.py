@@ -687,6 +687,8 @@ class Distance():
 
                 distances = []
                 durations = []
+                distance_difference = 0
+                time_difference = 0
 
                 place_coords = place['geometry']['location']['lat'], place['geometry']['location']['lng']
 
@@ -709,6 +711,8 @@ class Distance():
                     distances.append({friend: distance_to_place})
                     durations.append({friend: travel_time})
 
+                    distance_difference = (abs(distance_to_place_A - distance_to_place))
+                    time_difference = (abs(travel_time_A - travel_time))
                 else:
                     for friend, address in self.friend_origins.items():
                         distance_to_place = calculate_distance(self.get_coordinates(address), place_coords)
@@ -717,11 +721,16 @@ class Distance():
                         distances.append({friend: distance_to_place})
                         durations.append({friend: travel_time})
 
+                        distance_difference = (abs(distance_to_place_A - distance_to_place))
+                        time_difference = (abs(travel_time_A - travel_time))
+
                 suggested_places.append({
                     'name': place['name'],
                     'address': place['vicinity'],
                     'distances': distances,
                     'travel_times': durations,
+                    'distance_difference': distance_difference,
+                    'time_difference': time_difference,
                 })
 
             return suggested_places
