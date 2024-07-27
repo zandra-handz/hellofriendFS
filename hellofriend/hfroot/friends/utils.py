@@ -693,7 +693,6 @@ class Distance():
             return 0
 
     def get_directions_to_midpoint_places(self, many=False):
-
         suggested_places = []
 
         if not self.perform_search:
@@ -710,49 +709,69 @@ class Distance():
                 time_difference = 0
 
                 try:
+                    # Extract latitude and longitude
                     place_coords = (place['geometry']['location']['lat'], place['geometry']['location']['lng'])
+                    lat, lon = place_coords
 
+                    # Calculate distance from origin_a to place
                     distance_to_place_A = calculate_distance(self.get_coordinates(self.origin_a), place_coords)
                     distances.append({"Me": distance_to_place_A})
 
+                    # Calculate travel time from origin_a to place
                     travel_time_A = calculate_travel_time(self.origin_a, place['vicinity'])
                     # Debug: Print raw travel time
                     print(f"Raw travel_time_A: {travel_time_A}")
 
-                    # Convert to float by parsing the travel time string
+                    # Parse and convert to float
                     travel_time_A = self.parse_travel_time(travel_time_A)
-                    durations.append({"Me": travel_time_A})
+                    if travel_time_A is not None:  # Ensure travel time is valid
+                        durations.append({"Me": travel_time_A})
+                    else:
+                        durations.append({"Me": 0})  # Default to 0 if parsing fails
 
                     if not many:
                         friend_items = list(self.friend_origins.items())
                         if friend_items:
                             friend, address = friend_items[0]
 
+                            # Calculate distance from friend origin to place
                             distance_to_place = calculate_distance(self.get_coordinates(address), place_coords)
+                            distances.append({friend: distance_to_place})
+
+                            # Calculate travel time from friend origin to place
                             travel_time = calculate_travel_time(address, place['vicinity'])
                             # Debug: Print raw travel time for friend
                             print(f"Raw travel_time for {friend}: {travel_time}")
 
-                            # Convert to float by parsing the travel time string
+                            # Parse and convert to float
                             travel_time = self.parse_travel_time(travel_time)
-                            distances.append({friend: distance_to_place})
-                            durations.append({friend: travel_time})
+                            if travel_time is not None:  # Ensure travel time is valid
+                                durations.append({friend: travel_time})
+                            else:
+                                durations.append({friend: 0})  # Default to 0 if parsing fails
 
+                            # Compute differences
                             distance_difference = abs(distance_to_place_A - distance_to_place)
                             time_difference = abs(travel_time_A - travel_time)
                     else:
                         for friend, address in self.friend_origins.items():
+                            # Calculate distance from friend origin to place
                             distance_to_place = calculate_distance(self.get_coordinates(address), place_coords)
+                            distances.append({friend: distance_to_place})
+
+                            # Calculate travel time from friend origin to place
                             travel_time = calculate_travel_time(address, place['vicinity'])
                             # Debug: Print raw travel time for friend
                             print(f"Raw travel_time for {friend}: {travel_time}")
 
-                            # Convert to float by parsing the travel time string
+                            # Parse and convert to float
                             travel_time = self.parse_travel_time(travel_time)
-                            distances.append({friend: distance_to_place})
-                            durations.append({friend: travel_time})
+                            if travel_time is not None:  # Ensure travel time is valid
+                                durations.append({friend: travel_time})
+                            else:
+                                durations.append({friend: 0})  # Default to 0 if parsing fails
 
-                            # Compute difference with the last distance and time calculated
+                            # Compute differences
                             if distances:
                                 last_distance = next(iter(distances[-1].values()))  # Get the last distance value
                                 last_time = next(iter(durations[-1].values()))  # Get the last time value
@@ -769,6 +788,8 @@ class Distance():
                     suggested_places.append({
                         'name': place['name'],
                         'address': place['vicinity'],
+                        'latitude': lat,  # Add latitude
+                        'longitude': lon,  # Add longitude
                         'distances': distances,
                         'travel_times': durations,
                         'distance_difference': distance_difference,
@@ -785,7 +806,6 @@ class Distance():
             return suggested_places
         else:
             return None
-
 
 
     def __str__(self):
