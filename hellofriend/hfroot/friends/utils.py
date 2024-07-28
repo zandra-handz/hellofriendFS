@@ -675,7 +675,7 @@ class Distance():
 
 
 
-    def parse_travel_time(travel_time_str):
+    def parse_travel_time(self, travel_time_str):
         """
         Parse the travel time string to extract the numeric value in minutes.
         Assumes the format can be like "5 mins", "16 mins", "2 hours 56 mins", etc.
