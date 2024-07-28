@@ -675,19 +675,30 @@ class Distance():
 
 
 
-    def parse_travel_time(self, travel_time_str):
+    def parse_travel_time(travel_time_str):
         """
         Parse the travel time string to extract the numeric value in minutes.
-        Assumes the format is like "5 mins", "16 mins", etc.
+        Assumes the format can be like "5 mins", "16 mins", "2 hours 56 mins", etc.
         """
         try:
-            # Extract the numeric part from the string
-            match = re.match(r"(\d+)\s*mins?", travel_time_str, re.IGNORECASE)
-            if match:
-                return float(match.group(1))
-            else:
-                print(f"Unexpected travel time format: {travel_time_str}")
-                return 0
+            # Initialize minutes and hours
+            minutes = 0
+            hours = 0
+            
+            # Regex patterns to match hours and minutes
+            hours_match = re.search(r'(\d+)\s*hours?', travel_time_str, re.IGNORECASE)
+            minutes_match = re.search(r'(\d+)\s*mins?', travel_time_str, re.IGNORECASE)
+            
+            # Extract hours and minutes if present
+            if hours_match:
+                hours = int(hours_match.group(1))
+            if minutes_match:
+                minutes = int(minutes_match.group(1))
+            
+            # Convert hours to minutes and add to minutes
+            total_minutes = hours * 60 + minutes
+            return total_minutes
+
         except ValueError:
             print(f"Error parsing travel time: {travel_time_str}")
             return 0
