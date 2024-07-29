@@ -158,12 +158,13 @@ class UserAddress(models.Model):
 class UserSettings(models.Model):
     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='settings')
     receive_notifications = models.BooleanField(default=False)
+    simplify_app_for_focus = models.BooleanField(default=False)
     language_preference = models.CharField(max_length=10, choices=[('en', 'English'), ('es', 'Spanish')], blank=True)
-
     # Accessibility settings options for front end
     large_text = models.BooleanField(default=False)
     high_contrast_mode = models.BooleanField(default=False)
     screen_reader = models.BooleanField(default=False)
+
 
     class Meta:
         verbose_name = "User settings"

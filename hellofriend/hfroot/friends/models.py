@@ -432,7 +432,6 @@ class FriendFaves(models.Model):
     friend = models.OneToOneField(Friend, on_delete=models.CASCADE)
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
     locations = models.ManyToManyField('friends.Location', blank=True)
-
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -851,6 +850,7 @@ class PastMeet(models.Model):
 class Location(models.Model):
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
     place_id = models.CharField(max_length=255, null=True, blank=True) 
+    category = models.CharField(max_length=100, null=True, blank=True)
     title = models.CharField(max_length=64, null=True, blank=False)
     address = models.CharField(max_length=64, null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -882,13 +882,17 @@ class Location(models.Model):
 
     
     def save(self, *args, **kwargs):
-
         if not self.pk:
             self.calculate_coordinates()
 
-
+        # Ensure unique title
+        original_title = self.title
+        suffix = 1
+        while Location.objects.filter(user=self.user, title=self.title).exists():
+            self.title = f"{original_title}{suffix}"
+            suffix += 1
+        
         super().save(*args, **kwargs)
-
 
     def __str__(self):
         return f"Location: {self.address}, validated: {self.validated_address}"
