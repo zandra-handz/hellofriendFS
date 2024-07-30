@@ -51,6 +51,7 @@ urlpatterns = [
     path('<int:friend_id>/addresses/add/', views.FriendAddressCreate.as_view()),
     path('<int:friend_id>/address/<int:pk>/', views.FriendAddressDetail.as_view()),
 
+    path('dropdown/location-parking-type-choices/', views.LocationParkingTypeChoices.as_view(), name='location-parking-type-choices'),
     path('dropdown/hello-type-choices/', views.HelloTypeChoices.as_view(), name='hello-type-choices'),
     path('dropdown/all-user-locations/', views.UserLocationsAll.as_view()),
     path('dropdown/validated-user-locations/', views.UserLocationsValidated.as_view()),

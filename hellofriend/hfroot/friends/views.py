@@ -520,6 +520,14 @@ class UserLocationsAll(generics.ListAPIView):
         user = self.request.user
         return models.Location.objects.filter(user=user)
 
+class LocationParkingTypeChoices(APIView):
+    permission_classes = [IsAuthenticated, AllowAny]
+
+    def get(self, request, format=None):
+        type_choices = models.Location.TYPE_CHOICES
+        serializer = serializers.LocationParkingTypeChoicesSerializer({'type_choices': type_choices})
+        return response.Response(serializer.data, status=status.HTTP_200_OK)
+
 
 class UserLocationsValidated(generics.ListAPIView):
     serializer_class = serializers.LocationSerializer

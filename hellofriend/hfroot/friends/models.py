@@ -6,6 +6,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 import datetime
 import random
+import re
 import users.models
 import uuid
 
@@ -432,12 +433,35 @@ class FriendFaves(models.Model):
     friend = models.OneToOneField(Friend, on_delete=models.CASCADE)
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
     locations = models.ManyToManyField('friends.Location', blank=True)
+    
+    dark_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the dark theme")
+    light_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the light theme")
+    
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Friend faves"
         verbose_name_plural = "Friend faves"
+
+    def clean(self):
+        
+        if self.dark_color and not self.dark_color.startswith('#'):
+            self.dark_color = f'#{self.dark_color}'
+        if self.light_color and not self.light_color.startswith('#'):
+            self.light_color = f'#{self.light_color}'
+        
+        # Validate color codes
+        color_pattern = re.compile(r'^#[0-9A-Fa-f]{6}$')
+        if self.dark_color and not color_pattern.match(self.dark_color):
+            self.dark_color = None  # Reset to null or blank
+        if self.light_color and not color_pattern.match(self.light_color):
+            self.light_color = None  # Reset to null or blank
+
+    def save(self, *args, **kwargs):
+        # Always clean before saving
+        self.clean()
+        super().save(*args, **kwargs)
 
     '''
     #addresses = models.JSONField(blank=True, null=True)
@@ -848,11 +872,27 @@ class PastMeet(models.Model):
 
 # locations will not be attached to any specific friend, but friend will attach to them via the faves model
 class Location(models.Model):
+
+    TYPE_CHOICES = [
+        ('1', 'location has free parking lot'),
+        ('2', 'free parking lot nearby'),
+        ('3', 'street parking'),
+        ('4', 'fairly stressful or unreliable street parking'),
+        ('5', 'no parking whatsoever'),
+        ('6', 'unspecified'),
+    ]
+
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
     place_id = models.CharField(max_length=255, null=True, blank=True) 
     category = models.CharField(max_length=100, null=True, blank=True)
     title = models.CharField(max_length=64, null=True, blank=False)
     address = models.CharField(max_length=64, null=True, blank=True)
+    parking_score = models.CharField(
+        max_length=200,
+        choices=TYPE_CHOICES, 
+        null=True,   
+        blank=True   
+    )
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     friends = models.ManyToManyField('Friend', blank=True)
@@ -864,7 +904,7 @@ class Location(models.Model):
 
     class Meta:
         ordering = ('-created_on',)
-        unique_together = (('user', 'title'), ('user', 'address'))
+        unique_together = (('user', 'title', 'address'),)
 
     def calculate_coordinates(self):
 
@@ -887,9 +927,9 @@ class Location(models.Model):
 
         # Ensure unique title
         original_title = self.title
-        suffix = 1
+        suffix = 2
         while Location.objects.filter(user=self.user, title=self.title).exists():
-            self.title = f"{original_title}{suffix}"
+            self.title = f"{original_title} ({suffix})"
             suffix += 1
         
         super().save(*args, **kwargs)

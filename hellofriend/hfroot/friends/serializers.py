@@ -75,6 +75,14 @@ class LocationSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
+class LocationParkingTypeChoicesSerializer(serializers.Serializer):
+    type_choices = serializers.ListField(child=serializers.CharField())
+
+    def to_representation(self, instance):
+        return {'type_choices': [choice[0] for choice in models.Location.TYPE_CHOICES]}
+
+
+
 class FriendAddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.FriendAddress
