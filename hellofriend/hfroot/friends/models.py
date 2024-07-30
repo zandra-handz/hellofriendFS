@@ -925,12 +925,6 @@ class Location(models.Model):
         if not self.pk:
             self.calculate_coordinates()
 
-        # Ensure unique title
-        original_title = self.title
-        suffix = 2
-        while Location.objects.filter(user=self.user, title=self.title).exists():
-            self.title = f"{original_title} ({suffix})"
-            suffix += 1
         
         super().save(*args, **kwargs)
 
