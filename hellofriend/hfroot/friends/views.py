@@ -170,8 +170,35 @@ class FriendSuggestionSettingsCategoryLimit(generics.RetrieveAPIView):
         friend_id = self.kwargs['friend_id']
         return models.FriendSuggestionSettings.objects.get(user=user, friend_id=friend_id)
     
-    
 class FriendFavesDetail(generics.RetrieveUpdateAPIView):
+    serializer_class = serializers.FriendFavesSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id']
+        return models.FriendFaves.objects.filter(user=user, friend_id=friend_id)
+
+    def patch(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        # Validate input data
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        # Ensure the user is authorized to update this instance
+        if request.user != instance.user:
+            return response.Response({"error": "User is not authorized to update this friend faves."},
+                                     status=status.HTTP_403_FORBIDDEN)
+
+        # Update instance with validated data
+        serializer.save()
+
+        return response.Response(serializer.data)
+
+    
+class FriendFavesLocationAdd(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.FriendFavesSerializer
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
