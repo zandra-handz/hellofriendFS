@@ -888,6 +888,7 @@ class Location(models.Model):
     category = models.CharField(max_length=100, null=True, blank=True)
     title = models.CharField(max_length=64, null=True, blank=False)
     address = models.CharField(max_length=64, null=True, blank=True)
+    custom_title = models.CharField(max_length=64, null=True, blank=True)
     parking_score = models.CharField(
         max_length=200,
         choices=TYPE_CHOICES, 
@@ -905,7 +906,7 @@ class Location(models.Model):
 
     class Meta:
         ordering = ('-created_on',)
-        unique_together = (('user', 'title', 'address'),)
+        unique_together = (('user', 'title', 'address'),('user', 'custom_title'))
 
     def calculate_coordinates(self):
 
