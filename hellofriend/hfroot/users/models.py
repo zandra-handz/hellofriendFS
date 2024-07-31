@@ -164,6 +164,7 @@ class UserSettings(models.Model):
     large_text = models.BooleanField(default=False)
     high_contrast_mode = models.BooleanField(default=False)
     screen_reader = models.BooleanField(default=False)
+    manual_dark_mode = models.BooleanField(null=True, blank=True)
 
 
     class Meta:

@@ -436,7 +436,8 @@ class FriendFaves(models.Model):
     
     dark_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the dark theme")
     light_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the light theme")
-    
+    use_friend_color_theme = models.BooleanField(null=True, blank=True)
+
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
