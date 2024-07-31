@@ -187,6 +187,9 @@ class FriendFavesDetail(generics.RetrieveUpdateAPIView):
         user = request.data.get('user')
         friend = request.data.get('friend')
         location_id = request.data.get('location_id')
+        dark_color = request.data.get('dark_color')
+        light_color = request.data.get('light_color')
+
 
         if user == instance.user.id and friend == instance.friend.id:
             if location_id:
