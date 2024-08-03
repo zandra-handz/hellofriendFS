@@ -75,6 +75,11 @@ class Friend(models.Model):
     def save(self, *args, **kwargs):
 
         if not self.pk:
+
+            existing_friends_count = Friend.objects.filter(user=self.user).count()
+            if existing_friends_count >= 20:
+                raise ValidationError("Cannot have more than 20 friends. Please delete one to add a new one. (Hint: Are there any you can keep in touch with regularly now without the app's assistance? :))")
+            
             super().save(*args, **kwargs)  # Save the Friend instance first
 
             # Create and save FriendSuggestionSettings
