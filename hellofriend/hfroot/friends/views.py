@@ -70,7 +70,7 @@ class FriendCreateView(APIView):
     }
     '''
 
-class FriendDetail(generics.RetrieveUpdateAPIView):
+class FriendDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.FriendSerializer
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
