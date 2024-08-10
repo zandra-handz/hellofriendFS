@@ -523,14 +523,6 @@ class HelloCreate(generics.ListCreateAPIView):
         context['friend_id'] = self.kwargs['friend_id']
         return context
 
-    def post(self, request, *args, **kwargs): 
-        hello_response = super().post(request, *args, **kwargs) 
-        serializer = self.get_serializer(data=hello_response.data, many=False)
-        serializer.is_valid()
-        created_instance = serializer.save()
-         
-        return response.Response(serializer.data, status=status.HTTP_201_CREATED)
-
 class HelloDetail(generics.RetrieveDestroyAPIView):
     serializer_class = serializers.PastMeetSerializer
     permission_classes = [IsAuthenticated]
