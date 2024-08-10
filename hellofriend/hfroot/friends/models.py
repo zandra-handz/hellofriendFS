@@ -849,14 +849,23 @@ class PastMeet(models.Model):
                             processed_categories.add(category) 
                     capsule_shared_with_friend.delete()
 
-                    if self.delete_all_unshared_capsules:
+                    if self.delete_all_unshared_capsules: 
                         unshared = ThoughtCapsulez.objects.filter(friend=self.friend, user=self.user)
-                        unshared.delete()
+                         
+                        if unshared.exists():
+                            unshared.delete()
                 
                 except ThoughtCapsulez.DoesNotExist:
                     pass
                 except ThoughtCapsulez.DoesNotExist:
                     pass
+
+        else:
+            if self.delete_all_unshared_capsules: 
+                unshared = ThoughtCapsulez.objects.filter(friend=self.friend, user=self.user)
+                 
+                if unshared.exists():
+                    unshared.delete()
                 
  
 
