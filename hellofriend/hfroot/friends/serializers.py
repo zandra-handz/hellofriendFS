@@ -178,6 +178,19 @@ class UpcomingMeetsSerializer(serializers.ModelSerializer):
         return capsules_by_category
 
 
+class UpcomingMeetsLightSerializer(serializers.ModelSerializer):
+
+    friend = FriendSerializer()
+
+    friend_name = serializers.CharField(source='friend.name')
+    
+    class Meta():
+        model = models.NextMeet
+        fields = ['id', 'date', 'friend', 'days_since', 'days_since_words', 
+                  'time_score', 'future_date_in_words', 'friend_name']
+
+
+
  
 class ThoughtCapsuleSerializer(serializers.ModelSerializer):
     class Meta:

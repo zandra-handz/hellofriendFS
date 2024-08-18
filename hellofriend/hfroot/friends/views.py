@@ -359,6 +359,36 @@ class UpcomingMeetsView(generics.ListCreateAPIView):
         return queryset
 
 
+class UpcomingMeetsLightView(generics.ListCreateAPIView):
+    serializer_class = serializers.UpcomingMeetsLightSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        today = timezone.now().date()
+        ten_days_from_now = today + datetime.timedelta(days=10)
+
+        expired_meets = models.NextMeet.objects.expired_dates().filter(user=user)
+        for meet in expired_meets:
+            meet.save()
+
+        update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
+        if update_tracker.last_upcoming_update != today:
+            update_tracker.upcoming_updated()
+
+        
+        queryset = models.NextMeet.objects.filter(user=user, date__range=[today, ten_days_from_now])
+        if not queryset.exists():
+            soonest_date = models.NextMeet.objects.filter(user=user, date__gt=ten_days_from_now).aggregate(Min('date'))['date__min']
+            if soonest_date:
+                queryset = models.NextMeet.objects.filter(user=user, date=soonest_date)
+
+        return queryset
+
+
+
+
+
 
 class ThoughtCapsulesAll(generics.ListAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer

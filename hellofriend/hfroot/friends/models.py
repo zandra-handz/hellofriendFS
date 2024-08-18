@@ -279,22 +279,22 @@ class NextMeet(models.Model):
 
         if effort < 4:
             if effort == 1:
-                span = (120, 200)
+                span = (200, 120)
             elif effort == 2:
-                span = (60, 90)
+                span = (90, 60)
             else:
-                span = (26, 40)
+                span = (41, 26)
         else:
             if effort == 4:
-                span = (6, 20)
+                span = (21, 6)
             else:
-                span = (0, 8) 
+                span = (8, 2) 
 
         if span:
-            tiers = (span[1] - span[0]) / 3
+            tiers = (span[0] - span[1]) / 3
             tiers = int(tiers)
 
-            max = ((tiers * priority) + span[0])
+            max = ((tiers * priority) + span[1])
             min = max - tiers
 
         
@@ -310,12 +310,15 @@ class NextMeet(models.Model):
 
     # first calculation and every calculation after a logged hello
     def create_new_date_clean(self):
-        min_range, max_range = self.timespan()
+        min_range, max_range = self.timespan() 
         random_day = random.randint(min_range, max_range)
         random_day = float(random_day)
         new_date = datetime.date.today() + datetime.timedelta(days=random_day)
+        print(f'create_new_date_clean date: {new_date}')
         self.date = new_date
         return new_date
+      
+ 
       
         
     # This is probably the first 'algorithm' I ever wrote and I do not have the energy or moral fortitude to sift through this chaos at this time I'm so sorry! Soon
@@ -880,8 +883,12 @@ class PastMeet(models.Model):
         super().save(*args, **kwargs)
 
         if self.friend.next_meet:
-            
-            self.friend.next_meet.reset_date_two_days()
+            try: 
+                self.friend.next_meet.create_new_date_clean()
+                print('ran create_new_date_clean successfully')
+            except Exception as e:
+                print('could not execute create_new_date_clean')
+                self.friend.next_meet.reset_date_two_days()
             
             self.friend.next_meet.save()
 

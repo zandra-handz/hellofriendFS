@@ -5,7 +5,8 @@ import users.views
 urlpatterns = [
     path('', views.index, name='index'),
     path('nextmeets/', views.NextMeetsAllView.as_view()),
-    path('upcoming/', views.UpcomingMeetsView.as_view()),
+    path('upcoming/', views.UpcomingMeetsLightView.as_view()),
+    path('upcoming/comprehensive/', views.UpcomingMeetsView.as_view()),
     path('all/', views.FriendsView.as_view()),
     path('create/', views.FriendCreateView.as_view()),
     path('update-app-setup/', views.UpdateAppSetupComplete.as_view()),
