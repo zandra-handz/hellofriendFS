@@ -1,2 +1,4 @@
 .env 
 d.sqlite3
+__pycache__/
+*.pyc
