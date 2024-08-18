@@ -27,6 +27,10 @@ def get_yesterday():
     yesterday = datetime.date.today() - datetime.timedelta(days=1)
     return yesterday
 
+def get_two_days_ago():
+    two_days_ago = datetime.date.today() - datetime.timedelta(days=2)
+    return two_days_ago
+
 
 class UpdatesTracker(models.Model):
 
@@ -217,6 +221,9 @@ class NextMeet(models.Model):
 
     def reset_date(self):
         self.date = get_yesterday()
+
+    def reset_date_two_days(self):
+        self.date = get_two_days_ago()
 
 
     @property
@@ -873,10 +880,8 @@ class PastMeet(models.Model):
         super().save(*args, **kwargs)
 
         if self.friend.next_meet:
-            try:
-                self.friend.next_meet.create_new_date_clean()
-            except Exception as e:
-                self.friend.next_meet.reset_date()
+            
+            self.friend.next_meet.reset_date_two_days()
             
             self.friend.next_meet.save()
 
