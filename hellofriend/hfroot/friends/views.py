@@ -555,11 +555,8 @@ class HelloCreate(generics.ListCreateAPIView):
 
     def post(self, request, *args, **kwargs): 
         hello_response = super().post(request, *args, **kwargs) 
-        serializer = self.get_serializer(data=hello_response.data, many=False)
-        serializer.is_valid()
-        created_instance = serializer.save()
-         
-        return response.Response(serializer.data, status=status.HTTP_201_CREATED)
+        # The instance is already created, so no need to save again
+        return hello_response
 
 class HelloDetail(generics.RetrieveDestroyAPIView):
     serializer_class = serializers.PastMeetSerializer

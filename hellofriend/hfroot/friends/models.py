@@ -592,7 +592,7 @@ class ThoughtCapsulez(models.Model):
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
     typed_category = models.CharField(max_length=50, null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
-    capsule = models.CharField(max_length=750)
+    capsule = models.CharField(max_length=2000)
     # Connect an image (won't get saved in PastMeet, this is not a scrapbook) via the image model thought_capsule field
     created_on = models.DateTimeField(auto_now_add=True) 
     updated_on = models.DateTimeField(auto_now=True)
@@ -655,13 +655,16 @@ class Image(models.Model):
     image = models.ImageField(upload_to='images/', blank=True)
     image_category = models.CharField(max_length=50, default='Misc')
     title = models.CharField(max_length=50)
-    image_notes = models.CharField(max_length=150, null=True, blank=True)
+    image_notes = models.CharField(max_length=300, null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
     # Can be connected to a capsule here, but will keep its image category as well
     thought_capsule = models.ForeignKey(ThoughtCapsulez, related_name='images', on_delete=models.CASCADE, null=True, blank=True)
+
+    class Meta:
+        ordering = ('-created_on',)
 
     def __str__(self):
         return f"Image: '{self.title}'"
@@ -697,7 +700,7 @@ class PastMeet(models.Model):
 
 
     class Meta:
-        ordering = ('-date',)
+        ordering = ('-date', '-created_on',)
 
     def get_existing_locations(self): 
 
@@ -925,7 +928,7 @@ class Location(models.Model):
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     friends = models.ManyToManyField('Friend', blank=True)
-    personal_experience_info = models.CharField(max_length=750, null=True, blank=True)
+    personal_experience_info = models.CharField(max_length=1000, null=True, blank=True)
     calculate_distances_only = models.BooleanField(default=False)
     validated_address = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
