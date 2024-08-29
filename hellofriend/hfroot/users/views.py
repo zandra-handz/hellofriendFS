@@ -20,8 +20,11 @@ class CreateUserView(generics.CreateAPIView):
 
 
 @api_view(['GET'])
-@login_required
+@permission_classes([IsAuthenticated])
 def get_current_user(request):
+    if not request.user.is_authenticated:
+        return response.Response({'error': 'User not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+    
     serializer = serializers.BadRainbowzUserSerializer(request.user)
     return JsonResponse(serializer.data)
 
