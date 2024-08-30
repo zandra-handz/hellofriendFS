@@ -2,7 +2,7 @@ from . import utils
 from . import managers
 import calendar
 from django.core.exceptions import ValidationError
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models, transaction
 import datetime
 import random
@@ -918,6 +918,15 @@ class Location(models.Model):
     category = models.CharField(max_length=100, null=True, blank=True)
     title = models.CharField(max_length=64, null=True, blank=False)
     address = models.CharField(max_length=64, null=True, blank=True)
+    zip_code = models.CharField(
+        max_length=11,
+        blank=True,
+        null=True, 
+        validators=[RegexValidator(
+            regex=r'^\d{5}(-\d{6})?$',
+            message='Zip code must be in either XXXXX or XXXXX-XXXXXX format'
+        )]
+    )
     custom_title = models.CharField(max_length=64, null=True, blank=True)
     parking_score = models.CharField(
         max_length=200,
