@@ -592,7 +592,7 @@ class ThoughtCapsulez(models.Model):
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
     typed_category = models.CharField(max_length=50, null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
-    capsule = models.CharField(max_length=2000)
+    capsule = models.CharField(max_length=10000)
     # Connect an image (won't get saved in PastMeet, this is not a scrapbook) via the image model thought_capsule field
     created_on = models.DateTimeField(auto_now_add=True) 
     updated_on = models.DateTimeField(auto_now=True)

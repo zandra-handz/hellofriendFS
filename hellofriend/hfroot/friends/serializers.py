@@ -120,12 +120,13 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='friend.first_name')
     last_name = serializers.CharField(source='friend.last_name')
     first_meet_entered = serializers.DateField(source='friend.first_meet_entered')
+    previous_meet_type = serializers.CharField(source='previous.type', read_only=True)  
 
     class Meta:
         model = models.NextMeet
         fields = ['id', 'date', 'name', 'first_name', 'last_name', 'first_meet_entered', 'days_since', 'days_since_words', 
                   'time_score', 'future_date_in_words', 'category_activations_left', 
-                  'suggestion_settings', 'friend_faves', 'friend_addresses']
+                  'suggestion_settings', 'friend_faves', 'friend_addresses', 'previous_meet_type']
 
     def get_friend_faves(self, obj):
         friend = obj.friend  
