@@ -39,6 +39,7 @@ class BadRainbowzUser(AbstractUser):
     is_active_user = models.BooleanField(default=True)
     is_inactive_user = models.BooleanField(default=False)
     is_banned_user = models.BooleanField(default=False)
+    is_test_user = models.BooleanField(default=False)
     created_on = models.DateTimeField(default=timezone.now)
     last_updated_at = models.DateTimeField(auto_now=True)
 

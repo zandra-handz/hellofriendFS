@@ -37,7 +37,7 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.BadRainbowzUser
-        fields = ['id', 'username', 'password', 'email', 'app_setup_complete', 'phone_number', 'addresses', 'profile', 'settings']
+        fields = ['id', 'username', 'password', 'email', 'app_setup_complete', 'is_test_user', 'phone_number', 'addresses', 'profile', 'settings']
         extra_kwargs = {"password": {"write_only": True}}
 
     def create(self, validated_data):

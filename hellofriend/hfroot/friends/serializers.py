@@ -267,7 +267,7 @@ class PastMeetSerializer(serializers.ModelSerializer):
     class Meta():
         model = models.PastMeet
         fields = ['id', 'friend', 'user', 'type','typed_location', 'location_name', 'location', 
-                    'date', 'past_date_in_words','thought_capsules_shared', 'delete_all_unshared_capsules']
+                    'date', 'additional_notes', 'past_date_in_words','thought_capsules_shared', 'delete_all_unshared_capsules']
 
 
 

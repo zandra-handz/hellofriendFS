@@ -538,6 +538,11 @@ class Category(models.Model):
     item_type = models.CharField(max_length=50, null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True) 
 
+
+    class Meta:
+        verbose_name = "Category"
+        verbose_name_plural = "Categories"
+
     
    # @classmethod
    # def get_category_count(cls, user, friend_id):
@@ -598,7 +603,9 @@ class ThoughtCapsulez(models.Model):
     updated_on = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ('-category',)
+        ordering = ('-category',) 
+        verbose_name = "Moment (Thought Capsule)"
+        verbose_name_plural = "Moments (Thought Capsulez)"
 
 
     def get_existing_categories(self): 
@@ -691,7 +698,7 @@ class PastMeet(models.Model):
     date = models.DateField(null=True, blank=True)
     thought_capsules_shared = models.JSONField(default=dict, null=True, blank=True)
     delete_all_unshared_capsules = models.BooleanField(default=False)
-
+    additional_notes = models.CharField(max_length=3000, null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
 
     # I would like to limit the amount of times this can be viewed per year because I want to demphasize past history
