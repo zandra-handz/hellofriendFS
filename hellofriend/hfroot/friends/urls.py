@@ -65,5 +65,8 @@ urlpatterns = [
     path('address/<int:pk>/', users.views.UserAddressDetail.as_view()),
 
     # app-wide
-    path('notifications/upcoming/48hrs/', views.UpcomingMeetsAll.as_view(), name='notifications-all-upcoming'),
+    path('notifications/upcoming/48hrs/', views.UpcomingMeetsAll48.as_view(), name='notifications-all-upcoming-48hrs'),
+    path('notifications/upcoming/36hrs/', views.UpcomingMeetsAll36.as_view(), name='notifications-all-upcoming-36hrs'),
+       path('notifications/upcoming/24hrs/', views.UpcomingMeetsAll24.as_view(), name='notifications-all-upcoming-24hrs'),
+
 ]

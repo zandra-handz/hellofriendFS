@@ -217,7 +217,7 @@ class NextMeet(models.Model):
     # Use NextMeet.objects.expired_dates() in views or utils files to reset missed dates, in conjunction with FriendSuggestionSettings
 
     class Meta:
-        ordering = ('date',)
+        ordering = ('date', 'updated_on')
 
     def reset_date(self):
         self.date = get_yesterday()

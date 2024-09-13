@@ -387,7 +387,7 @@ class UpcomingMeetsLightView(generics.ListCreateAPIView):
 
  
 
-class UpcomingMeetsAll(generics.ListCreateAPIView):
+class UpcomingMeetsAll48(generics.ListCreateAPIView):
     serializer_class = serializers.UpcomingMeetsAllSerializer 
 
     def get_queryset(self):
@@ -400,7 +400,30 @@ class UpcomingMeetsAll(generics.ListCreateAPIView):
         return queryset
 
 
+class UpcomingMeetsAll36(generics.ListCreateAPIView):
+    serializer_class = serializers.UpcomingMeetsAllSerializer 
 
+    def get_queryset(self):
+        today = timezone.now()
+        one_and_a_half_days_from_now = today + datetime.timedelta(days=1.5)
+        
+        # Get meetings for all users within the next 36 hours
+        queryset = models.NextMeet.objects.filter(date__range=[today, one_and_a_half_days_from_now])
+        
+        return queryset
+
+
+class UpcomingMeetsAll24(generics.ListCreateAPIView):
+    serializer_class = serializers.UpcomingMeetsAllSerializer 
+
+    def get_queryset(self):
+        today = timezone.now()
+        one_day_from_now = today + datetime.timedelta(days=1)
+        
+        # Get meetings for all users within the next 24 hours
+        queryset = models.NextMeet.objects.filter(date__range=[today, one_day_from_now])
+        
+        return queryset
 
 
 
