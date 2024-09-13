@@ -26,7 +26,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class UserSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.UserSettings
-        fields = ['receive_notifications', 'simplify_app_for_focus', 'language_preference', 'large_text', 'high_contrast_mode', 'screen_reader', 'manual_dark_mode']
+        fields = ['receive_notifications', 'simplify_app_for_focus', 'language_preference', 'large_text', 'high_contrast_mode', 'screen_reader', 'manual_dark_mode', 'expo_push_token']
 
 
 
@@ -49,6 +49,14 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
         if settings_data:
             models.UserSettings.objects.create(user=user, **settings_data)
         return user
+    
+
+class UserDetailSerializer(serializers.ModelSerializer):
+    expo_push_token = serializers.CharField(source='settings.expo_push_token', allow_blank=True, allow_null=True)
+
+    class Meta:
+        model = models.BadRainbowzUser
+        fields = ['id', 'username', 'expo_push_token']
 
 
 class AddAddressSerializer(serializers.Serializer):

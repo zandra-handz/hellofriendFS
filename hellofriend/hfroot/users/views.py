@@ -102,6 +102,18 @@ class UserSettingsDetail(generics.RetrieveUpdateAPIView):
     def get_object(self):
         user_id = self.kwargs['user_id']
         return get_object_or_404(models.UserSettings, user__id=user_id)
+    
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs): 
+        instance = self.get_object()
+        if 'expo_push_token' in request.data:
+            instance.expo_push_token = None
+            instance.save()
+            return response.Response({'status': 'Expo push token cleared'}, status=status.HTTP_204_NO_CONTENT)
+        return response.Response({'error': 'Expo push token not provided'}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class UserProfileDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.UserProfileSerializer

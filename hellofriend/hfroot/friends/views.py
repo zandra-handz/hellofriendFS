@@ -1,5 +1,7 @@
 import datetime
 from . import models
+import users.models
+import users.serializers
 from . import serializers
 from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, response, status, viewsets
@@ -375,14 +377,26 @@ class UpcomingMeetsLightView(generics.ListCreateAPIView):
         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
         if update_tracker.last_upcoming_update != today:
             update_tracker.upcoming_updated()
-
         
         queryset = models.NextMeet.objects.filter(user=user, date__range=[today, ten_days_from_now])
         if not queryset.exists():
             soonest_date = models.NextMeet.objects.filter(user=user, date__gt=ten_days_from_now).aggregate(Min('date'))['date__min']
             if soonest_date:
                 queryset = models.NextMeet.objects.filter(user=user, date=soonest_date)
+        return queryset
 
+ 
+
+class UpcomingMeetsAll(generics.ListCreateAPIView):
+    serializer_class = serializers.UpcomingMeetsAllSerializer 
+
+    def get_queryset(self):
+        today = timezone.now()
+        two_days_from_now = today + datetime.timedelta(days=2)
+        
+        # Get meetings for all users within the next 48 hours
+        queryset = models.NextMeet.objects.filter(date__range=[today, two_days_from_now])
+        
         return queryset
 
 

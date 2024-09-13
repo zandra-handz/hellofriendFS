@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from . import models
+import users.models
+import users.serializers
 
 
 
@@ -192,7 +194,17 @@ class UpcomingMeetsLightSerializer(serializers.ModelSerializer):
 
 
 
- 
+class UpcomingMeetsAllSerializer(serializers.ModelSerializer):
+    friend = FriendSerializer()
+    friend_name = serializers.CharField(source='friend.name') 
+    user = users.serializers.UserDetailSerializer()  
+
+    class Meta:
+        model = models.NextMeet
+        fields = ['id', 'date', 'friend', 'friend_name', 'days_since', 'days_since_words',
+                  'time_score', 'future_date_in_words', 'user'] 
+
+      
 class ThoughtCapsuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ThoughtCapsulez

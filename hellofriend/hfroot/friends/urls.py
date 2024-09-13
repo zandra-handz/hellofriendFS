@@ -63,4 +63,7 @@ urlpatterns = [
     path('addresses/validated/', users.views.UserAddressesValidated.as_view()),  
     path('addresses/add/', users.views.UserAddressCreate.as_view()),
     path('address/<int:pk>/', users.views.UserAddressDetail.as_view()),
+
+    # app-wide
+    path('notifications/upcoming/48hrs/', views.UpcomingMeetsAll.as_view(), name='notifications-all-upcoming'),
 ]
