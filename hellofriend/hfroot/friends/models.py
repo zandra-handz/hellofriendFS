@@ -601,6 +601,7 @@ class ThoughtCapsulez(models.Model):
     # Connect an image (won't get saved in PastMeet, this is not a scrapbook) via the image model thought_capsule field
     created_on = models.DateTimeField(auto_now_add=True) 
     updated_on = models.DateTimeField(auto_now=True)
+    pre_added_to_hello = models.BooleanField(default=False)
 
     class Meta:
         ordering = ('-category',) 

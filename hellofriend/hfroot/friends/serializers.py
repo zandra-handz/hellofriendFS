@@ -208,7 +208,7 @@ class UpcomingMeetsAllSerializer(serializers.ModelSerializer):
 class ThoughtCapsuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ThoughtCapsulez
-        fields = ['id', 'friend', 'user', 'typed_category', 'category', 'capsule', 'created_on', 'updated_on']
+        fields = ['id', 'friend', 'user', 'typed_category', 'category', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
