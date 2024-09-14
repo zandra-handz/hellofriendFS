@@ -496,6 +496,59 @@ class ThoughtCapsuleDetail(generics.RetrieveDestroyAPIView):
         return models.ThoughtCapsulez.objects.filter(user=user)
 
 
+class ThoughtCapsulesUpdateMultiple(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, *args, **kwargs): 
+        capsules_data = request.data.get('capsules', [])
+        
+        if not capsules_data:
+            return response.Response(
+                {"error": "Capsules data is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Initialize lists to store updated capsules and potential errors
+        updated_capsules = []
+        errors = []
+        
+        user = request.user
+        
+        # Iterate over each capsule data in the request
+        for capsule_data in capsules_data:
+            capsule_id = capsule_data.get('id')
+            fields_to_update = capsule_data.get('fields_to_update', {})
+            
+            # Ensure that both id and fields_to_update are provided
+            if not capsule_id or not fields_to_update:
+                errors.append({"error": f"Capsule ID and fields to update are required for each capsule."})
+                continue
+            
+            # Try to retrieve the capsule
+            try:
+                capsule = models.ThoughtCapsulez.objects.get(id=capsule_id, user=user)
+            except models.ThoughtCapsulez.DoesNotExist:
+                errors.append({"error": f"Capsule with ID {capsule_id} does not exist or does not belong to the user."})
+                continue
+            
+            # Update the capsule with the provided fields
+            for field, value in fields_to_update.items():
+                setattr(capsule, field, value)
+            
+            # Save the updated capsule
+            capsule.save()
+            updated_capsules.append(capsule)
+        
+        # If there are errors, return them along with successful updates
+        if errors:
+            return response.Response({
+                "updated_capsules": serializers.ThoughtCapsuleSerializer(updated_capsules, many=True).data,
+                "errors": errors
+            }, status=status.HTTP_207_MULTI_STATUS)
+
+        # If no errors, return only the updated capsules
+        return response.Response(serializers.ThoughtCapsuleSerializer(updated_capsules, many=True).data, status=status.HTTP_200_OK)
+
 class ImagesAll(generics.ListAPIView):
     serializer_class = serializers.ImageSerializer
     permission_classes = [IsAuthenticated]

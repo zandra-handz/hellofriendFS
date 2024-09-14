@@ -618,34 +618,39 @@ class ThoughtCapsulez(models.Model):
         return existing_categories
 
     def save(self, *args, **kwargs):
-        if self.category: 
-            
-            self.typed_category = None
-        elif self.typed_category: 
-            # If typed_category is provided and category is not selected, create a new category
-            try:
-                # Check if a category with the typed_category already exists for the user and friend
-                category = Category.objects.get(
-                    name=self.typed_category,
-                    user=self.user,
-                    friend=self.friend
-                )
-                self.category = category
-            except Category.DoesNotExist:
+        # Check if the instance already exists (i.e., it has a primary key)
+        if self.pk is None:
+            # The instance is new, so apply category logic
+            if self.category:
+                self.typed_category = None
+            elif self.typed_category:
+                # If typed_category is provided and category is not selected, create a new category
+                try:
+                    # Check if a category with the typed_category already exists for the user and friend
+                    category = Category.objects.get(
+                        name=self.typed_category,
+                        user=self.user,
+                        friend=self.friend
+                    )
+                    self.category = category
+                except Category.DoesNotExist:
+                    # If the category doesn't exist, create a new one
+                    friend_suggestion_settings = FriendSuggestionSettings.objects.get(
+                        user=self.user,
+                        friend=self.friend
+                    )
+                    category = Category.objects.create(
+                        name=self.typed_category,
+                        user=self.user,
+                        friend=self.friend,
+                        friend_suggestion_settings=friend_suggestion_settings
+                    )
+                    self.category = category
+        else:
+            # The instance already exists, so skip the category logic
+            pass
 
-                friend_suggestion_settings = FriendSuggestionSettings.objects.get(
-                    user=self.user,
-                    friend=self.friend
-                )
-                # If the category doesn't exist, create a new one
-                category = Category.objects.create(
-                    name=self.typed_category,
-                    user=self.user,
-                    friend=self.friend,
-                    friend_suggestion_settings=friend_suggestion_settings
-                )
-                self.category = category
-
+        # Call the parent class's save method
         super().save(*args, **kwargs)
 
     # def get_category_choices(self):
