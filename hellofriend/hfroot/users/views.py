@@ -51,7 +51,7 @@ class AddAddressView(APIView):
             user = request.user
             if user_id == user.id:  # Ensure the authenticated user matches the provided user_id
                 user.add_address(address_data)
-                return response.Response("Address added successfully", status=status.HTTP_201_CREATED)
+                return response.Response(address_data, status=status.HTTP_201_CREATED)
             else:
                 return response.Response("Unauthorized", status=status.HTTP_403_FORBIDDEN)
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -74,20 +74,25 @@ class AddAddressView(APIView):
 
 
 class DeleteAddressView(APIView):
-    permission_classes = [IsAuthenticated] 
-    
+    permission_classes = [IsAuthenticated]
+
     def post(self, request, *args, **kwargs):
         user = request.user
         title_to_delete = request.data.get('title', None)  # Get the title from the request data
+
         if title_to_delete is not None:
             addresses = user.addresses
-            for address in addresses:
-                if address.get('title') == title_to_delete:  # Check if the address title matches
-                    addresses.remove(address)  # Remove the matching address
-                    user.addresses = addresses
-                    user.save()
-                    return response.Response("Address deleted successfully", status=status.HTTP_204_NO_CONTENT)
-            return response.Response("Address not found", status=status.HTTP_404_NOT_FOUND)
+            
+            # Create a copy of the addresses to modify
+            updated_addresses = [address for address in addresses if address.get('title') != title_to_delete]
+            
+            if len(updated_addresses) < len(addresses):
+                # An address was deleted
+                user.addresses = updated_addresses
+                user.save()
+                return response.Response("Address deleted successfully", status=status.HTTP_200_OK)
+            else:
+                return response.Response("Address not found", status=status.HTTP_404_NOT_FOUND)
         else:
             return response.Response("Title not provided", status=status.HTTP_400_BAD_REQUEST)
 
