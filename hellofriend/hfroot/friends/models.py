@@ -918,12 +918,12 @@ class PastMeet(models.Model):
 class Location(models.Model):
 
     TYPE_CHOICES = [
-        ('1', 'location has free parking lot'),
-        ('2', 'free parking lot nearby'),
-        ('3', 'street parking'),
-        ('4', 'fairly stressful or unreliable street parking'),
-        ('5', 'no parking whatsoever'),
-        ('6', 'unspecified'),
+        ('location has free parking lot', 'location has free parking lot'),
+        ('free parking lot nearby', 'free parking lot nearby'),
+        ('street parking', 'street parking'),
+        ('fairly stressful or unreliable street parking', 'fairly stressful or unreliable street parking'),
+        ('no parking whatsoever', 'no parking whatsoever'),
+        ('unspecified', 'unspecified'),
     ]
 
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
