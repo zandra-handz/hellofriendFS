@@ -228,7 +228,7 @@ CORS_ALLOW_CREDENTIALS = True
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')  # Your Access Key
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')  # Your Secret Key
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')  # Your Space name
-AWS_S3_REGION_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')  # or the region where your space is located
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')  # or the region where your space is located
 
 # If you have a specific endpoint for your space
 AWS_S3_ENDPOINT_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com'
