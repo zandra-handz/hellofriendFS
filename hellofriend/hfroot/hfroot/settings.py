@@ -75,8 +75,8 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = 'users.BadRainbowzUser' 
 
 # Convert to Env Variable
-GOOGLE_MAPS_API_KEY = 'AIzaSyBAW09hdzlszciQ4fTiZjfxcVMlEkF5Iqk'
-OPEN_MAP_API_KEY = '54a19c0e6cd35fb9f2d1ec6a87f22dba'
+GOOGLE_MAPS_API_KEY = os.getenv('GOOGLE_MAPS_API_KEY')
+OPEN_MAP_API_KEY = os.getenv('OPEN_MAP_API_KEY')
 
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
 
