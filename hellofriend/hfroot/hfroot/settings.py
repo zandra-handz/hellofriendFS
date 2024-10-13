@@ -225,28 +225,26 @@ CORS_ALLOW_CREDENTIALS = True
 # actually not sure if this is the right access key but it's the right bucket
 
 
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
+AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')  # Your Access Key
+AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')  # Your Secret Key
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')  # Your Space name
+AWS_S3_REGION_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')  # or the region where your space is located
 
- 
-AWS_S3_SIGNATURE_NAME = 's3v4'
-AWS_S3_REGION_NAME = 'us-east-2' 
-AWS_S3_FILE_OVERWRITE = False
-AWS_DEFAULT_ACL =  'public-read'
-AWS_S3_VERIFY = True
-AWS_QUERYSTRING_AUTH = False
+# If you have a specific endpoint for your space
+AWS_S3_ENDPOINT_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com'
+
 STORAGES = {
-    # Media files storage on S3
+    # Media files storage on DigitalOcean Spaces
     "default": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
         "OPTIONS": {
             "access_key": AWS_ACCESS_KEY_ID,
             "secret_key": AWS_SECRET_ACCESS_KEY,
             "bucket_name": AWS_STORAGE_BUCKET_NAME,
-            "region_name": AWS_S3_REGION_NAME, 
+            "region_name": AWS_S3_REGION_NAME,
+            "endpoint_url": AWS_S3_ENDPOINT_URL,  # Add this line
             "file_overwrite": False,
-            "default_acl": None,
+            "default_acl": 'public-read',  # Adjust this according to your requirements
             "verify": True,
         },
     },
@@ -257,7 +255,7 @@ STORAGES = {
 }
 
 # Media URL configuration
-MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/'
+MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/'
 
 # Static files (CSS, JavaScript, Images) configuration
 STATIC_URL = '/static/'
