@@ -57,6 +57,10 @@ class Friend(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
+    theme_color_dark = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the dark theme")
+    theme_color_light = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the light theme")
+    
+
     first_meet_entered = models.DateField(default='2024-01-01')
 
     next_meet = models.OneToOneField('friends.NextMeet', on_delete=models.CASCADE, null=True, blank=True, related_name='friend_next_meet')
@@ -81,6 +85,7 @@ class Friend(models.Model):
         if not self.pk:
 
             existing_friends_count = Friend.objects.filter(user=self.user).count()
+            
             if existing_friends_count >= 20:
                 raise ValidationError("Cannot have more than 20 friends. Please delete one to add a new one. (Hint: Are there any you can keep in touch with regularly now without the app's assistance? :))")
             
@@ -476,8 +481,14 @@ class FriendFaves(models.Model):
             self.light_color = None  # Reset to null or blank
 
     def save(self, *args, **kwargs):
-        # Always clean before saving
         self.clean()
+ 
+        associated_friend = self.friend
+        
+        associated_friend.theme_color_dark = self.dark_color  # Update field from FriendFaves to Friend
+        associated_friend.theme_color_light = self.light_color  # Update another field from FriendFaves to Friend
+        
+        associated_friend.save()
         super().save(*args, **kwargs)
 
     '''
