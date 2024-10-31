@@ -1047,7 +1047,7 @@ def place_details_newer(request):
 
 
 
-class LocationDetail(generics.RetrieveUpdateAPIView):
+class LocationDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = models.Location.objects.all()
     serializer_class = serializers.LocationSerializer
     permission_classes = [IsAuthenticated]

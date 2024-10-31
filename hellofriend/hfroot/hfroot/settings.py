@@ -150,7 +150,12 @@ DATABASES = {
 }
  
 '''
-
+# to run in local/test, just switch to sqlite above, already has admin and 2 friends
+# after changes, run makemigration and migrate
+# push changes and migration file to git
+# in digital ocean server, go to top level (hellofriendFS) and git pull origin main
+# cd to hellofriend, activate env, cd to hfroot and run migrate (and collectstatic?)
+# then restart gunicorn and nginx and verify status (don't need to restart socket)
 DATABASES = {
     'default': {
         "ENGINE": 'django.db.backends.postgresql',
