@@ -57,6 +57,14 @@ class Friend(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
+    # these are the unique colors chosen for friend, stored here primarily
+    saved_color_dark = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for saved dark theme")
+    saved_color_light = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for saved light theme")
+    
+   
+
+    # specific to HF front end settings, I decided this was better than the calculations I was running repeatedly on front end
+    # (because I don't anticipate colors getting changed on the front end too much)
     theme_color_dark = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the dark theme")
     theme_color_light = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the light theme")
     theme_color_font = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the primary font theme")
@@ -457,9 +465,9 @@ class FriendFaves(models.Model):
     
     dark_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the dark theme")
     light_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the light theme")
+    
     font_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the primary font theme")
     font_color_secondary = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the secondary font theme")
-    
     
     use_friend_color_theme = models.BooleanField(null=True, blank=True)
     second_color_option = models.BooleanField(default=False, null=True, blank=True)
@@ -494,15 +502,26 @@ class FriendFaves(models.Model):
         if self.font_color_secondary and not color_pattern.match(self.font_color_secondary):
             self.font_color_secondary = None  # Reset to null or blank
 
+
+
     def save(self, *args, **kwargs):
         self.clean()
  
         associated_friend = self.friend
         
+        # app saves new colors as theme, whether resetting to default colors or updating
         associated_friend.theme_color_dark = self.dark_color  # Update field from FriendFaves to Friend
         associated_friend.theme_color_light = self.light_color  # Update another field from FriendFaves to Friend
         associated_friend.theme_color_font = self.font_color 
         associated_friend.theme_color_font_secondary = self.font_color_secondary
+
+        # if updating colors, overwrite saved colors/store new ones
+        if self.use_friend_color_theme == True:
+            associated_friend.saved_color_dark = self.dark_color 
+            associated_friend.saved_color_light = self.light_color  
+           
+        
+        # may store the saved colors in this fave model too at some point 
 
         associated_friend.save()
         super().save(*args, **kwargs)
