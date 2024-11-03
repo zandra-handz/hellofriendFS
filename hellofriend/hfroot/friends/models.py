@@ -59,7 +59,8 @@ class Friend(models.Model):
 
     theme_color_dark = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the dark theme")
     theme_color_light = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the light theme")
-    
+    theme_color_font = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the primary font theme")
+    theme_color_font_secondary = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the secondary font theme")
 
     first_meet_entered = models.DateField(default='2024-01-01')
 
@@ -456,6 +457,10 @@ class FriendFaves(models.Model):
     
     dark_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the dark theme")
     light_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the light theme")
+    font_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the primary font theme")
+    font_color_secondary = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the secondary font theme")
+    
+    
     use_friend_color_theme = models.BooleanField(null=True, blank=True)
     second_color_option = models.BooleanField(default=False, null=True, blank=True)
 
@@ -472,6 +477,11 @@ class FriendFaves(models.Model):
             self.dark_color = f'#{self.dark_color}'
         if self.light_color and not self.light_color.startswith('#'):
             self.light_color = f'#{self.light_color}'
+        if self.font_color and not self.font_color.startswith('#'):
+            self.font_color = f'#{self.font_color}'
+        if self.font_color_secondary and not self.font_color_secondary.startswith('#'):
+            self.font_color_secondary = f'#{self.font_color_secondary}'
+        
         
         # Validate color codes
         color_pattern = re.compile(r'^#[0-9A-Fa-f]{6}$')
@@ -479,6 +489,10 @@ class FriendFaves(models.Model):
             self.dark_color = None  # Reset to null or blank
         if self.light_color and not color_pattern.match(self.light_color):
             self.light_color = None  # Reset to null or blank
+        if self.font_color and not color_pattern.match(self.font_color):
+            self.font_color = None  # Reset to null or blank
+        if self.font_color_secondary and not color_pattern.match(self.font_color_secondary):
+            self.font_color_secondary = None  # Reset to null or blank
 
     def save(self, *args, **kwargs):
         self.clean()
@@ -487,7 +501,9 @@ class FriendFaves(models.Model):
         
         associated_friend.theme_color_dark = self.dark_color  # Update field from FriendFaves to Friend
         associated_friend.theme_color_light = self.light_color  # Update another field from FriendFaves to Friend
-        
+        associated_friend.theme_color_font = self.font_color 
+        associated_friend.theme_color_font_secondary = self.font_color_secondary
+
         associated_friend.save()
         super().save(*args, **kwargs)
 
