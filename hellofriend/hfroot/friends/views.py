@@ -82,6 +82,14 @@ class FriendDetail(generics.RetrieveUpdateDestroyAPIView):
         friend_id = self.kwargs['friend_id']
         return models.Friend.objects.filter(user=user, id=friend_id)
     
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        id = instance.id
+        self.perform_destroy(instance)
+        return response.Response({
+            "message": "Friend deleted successfully",
+            "id": id 
+        }, status=204)
 
 class FriendAddressesAll(generics.ListAPIView):
     serializer_class = serializers.FriendAddressSerializer
@@ -126,6 +134,14 @@ class FriendAddressDetail(generics.RetrieveUpdateDestroyAPIView):
         address_id = self.kwargs['pk']  
         return models.FriendAddress.objects.filter(user=user, friend_id=friend_id, id=address_id)
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        id = instance.id
+        self.perform_destroy(instance)
+        return response.Response({
+            "message": "Friend address deleted successfully",
+            "id": id 
+        }, status=204)
 
 class FriendProfile(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
     serializer_class = serializers.FriendProfileSerializer
@@ -495,6 +511,14 @@ class ThoughtCapsuleDetail(generics.RetrieveDestroyAPIView):
         user = self.request.user
         return models.ThoughtCapsulez.objects.filter(user=user)
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        id = instance.id
+        self.perform_destroy(instance)
+        return response.Response({
+            "message": "Moment deleted successfully",
+            "id": id 
+        }, status=204)
 
 class ThoughtCapsulesUpdateMultiple(APIView):
     permission_classes = [IsAuthenticated]
@@ -588,6 +612,15 @@ class ImageDetail(generics.RetrieveUpdateDestroyAPIView):
         user = self.request.user
         return models.Image.objects.filter(user=user)
 
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        id = instance.id
+        self.perform_destroy(instance)
+        return response.Response({
+            "message": "Image deleted successfully",
+            "id": id 
+        }, status=204)
+
 
 class HelloesAll(generics.ListAPIView):
     serializer_class = serializers.PastMeetSerializer
@@ -655,6 +688,15 @@ class HelloDetail(generics.RetrieveDestroyAPIView):
     def get_queryset(self):
         user = self.request.user
         return models.PastMeet.objects.filter(user=user)
+    
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        id = instance.id
+        self.perform_destroy(instance)
+        return response.Response({
+            "message": "Hello deleted successfully",
+            "id": id 
+        }, status=204)
 
 
 class HelloTypeChoices(APIView):
@@ -1058,4 +1100,14 @@ class LocationDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def perform_create(self, serializer):  
         serializer.save(user=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        id = instance.id
+        self.perform_destroy(instance)
+        return response.Response({
+            "message": "Location deleted successfully",
+            "id": id 
+        }, status=204)
+   
    
