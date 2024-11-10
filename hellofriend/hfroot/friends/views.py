@@ -89,7 +89,7 @@ class FriendDetail(generics.RetrieveUpdateDestroyAPIView):
         return response.Response({
             "message": "Friend deleted successfully",
             "id": id 
-        }, status=204)
+        }, status=200)
 
 class FriendAddressesAll(generics.ListAPIView):
     serializer_class = serializers.FriendAddressSerializer
@@ -141,7 +141,7 @@ class FriendAddressDetail(generics.RetrieveUpdateDestroyAPIView):
         return response.Response({
             "message": "Friend address deleted successfully",
             "id": id 
-        }, status=204)
+        }, status=200)
 
 class FriendProfile(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
     serializer_class = serializers.FriendProfileSerializer
@@ -518,7 +518,7 @@ class ThoughtCapsuleDetail(generics.RetrieveDestroyAPIView):
         return response.Response({
             "message": "Moment deleted successfully",
             "id": id 
-        }, status=204)
+        }, status=200)
 
 class ThoughtCapsulesUpdateMultiple(APIView):
     permission_classes = [IsAuthenticated]
@@ -619,7 +619,7 @@ class ImageDetail(generics.RetrieveUpdateDestroyAPIView):
         return response.Response({
             "message": "Image deleted successfully",
             "id": id 
-        }, status=204)
+        }, status=200)
 
 
 class HelloesAll(generics.ListAPIView):
@@ -696,7 +696,7 @@ class HelloDetail(generics.RetrieveDestroyAPIView):
         return response.Response({
             "message": "Hello deleted successfully",
             "id": id 
-        }, status=204)
+        }, status=200)
 
 
 class HelloTypeChoices(APIView):
@@ -1108,6 +1108,6 @@ class LocationDetail(generics.RetrieveUpdateDestroyAPIView):
         return response.Response({
             "message": "Location deleted successfully",
             "id": id 
-        }, status=204)
+        }, status=200)
    
    
