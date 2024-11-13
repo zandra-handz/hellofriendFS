@@ -502,7 +502,7 @@ class ThoughtCapsuleCreate(generics.ListCreateAPIView):
         return context
 
 
-class ThoughtCapsuleDetail(generics.RetrieveDestroyAPIView):
+class ThoughtCapsuleDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer
     permission_classes = [IsAuthenticated]
 
