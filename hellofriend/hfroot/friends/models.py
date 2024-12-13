@@ -193,6 +193,7 @@ class FriendAddress(models.Model):
     validated_address = models.BooleanField(default=False)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
+    is_default = models.BooleanField(default=False)
 
     class Meta:
         ordering = ('-created_on',)
@@ -213,6 +214,9 @@ class FriendAddress(models.Model):
     def save(self, *args, **kwargs):
         if not self.pk:
             self.calculate_coordinates()
+
+        if self.is_default:
+            FriendAddress.objects.filter(friend=self.friend, is_default=True).exclude(id=self.id).update(is_default=False)
         super().save(*args, **kwargs)
 
     def __str__(self):

@@ -125,6 +125,8 @@ class UserAddress(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
+    is_default = models.BooleanField(default=False)
+
     class Meta:
         ordering = ('-created_on',)
         unique_together = (('user', 'title'), ('user', 'address'))
@@ -147,6 +149,8 @@ class UserAddress(models.Model):
         if not self.pk:
             self.calculate_coordinates()
 
+        if self.is_default:
+            UserAddress.objects.filter(user=self.user, is_default=True).exclude(id=self.id).update(is_default=False)
 
         super().save(*args, **kwargs)
 

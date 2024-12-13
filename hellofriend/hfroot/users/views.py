@@ -41,6 +41,8 @@ def add_address_to_current_user(request):
     else:
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+
+
 class AddAddressView(APIView):
     permission_classes = [IsAuthenticated] 
 
