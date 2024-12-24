@@ -756,6 +756,9 @@ class PastMeet(models.Model):
     delete_all_unshared_capsules = models.BooleanField(default=False)
     additional_notes = models.CharField(max_length=3000, null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
+    
+    updated_on = models.DateTimeField(auto_now=True, null=True, blank=True)
+
 
     # I would like to limit the amount of times this can be viewed per year because I want to demphasize past history
     # HOWEVER this should probably apply to every entry in that friend's archive at once

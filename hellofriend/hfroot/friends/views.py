@@ -681,7 +681,7 @@ class HelloCreate(generics.ListCreateAPIView):
         # The instance is already created, so no need to save again
         return hello_response
 
-class HelloDetail(generics.RetrieveDestroyAPIView):
+class HelloDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.PastMeetSerializer
     permission_classes = [IsAuthenticated]
 
