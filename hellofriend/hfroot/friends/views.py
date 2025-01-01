@@ -3,6 +3,8 @@ from . import models
 import users.models
 import users.serializers
 from . import serializers
+from django.db.models import Min
+
 from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, response, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
@@ -10,6 +12,7 @@ from rest_framework.decorators import api_view, throttle_classes, authentication
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
+
 from .utils import Distance, NearbyDetails, PlaceDetailsFetcher, GeocodingFetcher
 
 
