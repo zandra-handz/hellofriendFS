@@ -1,5 +1,7 @@
 from . import models
 from . import serializers
+from django.core.mail import send_mail
+from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -9,6 +11,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
 from rest_framework.views import APIView 
+
+from django.conf import settings
 
 # Create your views here.
 
@@ -41,7 +45,26 @@ def add_address_to_current_user(request):
     else:
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def post(self, request, *args, **kwargs):
+        serializer = serializers.ChangePasswordSerializer(data=request.data, context={'request': request})
+        if serializer.is_valid():
+            user = request.user
+            old_password = serializer.validated_data['old_password']
+            new_password = serializer.validated_data['new_password']
+            
+            # Change the password
+            user.set_password(new_password)
+            user.save()
+
+            # Update the session authentication hash to avoid the user being logged out
+            update_session_auth_hash(request, user)
+
+            return response.Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
+        
+        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class AddAddressView(APIView):
     permission_classes = [IsAuthenticated] 
@@ -165,4 +188,32 @@ class UserAddressDetail(generics.RetrieveUpdateAPIView, generics.DestroyAPIView)
     def get_queryset(self):
         user = self.request.user 
         return models.UserAddress.objects.filter(user=user)
+    
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def send_email_to_user(request):
+    """
+    Send an email to the provided email address with a predefined subject and message.
+    """
+    email_address = request.data.get('email')
+    
+    if not email_address:
+        return response.Response({'error': 'Email address is required'}, status=400)
+
+    subject = 'Welcome to Our Service'  # Predefined subject
+    message = 'Thank you for joining us! We are excited to have you as part of our community.'  # Predefined message
+
+    try:
+        # Send the email
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,  # Ensure this is set in your settings.py
+            [email_address],
+        )
+        return response.Response({'success': f'Email successfully sent to {email_address}'}, status=200)
+    except Exception as e:
+        return response.Response({'error': f'Failed to send email: {str(e)}'}, status=500)
    

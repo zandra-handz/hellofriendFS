@@ -1,5 +1,6 @@
 from . import models
 from rest_framework import serializers
+from django.core.exceptions import ValidationError
 
 
 
@@ -49,6 +50,23 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
         if settings_data:
             models.UserSettings.objects.create(user=user, **settings_data)
         return user
+    
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
+    def validate_old_password(self, value):
+        user = self.context['request'].user
+        if not user.check_password(value):
+            raise ValidationError("Old password is incorrect.")
+        return value
+
+    def validate_new_password(self, value):
+        if len(value) < 8:
+            raise ValidationError("New password must be at least 8 characters long.")
+        return value
     
 
 class UserDetailSerializer(serializers.ModelSerializer):

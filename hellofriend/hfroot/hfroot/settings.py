@@ -116,7 +116,7 @@ WSGI_APPLICATION = 'hfroot.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 
-'''
+'''   
 
 DATABASES = {
     'default': {
@@ -124,6 +124,7 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }  
+
 
  
 DATABASES = {
@@ -173,6 +174,9 @@ DATABASES = {
     }
 } 
  
+
+ 
+
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
@@ -269,3 +273,17 @@ MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.digitalo
 
 # Static files (CSS, JavaScript, Images) configuration
 STATIC_URL = '/static/'
+
+
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'climatetwin@gmail.com'
+EMAIL_HOST_PASSWORD = 'isntimickcpnodic'
+DEFAULT_FROM_EMAIL = 'climatetwin@gmail.com'
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_UNIQUE_EMAIL = True
