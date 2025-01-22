@@ -6,7 +6,7 @@ from . import utils
 
 
 def format_date(dt):
-    current_year = datetime.now().year
+    current_year = datetime.now().year #change to timezone.now in future?
     if dt.year == current_year:
         formatted_date = dt.strftime('%B %#d at %#I:%M %p')
     else:
@@ -34,6 +34,9 @@ class BadRainbowzUser(AbstractUser):
     username = models.CharField(_('username'), unique=True, max_length=150)
     email = models.EmailField(_('email address'), unique=True)
 
+    password_reset_code = models.CharField(max_length=6, blank=True, null=True)
+    code_expires_at = models.DateTimeField(blank=True, null=True)
+
     addresses = models.JSONField(blank=True, null=True)
     phone_number = models.CharField(_('phone number'), max_length=15, blank=True, null=True)
     is_active_user = models.BooleanField(default=True)
@@ -60,6 +63,17 @@ class BadRainbowzUser(AbstractUser):
 
     def __str__(self):
         return self.username
+    
+
+    def generate_password_reset_code(self):
+        import random
+        from datetime import timedelta  # You can still use timedelta for durations
+        
+        code = f"{random.randint(100000, 999999)}"  # 6-digit code
+        self.password_reset_code = code
+        self.code_expires_at = timezone.now() + timedelta(minutes=10)  # Use timezone.now()
+        self.save()
+        return code
     
     def add_address(self, address_data):
         """

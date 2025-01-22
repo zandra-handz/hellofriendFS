@@ -45,6 +45,33 @@ def add_address_to_current_user(request):
     else:
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+
+class PasswordResetCodeValidationView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = serializers.PasswordResetCodeValidationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+         
+        validated_data = serializer.validated_data
+         
+        return response.Response({
+            "detail": "Reset code and email are valid.",
+            "email": validated_data['email'],
+            "reset_code": validated_data['reset_code']
+        }, status=status.HTTP_200_OK)
+
+
+
+class PasswordResetConfirmView(APIView):
+    def post(self, request, *args, **kwargs):
+        serializer = serializers.PasswordResetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.validated_data
+        serializer.save(user, request.data.get('new_password'))
+
+        return response.Response({"detail": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+
+
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -216,4 +243,31 @@ def send_email_to_user(request):
         return response.Response({'success': f'Email successfully sent to {email_address}'}, status=200)
     except Exception as e:
         return response.Response({'error': f'Failed to send email: {str(e)}'}, status=500)
+    
+
+
+class RequestPasswordResetCodeView(APIView):
+    def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        if not email:
+            return response.Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = models.BadRainbowzUser.objects.get(email=email)
+        except models.BadRainbowzUser.DoesNotExist:
+            # Do not disclose if the email exists to prevent user enumeration
+            return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
+
+        # Generate and save the reset code
+        reset_code = user.generate_password_reset_code()
+
+        # Send the reset code via email
+        send_mail(
+            subject="Your Password Reset Code",
+            message=f"Your password reset code is: {reset_code}",
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+        )
+
+        return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
    

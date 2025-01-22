@@ -1,6 +1,7 @@
 from . import models
 from rest_framework import serializers
 from django.core.exceptions import ValidationError
+from django.utils.timezone import now
 
 
 
@@ -50,6 +51,62 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
         if settings_data:
             models.UserSettings.objects.create(user=user, **settings_data)
         return user
+    
+
+
+class PasswordResetCodeValidationSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    reset_code = serializers.CharField(max_length=6)
+
+    def validate(self, data):
+        email = data['email']
+        reset_code = data['reset_code']
+
+        try:
+            user = models.BadRainbowzUser.objects.get(email=email)
+        except models.BadRainbowzUser.DoesNotExist:
+            raise serializers.ValidationError("Invalid email or reset code.")
+ 
+        if user.password_reset_code != reset_code:
+            raise serializers.ValidationError("Invalid reset code.")
+        if not user.code_expires_at or user.code_expires_at < now():
+            raise serializers.ValidationError("Reset code has expired.")
+
+        return data
+    
+class PasswordResetSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    reset_code = serializers.CharField(max_length=6)
+    new_password = serializers.CharField()
+
+    def validate(self, data):
+        email = data['email']
+        reset_code = data['reset_code']
+
+        try:
+            user = models.BadRainbowzUser.objects.get(email=email)
+        except models.BadRainbowzUser.DoesNotExist:
+            raise serializers.ValidationError("Invalid email or reset code.")
+
+        # Check if the code is correct and not expired
+        if user.password_reset_code != reset_code:
+            raise serializers.ValidationError("Invalid reset code.")
+        if not user.code_expires_at or user.code_expires_at < now():
+            raise serializers.ValidationError("Reset code has expired.")
+
+        return user
+
+    def save(self, user, new_password):
+        user.set_password(new_password)
+        user.password_reset_code = None  # Clear the reset code
+        user.code_expires_at = None
+        user.save()
+
+
+
+
+
+
     
 
 

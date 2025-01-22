@@ -116,7 +116,7 @@ WSGI_APPLICATION = 'hfroot.wsgi.application'
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
 
-'''   
+
 
 DATABASES = {
     'default': {
@@ -124,7 +124,7 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }  
-
+'''   
 
  
 DATABASES = {
@@ -155,7 +155,7 @@ DATABASES = {
 }
   
 
-'''
+
 
 # to run in local/test, just switch to sqlite above, already has admin and 2 friends
 # after changes, run makemigration and migrate
@@ -174,7 +174,7 @@ DATABASES = {
     }
 } 
  
-
+'''
  
 
 # Password validation

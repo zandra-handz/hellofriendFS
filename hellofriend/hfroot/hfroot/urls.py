@@ -30,8 +30,10 @@ urlpatterns = [
     path('users/', include('users.urls')),
     path('users/get-current/', users.views.get_current_user, name='get-current-user'),
     path('users/send-email/', users.views.send_email_to_user, name='send-email-to-user'),
-    
     path('users/sign-up/', users.views.CreateUserView.as_view(), name='sign_up'),
+    path('users/send-reset-code/', users.views.RequestPasswordResetCodeView.as_view(), name='send-reset-code'),
+        path('users/verify-reset-code/', users.views.PasswordResetCodeValidationView.as_view(), name='verify-reset-code'),
+    path('users/reset-password/', users.views.PasswordResetConfirmView.as_view(), name='reset-password'),
     path('users/change-password/', users.views.ChangePasswordView.as_view(), name='change-password'),
     path('users/token/', TokenObtainPairView.as_view(), name='get_token'),
     path('users/token/refresh/', TokenRefreshView.as_view(), name='refresh_token'),
