@@ -751,7 +751,7 @@ class PastMeet(models.Model):
     typed_location = models.CharField(max_length=50, null=True, blank=True)
     location_name = models.CharField(max_length=50, null=True, blank=True)
     location = models.ForeignKey('friends.Location', on_delete=models.SET_NULL, null=True, blank=True) #ie specific coffee shop, social media platform, etc, this will become key to locations
-    date = models.DateField(null=True, blank=True)
+    date = models.DateField(null=True, blank=True) #why is this null and blank?
     thought_capsules_shared = models.JSONField(default=dict, null=True, blank=True)
     delete_all_unshared_capsules = models.BooleanField(default=False)
     additional_notes = models.CharField(max_length=3000, null=True, blank=True)
@@ -767,6 +767,35 @@ class PastMeet(models.Model):
 
     class Meta:
         ordering = ('-date', '-created_on',)
+
+
+    def is_earliest_for_friend(self): 
+        earliest_pastmeet = PastMeet.objects.filter(friend=self.friend).order_by('created_on').first()
+         
+        return self == earliest_pastmeet
+    
+    def is_most_recent_for_friend(self): 
+        most_recent_pastmeet = PastMeet.objects.filter(friend=self.friend).order_by('-date').first()
+         
+        return self == most_recent_pastmeet
+    
+    # def get_previous_pastmeet(self): 
+    #     previous_pastmeet = PastMeet.objects.filter(friend=self.friend).order_by('-date')[1:2].first()
+    #     return previous_pastmeet
+
+    def delete(self, *args, **kwargs):
+        with transaction.atomic():
+            if self.is_earliest_for_friend():
+                raise ValidationError("Cannot delete the earliest PastMeet for this friend.")
+
+            if self.is_most_recent_for_friend():
+                next_meet = NextMeet.objects.filter(friend=self.friend).first()
+                if next_meet:
+                    super().delete(*args, **kwargs)
+                    next_meet.save()
+                    return
+
+            super().delete(*args, **kwargs)
 
     def get_existing_locations(self): 
 

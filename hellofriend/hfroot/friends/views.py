@@ -3,6 +3,8 @@ from . import models
 import users.models
 import users.serializers
 from . import serializers
+
+from django.core.exceptions import ValidationError
 from django.db.models import Min
 
 from django.shortcuts import render, get_object_or_404
@@ -694,12 +696,17 @@ class HelloDetail(generics.RetrieveUpdateDestroyAPIView):
     
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        id = instance.id
-        self.perform_destroy(instance)
-        return response.Response({
-            "message": "Hello deleted successfully",
-            "id": id 
-        }, status=200)
+        
+        try:
+            instance.delete()
+            return response.Response({
+                "message": "PastMeet deleted successfully",
+                "id": instance.id 
+            }, status=status.HTTP_200_OK)
+        except ValidationError as e:
+            return response.Response({
+                "message": str(e),
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class HelloTypeChoices(APIView):
