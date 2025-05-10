@@ -163,6 +163,7 @@ DATABASES = {
 # in digital ocean server, go to top level (hellofriendFS) and git pull origin main
 # cd to hellofriend, activate env, cd to hfroot and run migrate (and collectstatic?)
 # then restart gunicorn and nginx and verify status (don't need to restart socket)
+# (sudo systemctl restart nginx, sudo systemctl restart gunicorn  )
 DATABASES = {
     'default': {
         "ENGINE": 'django.db.backends.postgresql',
