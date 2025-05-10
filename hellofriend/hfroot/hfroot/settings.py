@@ -51,8 +51,8 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": datetime.timedelta(hours=2),
-    "REFRESH_TOKEN_LIFETIME": datetime.timedelta(days=7),
+    "ACCESS_TOKEN_LIFETIME": datetime.timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": datetime.timedelta(days=14),
 }
 
 
@@ -69,7 +69,8 @@ INSTALLED_APPS = [
     'users',
     'rest_framework',
     'storages',
-    'corsheaders'
+    'corsheaders',
+    'silk'
 ]
 
 AUTH_USER_MODEL = 'users.BadRainbowzUser' 
@@ -89,6 +90,7 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'silk.middleware.SilkyMiddleware',
 ]
 
 ROOT_URLCONF = 'hfroot.urls'
@@ -115,15 +117,15 @@ WSGI_APPLICATION = 'hfroot.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-
-'''
+''' 
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
-}    
+}
+ 
 
 DATABASES = {
     'default': {
@@ -152,12 +154,12 @@ DATABASES = {
     }
 }
   
-
-
 '''
+
 # to run in local/test, just switch to sqlite above, already has admin and 2 friends
+# cd hellofriend, venv\Scripts\Activate, cd hfroot, run server
 # after changes, run makemigration and migrate
-# push changes and migration file to git
+# cd.. to hellofriendFs, push changes and migration file to git
 # in digital ocean server, go to top level (hellofriendFS) and git pull origin main
 # cd to hellofriend, activate env, cd to hfroot and run migrate (and collectstatic?)
 # then restart gunicorn and nginx and verify status (don't need to restart socket)
@@ -171,9 +173,7 @@ DATABASES = {
         'PORT': os.getenv('DB_PORT'),
     }
 } 
-  
-
-
+   
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
