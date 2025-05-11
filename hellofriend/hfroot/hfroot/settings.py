@@ -270,7 +270,7 @@ STORAGES = {
             "endpoint_url": AWS_S3_ENDPOINT_URL,
             "default_acl": 'public-read',
             "verify": True,
-            "location": "static",  # optional folder prefix in your bucket
+           # "location": "static",  # optional folder prefix in your bucket
         },
     },
 }
