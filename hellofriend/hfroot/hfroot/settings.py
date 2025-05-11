@@ -245,7 +245,7 @@ AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')  # or the region where your
 AWS_S3_ENDPOINT_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com'
 
 STORAGES = {
-    # Media files storage on DigitalOcean Spaces
+    # Media files
     "default": {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
         "OPTIONS": {
@@ -253,15 +253,25 @@ STORAGES = {
             "secret_key": AWS_SECRET_ACCESS_KEY,
             "bucket_name": AWS_STORAGE_BUCKET_NAME,
             "region_name": AWS_S3_REGION_NAME,
-            "endpoint_url": AWS_S3_ENDPOINT_URL,  # Add this line
+            "endpoint_url": AWS_S3_ENDPOINT_URL,
             "file_overwrite": False,
-            "default_acl": 'public-read',  # Adjust this according to your requirements
+            "default_acl": 'public-read',
             "verify": True,
         },
     },
-    # Static files configuration (local)
+    # Static files
     "staticfiles": {
-        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
+        "OPTIONS": {
+            "access_key": AWS_ACCESS_KEY_ID,
+            "secret_key": AWS_SECRET_ACCESS_KEY,
+            "bucket_name": AWS_STORAGE_BUCKET_NAME,
+            "region_name": AWS_S3_REGION_NAME,
+            "endpoint_url": AWS_S3_ENDPOINT_URL,
+            "default_acl": 'public-read',
+            "verify": True,
+            "location": "static",  # optional folder prefix in your bucket
+        },
     },
 }
 
@@ -273,8 +283,9 @@ MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.digitalo
 
 #STATIC_URL = 'static/'
 
-STATIC_URL = '/static/'
+#STATIC_URL = '/static/'
 
+STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/static/'
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
