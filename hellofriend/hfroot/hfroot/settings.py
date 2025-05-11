@@ -234,7 +234,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 # actually not sure if this is the right access key but it's the right bucket
-
+ 
 
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')  # Your Access Key
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')  # Your Secret Key
@@ -285,7 +285,7 @@ MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.digitalo
 
 #STATIC_URL = '/static/'
 
-STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/static/'
+STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/'
 
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
