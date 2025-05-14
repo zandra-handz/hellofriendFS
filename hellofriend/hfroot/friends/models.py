@@ -236,6 +236,9 @@ class NextMeet(models.Model):
 
     class Meta:
         ordering = ('date', 'updated_on')
+        indexes = [
+            models.Index(fields=['user', 'date']),
+        ]
 
     def reset_date(self):
         self.date = get_yesterday()
@@ -657,6 +660,9 @@ class ThoughtCapsulez(models.Model):
         ordering = ('-category',) 
         verbose_name = "Moment (Thought Capsule)"
         verbose_name_plural = "Moments (Thought Capsulez)"
+        indexes = [
+            models.Index(fields=['friend']),
+        ]
 
 
     def get_existing_categories(self): 
@@ -768,9 +774,9 @@ class PastMeet(models.Model):
     class Meta:
         ordering = ('-date', '-created_on',)
         indexes = [
-            models.Index(fields=['user', 'friend']),  
+            models.Index(fields=['user', 'friend']), # might remove in future because friend object in this app doesn't exist outside of user
+            models.Index(fields=['friend']),
         ]
-
 
 
     def is_earliest_for_friend(self): 
