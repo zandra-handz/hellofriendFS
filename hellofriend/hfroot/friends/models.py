@@ -767,6 +767,10 @@ class PastMeet(models.Model):
 
     class Meta:
         ordering = ('-date', '-created_on',)
+        indexes = [
+            models.Index(fields=['user', 'friend']),  
+        ]
+
 
 
     def is_earliest_for_friend(self): 
