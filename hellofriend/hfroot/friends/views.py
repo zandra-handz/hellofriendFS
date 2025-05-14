@@ -725,7 +725,7 @@ class UserLocationsAll(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return models.Location.objects.filter(user=user)
+        return models.Location.objects.filter(user=user).prefetch_related('friends')
 
 class LocationParkingTypeChoices(APIView):
     permission_classes = [IsAuthenticated, AllowAny]
