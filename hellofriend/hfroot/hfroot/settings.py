@@ -235,13 +235,15 @@ CORS_ALLOW_CREDENTIALS = True
 
 # actually not sure if this is the right access key but it's the right bucket
  
-
+# can view in droplet, nano ~/.bashrc 
+# IMPORTANT: to run collectstatic in droplet, will need to set these manually in the same command line
+# right before python manage.py collectstatic
+# env variables won't be loaded outside of runtime
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')  # Your Access Key
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')  # Your Secret Key
-# AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')  # Your Space name
-# AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')  # or the region where your space is located
-AWS_STORAGE_BUCKET_NAME = 'hf-imagespaces'
-AWS_S3_REGION_NAME = 'nyc3'
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')  # Your Space name
+AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')  # or the region where your space is located
+ 
 # If you have a specific endpoint for your space
 AWS_S3_ENDPOINT_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com'
 

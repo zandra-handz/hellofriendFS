@@ -1041,6 +1041,9 @@ class Location(models.Model):
     class Meta:
         ordering = ('-created_on',)
         unique_together = (('user', 'title', 'address'),('user', 'custom_title'))
+        indexes = [
+            models.Index(fields=['user']),  
+        ]
 
     def calculate_coordinates(self):
 
