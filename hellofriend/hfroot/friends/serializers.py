@@ -95,7 +95,6 @@ class FriendAddressSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
     
 
-
 class ValidateOnlyLocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Location

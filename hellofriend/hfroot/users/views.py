@@ -29,6 +29,8 @@ def get_current_user(request):
     if not request.user.is_authenticated:
         return response.Response({'error': 'User not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
     
+    request.user.check_subscription_active()
+    
     serializer = serializers.BadRainbowzUserSerializer(request.user)
     return JsonResponse(serializer.data)
 
@@ -60,6 +62,15 @@ class PasswordResetCodeValidationView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+class UpdateSubscriptionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, *args, **kwargs):
+        user = request.user
+        serializer = serializers.UpdateSubscriptionSerializer(instance=user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return response.Response({"detail": "Subscription updated successfully."}, status=status.HTTP_200_OK)
 
 class PasswordResetConfirmView(APIView):
     def post(self, request, *args, **kwargs):
@@ -92,6 +103,9 @@ class ChangePasswordView(APIView):
             return response.Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
         
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+
 
 class AddAddressView(APIView):
     permission_classes = [IsAuthenticated] 

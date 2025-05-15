@@ -40,6 +40,11 @@ class BadRainbowzUser(AbstractUser):
     addresses = models.JSONField(blank=True, null=True)
     phone_number = models.CharField(_('phone number'), max_length=15, blank=True, null=True)
     is_active_user = models.BooleanField(default=True)
+
+    is_subscribed_user = models.BooleanField(default=False)
+    subscription_id = models.CharField(max_length=150, blank=True, null=True)
+    subscription_expiration_date = models.DateTimeField(null=True, blank=True)
+
     is_inactive_user = models.BooleanField(default=False)
     is_banned_user = models.BooleanField(default=False)
     is_test_user = models.BooleanField(default=False)
@@ -74,6 +79,26 @@ class BadRainbowzUser(AbstractUser):
         self.code_expires_at = timezone.now() + timedelta(minutes=10)  # Use timezone.now()
         self.save()
         return code
+        
+    def update_subscription(self, subscription_id, expiration_date, is_subscribed=True):
+        self.subscription_id = subscription_id
+        self.subscription_expiration_date = expiration_date
+        self.is_subscribed_user = is_subscribed
+        self.save()
+
+
+    def check_subscription_active(self):
+        if self.is_subscribed_user:
+
+            if self.subscription_expiration_date:
+                active = self.subscription_expiration_date > timezone.now()
+                if not active:
+                    self.is_subscribed_user = False 
+                    self.save()
+            else:
+                self.is_subscribed_user = False 
+                self.save()
+
     
     def add_address(self, address_data):
         """

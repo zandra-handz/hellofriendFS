@@ -798,6 +798,7 @@ class ThoughtCapsuleDetail(generics.RetrieveDestroyAPIView):
 
 '''
 
+
 class ValidateLocation(APIView):
     permission_classes = [IsAuthenticated]
 

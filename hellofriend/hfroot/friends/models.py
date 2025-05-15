@@ -9,9 +9,7 @@ import random
 import re
 import users.models
 import uuid
-
-
-# Create your models here.
+ 
 
 def format_date(dt):
     current_year = datetime.now().year

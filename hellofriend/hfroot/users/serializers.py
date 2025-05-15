@@ -2,6 +2,7 @@ from . import models
 from rest_framework import serializers
 from django.core.exceptions import ValidationError
 from django.utils.timezone import now
+from django.utils import timezone
 
 
 
@@ -39,7 +40,7 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.BadRainbowzUser
-        fields = ['id', 'created_on', 'is_banned_user', 'username', 'password', 'email', 'app_setup_complete', 'is_test_user', 'phone_number', 'addresses', 'profile', 'settings']
+        fields = ['id', 'created_on', 'is_banned_user', 'is_subscribed_user', 'subscription_expiration_date', 'username', 'password', 'email', 'app_setup_complete', 'is_test_user', 'phone_number', 'addresses', 'profile', 'settings']
         extra_kwargs = {"password": {"write_only": True}}
 
     def create(self, validated_data):
@@ -104,9 +105,25 @@ class PasswordResetSerializer(serializers.Serializer):
 
 
 
+class UpdateSubscriptionSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = models.BadRainbowzUser
+        fields = ['subscription_id', 'subscription_expiration_date', 'is_subscribed_user']
+        extra_kwargs = {
+            'subscription_id': {'required': False, 'allow_null': True},
+            'subscription_expiration_date': {'required': False, 'allow_null': True},
+            'is_subscribed_user': {'required': False},
+        }
 
-
-
+    def update(self, instance, validated_data):
+        instance.update_subscription(
+            subscription_id=validated_data.get('subscription_id', instance.subscription_id),
+            expiration_date=validated_data.get('subscription_expiration_date', instance.subscription_expiration_date),
+            is_subscribed=validated_data.get('is_subscribed_user', instance.is_subscribed_user),
+        )
+        return instance
+    
     
 
 
