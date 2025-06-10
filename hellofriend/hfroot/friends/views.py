@@ -399,14 +399,14 @@ class UpcomingMeetsLightView(generics.ListCreateAPIView):
         # get last update date, if today then do not re-update
         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
         if update_tracker.last_upcoming_update != today:
-            expired_meets = models.NextMeet.objects.filter(user=user).expired_dates()
+            expired_meets = models.NextMeet.objects.user_expired_dates(user)
             for meet in expired_meets:
                 meet.save()
 
             # mark as last updated on today's date:
             update_tracker.upcoming_updated()
 
-        
+
         ten_days_from_now = today + datetime.timedelta(days=10)
         
         queryset = models.NextMeet.objects.filter(user=user, date__range=[today, ten_days_from_now])
