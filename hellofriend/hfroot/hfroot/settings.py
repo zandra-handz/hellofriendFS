@@ -156,7 +156,7 @@ DATABASES = {
   
 '''
 
-# to run in local/test, just switch to sqlite above, already has admin and 2 friends
+# to run in local/test, just switch to sqlite above (or copy-paste localsettings.py temporarily), already has admin and 2 friends
 # cd hellofriend, venv\Scripts\Activate, cd hfroot, run server
 # after changes, run makemigration and migrate
 # cd.. to hellofriendFs, push changes and migration file to git

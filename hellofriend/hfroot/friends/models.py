@@ -35,6 +35,12 @@ class UpdatesTracker(models.Model):
     user = models.OneToOneField(users.models.BadRainbowzUser, on_delete=models.CASCADE)
     last_upcoming_update = models.DateField(default=get_yesterday)
 
+
+    class Meta: 
+        indexes = [
+            models.Index(fields=['user']),
+        ]
+
     def __str__(self):
 
         return f'Update tracker for {self.user.username}'
