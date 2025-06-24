@@ -23,7 +23,7 @@ class FriendSuggestionSettingsSerializer(serializers.ModelSerializer):
 
     class Meta():
         model = models.FriendSuggestionSettings
-        fields = ['id', 'friend', 'user', 'can_schedule', 'effort_required', 'priority_level', 'category_limit_formula']
+        fields = ['id', 'friend', 'phone_number', 'user', 'can_schedule', 'effort_required', 'priority_level', 'category_limit_formula']
     
 
 class CategoryLimitSerializer(serializers.ModelSerializer):
@@ -119,7 +119,7 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
     friend_addresses = serializers.SerializerMethodField()
     name = serializers.CharField(source='friend.name')
     first_name = serializers.CharField(source='friend.first_name')
-    last_name = serializers.CharField(source='friend.last_name')
+    last_name = serializers.CharField(source='friend.last_name') 
     first_meet_entered = serializers.DateField(source='friend.first_meet_entered')
     previous_meet_type = serializers.CharField(source='previous.type', read_only=True)  
 

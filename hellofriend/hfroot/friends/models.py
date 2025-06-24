@@ -51,6 +51,11 @@ class UpdatesTracker(models.Model):
 
 
 
+phone_regex = RegexValidator(
+    regex=r'^\+?1?\d{9,15}$',
+    message="Phone number must be entered in the format: '+123456789'. Up to 15 digits allowed."
+)
+
 class Friend(models.Model):
 
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
@@ -58,6 +63,7 @@ class Friend(models.Model):
     first_name = models.CharField(max_length=64, null=True, blank=True)
     last_name = models.CharField(max_length=64, null=True, blank=True)
 
+   
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -163,6 +169,8 @@ class Friend(models.Model):
 class FriendSuggestionSettings(models.Model):
     friend = models.ForeignKey(Friend, on_delete=models.CASCADE, related_name='suggestion_settings_friend')
     user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    phone_number = models.CharField(validators=[phone_regex], max_length=17, null=True, blank=True)
+
     can_schedule = models.BooleanField(default=False)
 
     effort_required = models.PositiveIntegerField(
