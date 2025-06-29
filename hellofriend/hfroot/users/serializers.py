@@ -31,12 +31,19 @@ class UserCategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'name', 'thought_capsules', 'images', 'is_active', 'max_active', 'is_in_top_five', 'created_on', 'updated_on']
 
 class UserSettingsSerializer(serializers.ModelSerializer):
+    user_categories = serializers.SerializerMethodField()
 
-    user_categories = UserCategorySerializer(required=False)
     class Meta:
         model = models.UserSettings
-        fields = ['receive_notifications', 'simplify_app_for_focus', 'language_preference', 'large_text', 'high_contrast_mode', 'screen_reader', 'manual_dark_mode', 'expo_push_token', 'user_categories']
+        fields = [
+            'receive_notifications', 'simplify_app_for_focus', 'language_preference',
+            'large_text', 'high_contrast_mode', 'screen_reader',
+            'manual_dark_mode', 'expo_push_token', 'user_categories'
+        ]
 
+    def get_user_categories(self, obj): 
+        categories = obj.user.user_categories.all()  
+        return UserCategorySerializer(categories, many=True).data
 
 
 class BadRainbowzUserSerializer(serializers.ModelSerializer):
