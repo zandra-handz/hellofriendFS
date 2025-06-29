@@ -221,6 +221,23 @@ class UserCategoriesView(generics.ListCreateAPIView):
         user_category.save()
     
 
+class UserCategoryDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = serializers.UserCategorySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return models.UserCategory.objects.filter(user=user)
+    
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        id = instance.id
+        self.perform_destroy(instance)
+        return response.Response({
+            "message": "Moment deleted successfully",
+            "id": id 
+        }, status=200)
+
 
 
 class UserAddressesAll(generics.ListAPIView):

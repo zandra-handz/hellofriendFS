@@ -32,7 +32,7 @@ def get_two_days_ago():
 
 class UpdatesTracker(models.Model):
 
-    user = models.OneToOneField(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    user = models.OneToOneField('users.BadRainbowzUser', on_delete=models.CASCADE)
     last_upcoming_update = models.DateField(default=get_yesterday)
 
 
@@ -58,7 +58,7 @@ phone_regex = RegexValidator(
 
 class Friend(models.Model):
 
-    user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     name = models.CharField(max_length=64, null=False, blank=False)
     first_name = models.CharField(max_length=64, null=True, blank=True)
     last_name = models.CharField(max_length=64, null=True, blank=True)
@@ -168,7 +168,7 @@ class Friend(models.Model):
 # A separate class to keep this data separate and secret from NextMeet and Friend
 class FriendSuggestionSettings(models.Model):
     friend = models.ForeignKey(Friend, on_delete=models.CASCADE, related_name='suggestion_settings_friend')
-    user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     phone_number = models.CharField(validators=[phone_regex], max_length=17, null=True, blank=True)
 
     can_schedule = models.BooleanField(default=False)
@@ -197,7 +197,7 @@ class FriendSuggestionSettings(models.Model):
 
 class FriendAddress(models.Model):
     friend = models.ForeignKey('Friend', on_delete=models.CASCADE, related_name='addresses')
-    user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     title = models.CharField(max_length=64, null=True, blank=False)
     address = models.CharField(max_length=64, null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
@@ -238,7 +238,7 @@ class FriendAddress(models.Model):
 class NextMeet(models.Model):
     friend = models.OneToOneField(Friend, on_delete=models.CASCADE, editable=False, related_name='next_meet_friend')
     friend_suggestion_settings = models.OneToOneField(FriendSuggestionSettings, on_delete=models.CASCADE, editable=False, related_name='next_meet_friend_suggestion_settings')
-    user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     date = models.DateField(default=get_yesterday)
     previous = models.ForeignKey('friends.PastMeet', on_delete=models.SET_NULL, null=True, blank=True)
     updated_on = models.DateTimeField(auto_now=True)
@@ -479,7 +479,7 @@ class NextMeet(models.Model):
 class FriendFaves(models.Model):
 
     friend = models.OneToOneField(Friend, on_delete=models.CASCADE)
-    user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     locations = models.ManyToManyField('friends.Location', blank=True)
     
     dark_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the dark theme")
@@ -600,7 +600,7 @@ class Category(models.Model):
 
     friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
     friend_suggestion_settings = models.ForeignKey(FriendSuggestionSettings, on_delete=models.CASCADE)
-    user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     name = models.CharField(max_length=50)
     times_used = models.PositiveIntegerField(default=0)
     item_type = models.CharField(max_length=50, null=True, blank=True)
@@ -662,7 +662,7 @@ class ThoughtCapsulez(models.Model):
 
     id = models.UUIDField(primary_key = True, default = uuid.uuid4, editable = False)
     friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
-    user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     typed_category = models.CharField(max_length=50, null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
     capsule = models.CharField(max_length=10000)
@@ -670,6 +670,12 @@ class ThoughtCapsulez(models.Model):
     created_on = models.DateTimeField(auto_now_add=True) 
     updated_on = models.DateTimeField(auto_now=True)
     pre_added_to_hello = models.BooleanField(default=False)
+    user_category = models.ForeignKey(
+    'users.UserCategory',  # string paths avoid circular imports
+    on_delete=models.SET_NULL,  # DON'T CASCADE, just orphan
+    null=True,
+    blank=True,
+    related_name='thought_capsule')
 
     class Meta:
         ordering = ('-category',) 
@@ -735,7 +741,7 @@ class ThoughtCapsulez(models.Model):
 class Image(models.Model):
 
     friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
-    user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     image = models.ImageField(upload_to='images/', blank=True)
     image_category = models.CharField(max_length=50, default='Misc')
     title = models.CharField(max_length=50)
@@ -743,6 +749,12 @@ class Image(models.Model):
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
+    user_category = models.ForeignKey(
+    'users.UserCategory',  # string paths avoid circular imports
+    on_delete=models.SET_NULL,  # DON'T CASCADE, just orphan
+    null=True,
+    blank=True,
+    related_name='image')
 
     # Can be connected to a capsule here, but will keep its image category as well
     thought_capsule = models.ForeignKey(ThoughtCapsulez, related_name='images', on_delete=models.CASCADE, null=True, blank=True)
@@ -767,7 +779,7 @@ class PastMeet(models.Model):
 
     id = models.UUIDField(primary_key = True, default = uuid.uuid4, editable = False)
     friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
-    user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     type = models.CharField(max_length=50, choices = TYPE_CHOICES, default='unspecified')  #handle multiple choice with forms.ModelMultipleChoiceField(queryset="") in person, digital, happenstance
     typed_location = models.CharField(max_length=50, null=True, blank=True)
     location_name = models.CharField(max_length=50, null=True, blank=True)
@@ -1033,7 +1045,7 @@ class Location(models.Model):
         ('unspecified', 'unspecified'),
     ]
 
-    user = models.ForeignKey(users.models.BadRainbowzUser, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     place_id = models.CharField(max_length=255, null=True, blank=True) 
     category = models.CharField(max_length=100, null=True, blank=True)
     title = models.CharField(max_length=64, null=True, blank=False)

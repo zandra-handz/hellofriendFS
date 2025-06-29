@@ -207,7 +207,7 @@ class UpcomingMeetsAllSerializer(serializers.ModelSerializer):
 class ThoughtCapsuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ThoughtCapsulez
-        fields = ['id', 'friend', 'user', 'typed_category', 'category', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello']
+        fields = ['id', 'friend', 'user', 'typed_category', 'category', 'user_category', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -229,7 +229,7 @@ class ImageSerializer(serializers.ModelSerializer):
 class ImageCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Image
-        fields = ['id', 'image', 'image_category', 'title', 'image_notes', 'friend', 'user', 'thought_capsule']
+        fields = ['id', 'image', 'image_category', 'title', 'image_notes', 'friend', 'user','user_category', 'thought_capsule']
 
 
 
