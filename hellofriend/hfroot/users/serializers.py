@@ -42,10 +42,11 @@ class UserSettingsSerializer(serializers.ModelSerializer):
 class BadRainbowzUserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(required=False)
     settings = UserSettingsSerializer(required=False)
+    user_categories = UserCategorySerializer(required=False)
 
     class Meta:
         model = models.BadRainbowzUser
-        fields = ['id', 'created_on', 'is_banned_user', 'is_subscribed_user', 'subscription_expiration_date', 'username', 'password', 'email', 'app_setup_complete', 'is_test_user', 'phone_number', 'addresses', 'profile', 'settings']
+        fields = ['id', 'created_on', 'is_banned_user', 'is_subscribed_user', 'subscription_expiration_date', 'username', 'password', 'email', 'app_setup_complete', 'is_test_user', 'phone_number', 'addresses', 'profile', 'settings', 'user_categories']
         extra_kwargs = {
             "password": {"write_only": True}, 
         }
