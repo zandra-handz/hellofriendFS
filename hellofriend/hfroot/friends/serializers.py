@@ -205,9 +205,10 @@ class UpcomingMeetsAllSerializer(serializers.ModelSerializer):
 
       
 class ThoughtCapsuleSerializer(serializers.ModelSerializer):
+    user_category_name = serializers.CharField(source='user_category.name', read_only=True)
     class Meta:
         model = models.ThoughtCapsulez
-        fields = ['id', 'friend', 'user', 'typed_category', 'category', 'user_category', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello']
+        fields = ['id', 'friend', 'user', 'typed_category', 'category', 'user_category', 'user_category_name', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
