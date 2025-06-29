@@ -591,6 +591,9 @@ class FriendFaves(models.Model):
 
     def __str__(self):
         return f"{self.friend.name}'s perceived or confirmed preferences"
+
+
+
     
 
 class Category(models.Model):

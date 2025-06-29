@@ -194,7 +194,34 @@ class UserProfileDetail(generics.RetrieveUpdateAPIView):
     def get_object(self):
         user_id = self.kwargs['user_id']
         return get_object_or_404(models.UserProfile, user__id=user_id)
+
+
+class UserCategoriesView(generics.ListCreateAPIView):
+    serializer_class = serializers.UserCategorySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return models.UserCategory.objects.filter(user=user)
     
+    def perform_create(self, serializer):
+        # Save the UserCategory linked to current user first (without M2M)
+        user_category = serializer.save(user=self.request.user)
+
+        # After saving, update ManyToMany fields if they exist in validated_data
+        thought_capsules = self.request.data.get('thought_capsules', [])
+        images = self.request.data.get('images', [])
+
+        if thought_capsules:
+            # Assuming these are lists of IDs
+            user_category.thought_capsules.set(thought_capsules)
+        if images:
+            user_category.images.set(images)
+
+        user_category.save()
+    
+
+
 
 class UserAddressesAll(generics.ListAPIView):
     serializer_class = serializers.UserAddressSerializer

@@ -24,13 +24,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = models.UserProfile
         fields = ['first_name', 'last_name', 'date_of_birth', 'gender']
 
+class UserCategorySerializer(serializers.ModelSerializer):
 
+    class Meta:
+        model = models.UserCategory
+        fields = ['id', 'user', 'name', 'thought_capsules', 'images', 'is_active', 'max_active', 'is_in_top_five', 'created_on', 'updated_on']
 
 class UserSettingsSerializer(serializers.ModelSerializer):
+
+    user_categories = UserCategorySerializer(required=False)
     class Meta:
         model = models.UserSettings
-        fields = ['receive_notifications', 'simplify_app_for_focus', 'language_preference', 'large_text', 'high_contrast_mode', 'screen_reader', 'manual_dark_mode', 'expo_push_token']
-
+        fields = ['receive_notifications', 'simplify_app_for_focus', 'language_preference', 'large_text', 'high_contrast_mode', 'screen_reader', 'manual_dark_mode', 'expo_push_token', 'user_categories']
 
 
 
@@ -151,6 +156,10 @@ class UserDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.BadRainbowzUser
         fields = ['id', 'username', 'expo_push_token']
+
+
+
+
 
 
 class AddAddressSerializer(serializers.Serializer):

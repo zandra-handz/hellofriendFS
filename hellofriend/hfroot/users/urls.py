@@ -9,6 +9,8 @@ urlpatterns = [
     path('<int:user_id>/profile/', views.UserProfileDetail.as_view()),
     path('<int:user_id>/profile/update/', views.UserProfileDetail.as_view()),
     path('<int:user_id>/subscription/update/', views.UpdateSubscriptionView.as_view()),
+    path('<int:user_id>/categories/', views.UserCategoriesView.as_view()), 
+    path('<int:user_id>/categories/add/', views.UserCategoriesView.as_view()), 
 
     
 

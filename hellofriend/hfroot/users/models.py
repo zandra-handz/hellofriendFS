@@ -1,4 +1,5 @@
 from django.db import models
+# import friends.models could cause circular import because this file imports users. using 'friends.ThoughtCapsulez' and 'friends.Image' below instead
 
 # Create your models here.
 from datetime import datetime
@@ -19,6 +20,7 @@ from django.contrib.auth.models import AbstractUser
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.db import models
 from django.dispatch import receiver
@@ -154,8 +156,47 @@ class BadRainbowzUser(AbstractUser):
             UserSettings.objects.create(user=self)
 
 
+
+class UserCategory(models.Model):
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='user_category')
+    name = models.CharField(max_length=50, unique=True) # allows that categories can start with numbers
+    thought_capsules = models.ManyToManyField('friends.ThoughtCapsulez', related_name='user_categories', blank=True, null=True)
+    images = models.ManyToManyField('friends.Image', related_name='user_categories', blank=True, null=True)
+    # Can add more as needed
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+    max_active = models.PositiveIntegerField(default=20)
+    is_in_top_five = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ('name',) # order alphabetically in ascending order
+        verbose_name = "User Category"
+        verbose_name_plural = "User Categories"
+
+    def clean(self): 
+        if self.is_active:
+            active_count = UserCategory.objects.filter(user=self.user, is_active=True).exclude(pk=self.pk).count()
+            if active_count >= self.max_active:
+                raise ValidationError(f"User can have at most {self.max_active} active categories.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean() # runs all validation checks on model, beyond the ones added in clean()
+        super().save(*args, **kwargs)
+
+ 
+
+    def __str__(self):
+        return f"Category: '{self.name}'"
+ 
+
+
+
+
+
 class UserAddress(models.Model): 
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='address')
+   
     title = models.CharField(max_length=64, null=True, blank=False)
     address = models.CharField(max_length=64, null=True, blank=True)
     latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
