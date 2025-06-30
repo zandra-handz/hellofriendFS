@@ -509,14 +509,7 @@ class ThoughtCapsuleCreate(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
-
-        user_category = serializer.validated_data.get('user_category', None)
-        if not user_category:
-            # Automatically assign the "Grab bag" category if none provided
-            # grab_bag, _created = users.models.UserCategory.ensure_grab_bag_exists(user)
-            serializer.save(user=user, friend_id=friend_id) #, user_category=grab_bag)
-        else:
-            serializer.save(user=user, friend_id=friend_id)
+        serializer.save(user=user, friend_id=friend_id)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()

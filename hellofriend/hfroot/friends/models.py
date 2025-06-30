@@ -734,6 +734,13 @@ class ThoughtCapsulez(models.Model):
             # The instance already exists, so skip the category logic
             pass
 
+        if not self.user_category:
+            from users.models import UserCategory 
+            self.user_category, __created = UserCategory.ensure_grab_bag_exists(self.user)
+        
+
+
+
         # Call the parent class's save method
         super().save(*args, **kwargs)
 
