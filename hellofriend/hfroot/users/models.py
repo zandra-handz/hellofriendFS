@@ -161,7 +161,7 @@ class BadRainbowzUser(AbstractUser):
 
 class UserCategory(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='user_categories')
-    name = models.CharField(max_length=50, unique=True) # allows that categories can start with numbers
+    name = models.CharField(max_length=50)
     thought_capsules = models.ManyToManyField('friends.ThoughtCapsulez', related_name='user_categories', blank=True, null=True)
     images = models.ManyToManyField('friends.Image', related_name='user_categories', blank=True, null=True)
     # Can add more as needed
@@ -193,7 +193,7 @@ class UserCategory(models.Model):
             }
         )
  
- 
+
     def clean(self): 
         if self.is_active:
             active_count = UserCategory.objects.filter(user=self.user, is_active=True).exclude(pk=self.pk).count()

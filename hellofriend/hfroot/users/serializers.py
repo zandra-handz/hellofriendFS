@@ -28,7 +28,7 @@ class UserCategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.UserCategory
-        fields = ['id', 'user', 'name', 'thought_capsules', 'images', 'is_active', 'max_active', 'is_in_top_five', 'created_on', 'updated_on']
+        fields = ['id', 'user', 'name', 'thought_capsules', 'images', 'is_active', 'max_active', 'is_in_top_five', 'is_deletable', 'created_on', 'updated_on']
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     user_categories = serializers.SerializerMethodField()
