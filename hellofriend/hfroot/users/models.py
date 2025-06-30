@@ -154,6 +154,8 @@ class BadRainbowzUser(AbstractUser):
         if created:
             UserProfile.objects.create(user=self)
             UserSettings.objects.create(user=self)
+            UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
+            
 
 
 
@@ -168,12 +170,30 @@ class UserCategory(models.Model):
     is_active = models.BooleanField(default=True)
     max_active = models.PositiveIntegerField(default=20)
     is_in_top_five = models.BooleanField(default=False)
+    is_deletable = models.BooleanField(default=True)
+
 
     class Meta:
         ordering = ('name',) # order alphabetically in ascending order
         verbose_name = "User Category"
         verbose_name_plural = "User Categories"
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'name'], name='unique_user_category_name')
+        ]
 
+    @classmethod
+    def get_or_create_grab_bag_category(cls, user):
+        return cls.objects.get_or_create(
+            user=user,
+            name='Grab bag',
+            defaults={
+                'is_deletable': False,
+                'is_active': True,
+                'is_in_top_five': False,
+            }
+        )
+ 
+ 
     def clean(self): 
         if self.is_active:
             active_count = UserCategory.objects.filter(user=self.user, is_active=True).exclude(pk=self.pk).count()
@@ -184,7 +204,13 @@ class UserCategory(models.Model):
         self.full_clean() # runs all validation checks on model, beyond the ones added in clean()
         super().save(*args, **kwargs)
 
- 
+    def delete(self, *args, **kwargs):
+        if not self.is_deletable:
+            raise ValidationError("This category cannot be deleted.")
+        super().delete(*args, **kwargs)
+
+
+
 
     def __str__(self):
         return f"Category: '{self.name}'"

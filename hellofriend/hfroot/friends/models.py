@@ -2,8 +2,12 @@ from . import utils
 from . import managers
 import calendar
 from django.core.exceptions import ValidationError
+
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models, transaction
+from django.db.models import F
+from django.db.models.expressions import OrderBy
+
 import datetime
 import random
 import re
@@ -678,7 +682,10 @@ class ThoughtCapsulez(models.Model):
     related_name='thought_capsule')
 
     class Meta:
-        ordering = ('-category',) 
+        # if I want alphabetized
+        # ordering = [OrderBy(F('user_category__name'), nulls_last=True)]
+  
+        ordering = ['user_category']
         verbose_name = "Moment (Thought Capsule)"
         verbose_name_plural = "Moments (Thought Capsulez)"
         indexes = [
