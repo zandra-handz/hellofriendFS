@@ -7,6 +7,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator, RegexVa
 from django.db import models, transaction
 from django.db.models import F
 from django.db.models.expressions import OrderBy
+import traceback
 
 import datetime
 import random
@@ -734,11 +735,22 @@ class ThoughtCapsulez(models.Model):
             # The instance already exists, so skip the category logic
             pass
 
-        if not self.user_category:
-            from users.models import UserCategory 
-            self.user_category, __created = UserCategory.ensure_grab_bag_exists(self.user)
+        # if not self.user_category:
+        #     from users.models import UserCategory 
+        #     self.user_category, __created = UserCategory.ensure_grab_bag_exists(self.user)
         
 
+        if not self.user_category:
+            try:
+                from users.models import UserCategory
+                
+                grab_bag, __created = UserCategory.get_or_create_grab_bag_category(self.user)
+                self.user_category = grab_bag
+            except Exception as e:
+                import traceback  # 🔁 if not already at top
+                print("⚠️ Error creating grab bag category:", e)
+                print(traceback.format_exc())  # ✅ prints full stack trace
+                raise  # re-raise so the error surfaces
 
 
         # Call the parent class's save method
