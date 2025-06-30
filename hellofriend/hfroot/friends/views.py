@@ -513,8 +513,8 @@ class ThoughtCapsuleCreate(generics.ListCreateAPIView):
         user_category = serializer.validated_data.get('user_category', None)
         if not user_category:
             # Automatically assign the "Grab bag" category if none provided
-            grab_bag, _created = users.models.UserCategory.ensure_grab_bag_exists(user)
-            serializer.save(user=user, friend_id=friend_id, user_category=grab_bag)
+            # grab_bag, _created = users.models.UserCategory.ensure_grab_bag_exists(user)
+            serializer.save(user=user, friend_id=friend_id) #, user_category=grab_bag)
         else:
             serializer.save(user=user, friend_id=friend_id)
 
