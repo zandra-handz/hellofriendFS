@@ -165,6 +165,7 @@ class UserCategory(models.Model):
     thought_capsules = models.ManyToManyField('friends.ThoughtCapsulez', related_name='user_categories', blank=True, null=True)
     images = models.ManyToManyField('friends.Image', related_name='user_categories', blank=True, null=True)
     # Can add more as needed
+    description = models.CharField(max_length=5000, null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
