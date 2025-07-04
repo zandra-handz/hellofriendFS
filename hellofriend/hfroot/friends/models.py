@@ -703,10 +703,10 @@ class ThoughtCapsulez(models.Model):
         return existing_categories
     
         
-    # def delete(self, *args, **kwargs): 
-    #     if self.user_category:
-    #         self.user_category.thought_capsules.remove(self)
-    #     super().delete(*args, **kwargs)
+    def delete(self, *args, **kwargs): 
+        if self.user_category:
+            self.user_category.thought_capsules.remove(self)
+        super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
         # Check if the instance already exists (i.e., it has a primary key)
@@ -1107,18 +1107,18 @@ class PastMeet(models.Model):
                     )
 
  
-                    # if associated_category:
-                    #   #  doing this in the capsule modelF
-                    #   #  capsule_shared_with_friend.user_category.thought_capsules.remove(capsule_shared_with_friend)
-                    #     associated_category.completed_thought_capsules.add(completed_capsule)
+                    if associated_category:
+                      #  doing this in the capsule modelF
+                      #  capsule_shared_with_friend.user_category.thought_capsules.remove(capsule_shared_with_friend)
+                        associated_category.completed_thought_capsules.add(completed_capsule)
 
 
-                    # if capsule_shared_with_friend.category:
-                    #     category = capsule_shared_with_friend.category
-                    #     if category not in processed_categories:
-                    #         category.times_used += 1 
-                    #         category.save() 
-                    #         processed_categories.add(category) 
+                    if capsule_shared_with_friend.category:
+                        category = capsule_shared_with_friend.category
+                        if category not in processed_categories:
+                            category.times_used += 1 
+                            category.save() 
+                            processed_categories.add(category) 
 
                     
 
@@ -1146,7 +1146,7 @@ class PastMeet(models.Model):
  
 
                 
-        super().save(*args, **kwargs)
+
 
         if self.friend.next_meet:
             try: 
