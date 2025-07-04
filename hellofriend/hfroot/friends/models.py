@@ -1064,6 +1064,16 @@ class PastMeet(models.Model):
         
         super().save(*args, **kwargs)
 
+        if self.friend.next_meet:
+            try: 
+                self.friend.next_meet.create_new_date_clean()
+                print('ran create_new_date_clean successfully')
+            except Exception as e:
+                print('could not execute create_new_date_clean')
+                self.friend.next_meet.reset_date_two_days()
+            
+            self.friend.next_meet.save()
+
         from users.models import UserCategory 
 
         if self.thought_capsules_shared:
@@ -1144,19 +1154,15 @@ class PastMeet(models.Model):
                     unshared.delete()
                 
  
-
-                
-
-
-        if self.friend.next_meet:
-            try: 
-                self.friend.next_meet.create_new_date_clean()
-                print('ran create_new_date_clean successfully')
-            except Exception as e:
-                print('could not execute create_new_date_clean')
-                self.friend.next_meet.reset_date_two_days()
+        # if self.friend.next_meet:
+        #     try: 
+        #         self.friend.next_meet.create_new_date_clean()
+        #         print('ran create_new_date_clean successfully')
+        #     except Exception as e:
+        #         print('could not execute create_new_date_clean')
+        #         self.friend.next_meet.reset_date_two_days()
             
-            self.friend.next_meet.save()
+        #     self.friend.next_meet.save()
 
 
     def __str__(self):
