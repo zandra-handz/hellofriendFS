@@ -703,10 +703,10 @@ class ThoughtCapsulez(models.Model):
         return existing_categories
     
         
-    def delete(self, *args, **kwargs): 
-        if self.user_category:
-            self.user_category.thought_capsules.remove(self)
-        super().delete(*args, **kwargs)
+    # def delete(self, *args, **kwargs): 
+    #     if self.user_category:
+    #         self.user_category.thought_capsules.remove(self)
+    #     super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
         # Check if the instance already exists (i.e., it has a primary key)
