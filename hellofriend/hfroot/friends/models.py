@@ -702,11 +702,10 @@ class ThoughtCapsulez(models.Model):
         )
         return existing_categories
     
-    def delete(self, *args, **kwargs):
-        # Remove this capsule from all related user categories
-        for category in self.user_categories.all():
-            category.thought_capsules.remove(self)
-
+        
+    def delete(self, *args, **kwargs): 
+        if self.user_category:
+            self.user_category.thought_capsules.remove(self)
         super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
