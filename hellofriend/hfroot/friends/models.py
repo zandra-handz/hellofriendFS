@@ -820,7 +820,7 @@ class CompletedThoughtCapsulez(models.Model):
     # Connect an image (won't get saved in PastMeet, this is not a scrapbook) via the image model thought_capsule field
     created_on = models.DateTimeField(auto_now_add=True) 
     updated_on = models.DateTimeField(auto_now=True) 
-    user_category_name = models.CharField(max_length=50, blank=True, null=True)
+    user_category_original_name = models.CharField(max_length=50, blank=True, null=True)
     user_category = models.ForeignKey(
     'users.UserCategory',  # string paths avoid circular imports
     on_delete=models.SET_NULL,  # DON'T CASCADE, just orphan
@@ -1065,6 +1065,8 @@ class PastMeet(models.Model):
         
         super().save(*args, **kwargs)
 
+        from users.models import UserCategory 
+
         if self.thought_capsules_shared:
 
             processed_categories = set()  # Set to keep track of processed categories
@@ -1073,24 +1075,30 @@ class PastMeet(models.Model):
                 try:
                     capsule_shared_with_friend = ThoughtCapsulez.objects.get(id=capsule_id)
 
- 
+                    user_category_id = capsule_shared_with_friend.user_category  # string ID or None
+                    associated_category = None
+
+                    if user_category_id:
+                        try:
+                            associated_category = UserCategory.objects.get(id=user_category_id)
+                        except UserCategory.DoesNotExist:
+                            associated_category = None
+
                     completed_capsule = CompletedThoughtCapsulez.objects.create(
                         original_id=str(capsule_shared_with_friend.id),
                         friend=self.friend,
                         user=self.user,
                         hello=self, 
                         capsule=capsule_shared_with_friend.capsule,
-                        user_category=capsule_shared_with_friend.user_category,
-                        user_category_name=(
-                            capsule_shared_with_friend.user_category.name
-                            if capsule_shared_with_friend.user_category else None
-                        )
+                        user_category=associated_category,
+                        user_category_original_name=associated_category.name if associated_category else None
                     )
+
  
-                    if capsule_shared_with_friend.user_category:
+                    if associated_category:
                       #  doing this in the capsule modelF
                       #  capsule_shared_with_friend.user_category.thought_capsules.remove(capsule_shared_with_friend)
-                        capsule_shared_with_friend.user_category.completed_thought_capsules.add(completed_capsule)
+                        associated_category.completed_thought_capsules.add(completed_capsule)
 
 
                     if capsule_shared_with_friend.category:

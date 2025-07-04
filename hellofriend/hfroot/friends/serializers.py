@@ -218,9 +218,10 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
 
 
 class CompletedThoughtCapsuleSerializer(serializers.ModelSerializer): 
+    user_category_name = serializers.CharField(source='user_category.name', read_only=True)
     class Meta:
         model = models.CompletedThoughtCapsulez
-        fields = ['id', 'friend', 'user', 'hello', 'user_category', 'user_category_name', 'capsule', 'created_on', 'updated_on']
+        fields = ['id', 'original_id', 'friend', 'user', 'hello', 'capsule', 'user_category', 'user_category_original_name', 'created_on', 'updated_on']
 
     # def __init__(self, *args, **kwargs):
     #     super().__init__(*args, **kwargs)

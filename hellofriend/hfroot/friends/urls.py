@@ -26,7 +26,7 @@ urlpatterns = [
     path('<int:friend_id>/thoughtcapsules/add/', views.ThoughtCapsuleCreate.as_view()),
     path('<int:friend_id>/thoughtcapsule/<uuid:pk>/', views.ThoughtCapsuleDetail.as_view()),
     path('<int:friend_id>/thoughtcapsules/batch-update/', views.ThoughtCapsulesUpdateMultiple.as_view()),
-    
+    path('<int:friend_id>/thoughtcapsules/completed/', views.CompletedThoughtCapsulesAll.as_view()),
     path('<int:friend_id>/images/', views.ImagesAll.as_view()),
     path('<int:friend_id>/images/by-category/', views.ImagesByCategoryView.as_view()),
     path('<int:friend_id>/images/add/', views.ImageCreate.as_view()),

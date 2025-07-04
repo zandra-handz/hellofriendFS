@@ -456,6 +456,16 @@ class UpcomingMeetsAll24(generics.ListCreateAPIView):
         
         return queryset
 
+class CompletedThoughtCapsulesAll(generics.ListAPIView):
+    serializer_class = serializers.CompletedThoughtCapsuleSerializer
+    permissions_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id'] 
+        return models.CompletedThoughtCapsulez.objects.filter(user=user, friend_id=friend_id)
+
 
 
 class ThoughtCapsulesAll(generics.ListAPIView):
