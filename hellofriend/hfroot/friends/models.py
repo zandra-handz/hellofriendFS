@@ -1072,22 +1072,35 @@ class PastMeet(models.Model):
             for capsule_id, capsule_data in self.thought_capsules_shared.items():
                 print(capsule_id)
                 try:
+                    # capsule_shared_with_friend = ThoughtCapsulez.objects.get(id=capsule_id)
+
+                    # user_category_id = capsule_shared_with_friend.user_category  # string ID or None
+                    # associated_category = None
+
+                    # if user_category_id:
+                    #     try:
+                    #         associated_category = UserCategory.objects.get(id=user_category_id)
+                    #     except UserCategory.DoesNotExist:
+                    #         associated_category = None
+
+                    # completed_capsule = CompletedThoughtCapsulez.objects.create(
+                    #     original_id=str(capsule_shared_with_friend.id),
+                    #     friend=self.friend,
+                    #     user=self.user,
+                    #     hello=self, 
+                    #     capsule=capsule_shared_with_friend.capsule,
+                    #     user_category=associated_category,
+                    #     user_category_original_name=associated_category.name if associated_category else None
+                    # )
                     capsule_shared_with_friend = ThoughtCapsulez.objects.get(id=capsule_id)
 
-                    user_category_id = capsule_shared_with_friend.user_category  # string ID or None
-                    associated_category = None
-
-                    if user_category_id:
-                        try:
-                            associated_category = UserCategory.objects.get(id=user_category_id)
-                        except UserCategory.DoesNotExist:
-                            associated_category = None
+                    associated_category = capsule_shared_with_friend.user_category  # Already the UserCategory instance or None
 
                     completed_capsule = CompletedThoughtCapsulez.objects.create(
                         original_id=str(capsule_shared_with_friend.id),
                         friend=self.friend,
                         user=self.user,
-                        hello=self, 
+                        hello=self,
                         capsule=capsule_shared_with_friend.capsule,
                         user_category=associated_category,
                         user_category_original_name=associated_category.name if associated_category else None
