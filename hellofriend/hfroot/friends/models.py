@@ -701,6 +701,13 @@ class ThoughtCapsulez(models.Model):
             user=self.user
         )
         return existing_categories
+    
+    def delete(self, *args, **kwargs):
+        # Remove this capsule from all related user categories
+        for category in self.user_categories.all():
+            category.thought_capsules.remove(self)
+
+        super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
         # Check if the instance already exists (i.e., it has a primary key)
@@ -747,13 +754,12 @@ class ThoughtCapsulez(models.Model):
                 grab_bag, __created = UserCategory.get_or_create_grab_bag_category(self.user)
                 self.user_category = grab_bag
             except Exception as e:
-                import traceback  # 🔁 if not already at top
+                import traceback  
                 print("⚠️ Error creating grab bag category:", e)
-                print(traceback.format_exc())  # ✅ prints full stack trace
-                raise  # re-raise so the error surfaces
+                print(traceback.format_exc())   
+                raise   
 
-
-        # Call the parent class's save method
+ 
         super().save(*args, **kwargs)
 
     # def get_category_choices(self):
@@ -762,6 +768,7 @@ class ThoughtCapsulez(models.Model):
     def __str__(self):
         return f"Thought capsule in the category {self.category}"
     
+
 
 
 class Image(models.Model):
@@ -790,8 +797,60 @@ class Image(models.Model):
 
     def __str__(self):
         return f"Image: '{self.title}'"
+    
+    def delete(self, *args, **kwargs):
+        # Remove this capsule from all related user categories
+        for category in self.user_categories.all():
+            category.images.remove(self)
+
+        super().delete(*args, **kwargs)
 
 
+
+class CompletedThoughtCapsulez(models.Model):
+
+    # id = models.UUIDField(primary_key = True, default = uuid.uuid4, editable = False)
+    original_id = models.CharField(max_length=42, blank=True, null=True) # technically uuid is 36
+    
+    friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+    hello = models.ForeignKey('friends.PastMeet', on_delete=models.CASCADE, related_name='completed_capsules')
+
+    capsule = models.CharField(max_length=10000)
+    # Connect an image (won't get saved in PastMeet, this is not a scrapbook) via the image model thought_capsule field
+    created_on = models.DateTimeField(auto_now_add=True) 
+    updated_on = models.DateTimeField(auto_now=True) 
+    user_category_name = models.CharField(max_length=50, blank=True, null=True)
+    user_category = models.ForeignKey(
+    'users.UserCategory',  # string paths avoid circular imports
+    on_delete=models.SET_NULL,  # DON'T CASCADE, just orphan
+    null=True,
+    blank=True,
+    related_name='completed_thought_capsule')
+
+    class Meta: 
+  
+        ordering = ['user_category']
+        verbose_name = "Completed Moment (Thought Capsule)"
+        verbose_name_plural = "Completed Moments (Thought Capsulez)"
+        indexes = [
+            models.Index(fields=['friend']),
+        ]
+ 
+    def save(self, *args, **kwargs): 
+      
+        if self.user_category:
+            self.user_category_name = self.user_category.name
+      
+
+ 
+        super().save(*args, **kwargs)
+
+    # def get_category_choices(self):
+    #    return ThoughtCapsule.objects.filter(friend=self.friend).value_list('category', flat=True).distinct()
+
+    def __str__(self):
+        return f"Thought capsule in the category {self.category}"
 
 
 class PastMeet(models.Model):
@@ -1003,7 +1062,8 @@ class PastMeet(models.Model):
                 else:
                     self.location = None
 
-                    
+        
+        super().save(*args, **kwargs)
 
         if self.thought_capsules_shared:
 
@@ -1012,12 +1072,37 @@ class PastMeet(models.Model):
                 print(capsule_id)
                 try:
                     capsule_shared_with_friend = ThoughtCapsulez.objects.get(id=capsule_id)
+
+ 
+                    completed_capsule = CompletedThoughtCapsulez.objects.create(
+                        original_id=str(capsule_shared_with_friend.id),
+                        friend=self.friend,
+                        user=self.user,
+                        hello=self, 
+                        capsule=capsule_shared_with_friend.capsule,
+                        user_category=capsule_shared_with_friend.user_category,
+                        user_category_name=(
+                            capsule_shared_with_friend.user_category.name
+                            if capsule_shared_with_friend.user_category else None
+                        )
+                    )
+ 
+                    if capsule_shared_with_friend.user_category:
+                      #  doing this in the capsule modelF
+                      #  capsule_shared_with_friend.user_category.thought_capsules.remove(capsule_shared_with_friend)
+                        capsule_shared_with_friend.user_category.completed_thought_capsules.add(completed_capsule)
+
+
                     if capsule_shared_with_friend.category:
                         category = capsule_shared_with_friend.category
                         if category not in processed_categories:
                             category.times_used += 1 
                             category.save() 
                             processed_categories.add(category) 
+
+                    
+
+                    
                     capsule_shared_with_friend.delete()
 
                     if self.delete_all_unshared_capsules: 
@@ -1057,6 +1142,8 @@ class PastMeet(models.Model):
     def __str__(self):
 
         return f"{self.type} meet up with {self.friend.name} on {self.date}"
+
+
 
 
 # locations will not be attached to any specific friend, but friend will attach to them via the faves model

@@ -217,6 +217,18 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
             self.fields['category'].queryset = models.Category.objects.filter(user=self.context['request'].user, friend_id=friend_id)
 
 
+class CompletedThoughtCapsuleSerializer(serializers.ModelSerializer): 
+    class Meta:
+        model = models.CompletedThoughtCapsulez
+        fields = ['id', 'friend', 'user', 'hello', 'user_category', 'user_category_name', 'capsule', 'created_on', 'updated_on']
+
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     friend_id = self.context.get('friend_id')
+    #     if friend_id:
+    #         self.fields['category'].queryset = models.Category.objects.filter(user=self.context['request'].user, friend_id=friend_id)
+
+
 class ImageSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
 
