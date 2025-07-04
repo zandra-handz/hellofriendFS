@@ -839,8 +839,8 @@ class CompletedThoughtCapsulez(models.Model):
  
     def save(self, *args, **kwargs): 
       
-        if self.user_category:
-            self.user_category_name = self.user_category.name
+        # if self.user_category:
+        #     self.user_category_original_name = self.user_category.name
       
 
  
