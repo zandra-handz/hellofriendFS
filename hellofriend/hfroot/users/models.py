@@ -164,7 +164,11 @@ class UserCategory(models.Model):
     name = models.CharField(max_length=50)
     thought_capsules = models.ManyToManyField('friends.ThoughtCapsulez', related_name='user_categories', blank=True, null=True)
     
-    completed_thought_capsules = models.ManyToManyField('friends.CompletedThoughtCapsulez', related_name='user_categories', blank=True, null=True)
+    completed_thought_capsules = models.ManyToManyField(
+    'friends.CompletedThoughtCapsulez',
+    related_name='user_categories',
+    blank=True
+    )
    
     images = models.ManyToManyField('friends.Image', related_name='user_categories', blank=True, null=True)
     # Can add more as needed

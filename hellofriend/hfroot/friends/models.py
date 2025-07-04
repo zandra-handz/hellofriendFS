@@ -1070,7 +1070,7 @@ class PastMeet(models.Model):
 
             processed_categories = set()  # Set to keep track of processed categories
             for capsule_id, capsule_data in self.thought_capsules_shared.items():
-                print(capsule_id)
+           
                 try:
                     # capsule_shared_with_friend = ThoughtCapsulez.objects.get(id=capsule_id)
 
@@ -1107,10 +1107,10 @@ class PastMeet(models.Model):
                     )
 
  
-                    if associated_category:
-                      #  doing this in the capsule modelF
-                      #  capsule_shared_with_friend.user_category.thought_capsules.remove(capsule_shared_with_friend)
-                        associated_category.completed_thought_capsules.add(completed_capsule)
+                    # if associated_category:
+                    #   #  doing this in the capsule modelF
+                    #   #  capsule_shared_with_friend.user_category.thought_capsules.remove(capsule_shared_with_friend)
+                    #     associated_category.completed_thought_capsules.add(completed_capsule)
 
 
                     if capsule_shared_with_friend.category:
