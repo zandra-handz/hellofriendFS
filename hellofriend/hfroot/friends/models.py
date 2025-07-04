@@ -850,7 +850,7 @@ class CompletedThoughtCapsulez(models.Model):
     #    return ThoughtCapsule.objects.filter(friend=self.friend).value_list('category', flat=True).distinct()
 
     def __str__(self):
-        return f"Thought capsule in the category {self.category}"
+        return f"Completed thought capsule {self.id}"
 
 
 class PastMeet(models.Model):
