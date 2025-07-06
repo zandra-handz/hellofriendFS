@@ -231,6 +231,21 @@ class UserCategoriesView(generics.ListCreateAPIView):
 #         user = self.request.user
 #         return models.UserCategory.objects.filter(user=user)
     
+# class UserCategoriesFriendHistoryAll(generics.ListAPIView):
+#     serializer_class = serializers.UserCategoryWithCompletedSerializer
+#     permission_classes = [IsAuthenticated]
+#     lookup_url_kwarg = 'friend_id'
+
+#     def get_queryset(self):
+#         user = self.request.user
+#         return models.UserCategory.objects.filter(user=user)
+
+#     def get_serializer_context(self):
+#         context = super().get_serializer_context()
+#         context['friend_id'] = self.kwargs.get(self.lookup_url_kwarg)
+#         return context
+
+# on front end. add query parameter ?only_with_capsules=true to end of url to get only relevant catagories
 class UserCategoriesFriendHistoryAll(generics.ListAPIView):
     serializer_class = serializers.UserCategoryWithCompletedSerializer
     permission_classes = [IsAuthenticated]
@@ -238,13 +253,21 @@ class UserCategoriesFriendHistoryAll(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return models.UserCategory.objects.filter(user=user)
+        qs = models.UserCategory.objects.filter(user=user)
+
+        only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
+        friend_id = self.kwargs.get(self.lookup_url_kwarg)
+
+        if only_with_capsules and friend_id:
+            # Filter only categories that have at least 1 completed capsule for the friend
+            qs = qs.filter(completed_thought_capsules__friend_id=friend_id).distinct()
+
+        return qs
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context['friend_id'] = self.kwargs.get(self.lookup_url_kwarg)
         return context
-
 
     
 
