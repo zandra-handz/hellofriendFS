@@ -32,7 +32,7 @@ class UserCategorySerializer(serializers.ModelSerializer):
 
 
 class UserCategoriesFriendHistorySerializer(serializers.ModelSerializer):
-    completed_capsules_for_friend = serializers.SerializerMethodField()
+    completed_capsules = serializers.SerializerMethodField()
 
     class Meta:
         model = models.UserCategory
@@ -42,10 +42,10 @@ class UserCategoriesFriendHistorySerializer(serializers.ModelSerializer):
             'description',
             'created_on',
             'updated_on',
-            'completed_capsules_for_friend'
+            'completed_capsules'
         ]
 
-    def get_completed_capsules_for_friend(self, obj):
+    def get_completed_capsules(self, obj):
         from friends.serializers import CompletedThoughtCapsuleSerializer 
         friend_id = self.context.get('friend_id')
         capsules = obj.completed_thought_capsules.filter(friend_id=friend_id)
