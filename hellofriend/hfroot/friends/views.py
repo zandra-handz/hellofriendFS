@@ -1142,3 +1142,13 @@ class LocationDetail(generics.RetrieveUpdateDestroyAPIView):
         }, status=200)
    
    
+
+
+
+   # data needed:
+   # all categories in same order (so, alphabetical), with
+   # number of moments sent for friend
+    # grouped by helloes
+    # this view at least will not include active categories
+
+    

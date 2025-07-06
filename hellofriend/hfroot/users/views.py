@@ -219,6 +219,33 @@ class UserCategoriesView(generics.ListCreateAPIView):
             user_category.images.set(images)
 
         user_category.save()
+
+# Not finished yet
+# class UserCategoriesHistoryView(generics.ListAPIView):
+ 
+    
+#     serializer_class = serializers.UserCategorySerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def get_queryset(self):
+#         user = self.request.user
+#         return models.UserCategory.objects.filter(user=user)
+    
+class UserCategoriesFriendHistoryAll(generics.ListAPIView):
+    serializer_class = serializers.UserCategoryWithCompletedSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        return models.UserCategory.objects.filter(user=user)
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['friend_id'] = self.kwargs.get(self.lookup_url_kwarg)
+        return context
+
+
     
 
 class UserCategoryDetail(generics.RetrieveUpdateDestroyAPIView):

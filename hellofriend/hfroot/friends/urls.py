@@ -39,7 +39,8 @@ urlpatterns = [
     path('places/near-midpoint/', views.consider_midpoint_locations, name='consider-midpoint-locations'),
     path('places/get-details/', views.place_details, name='get_nearby_places'),
     path('places/get-id/', views.place_id, name='get_place_id'),
-    
+
+
     path('locations/all/', views.UserLocationsAll.as_view()),
     path('locations/validated/', views.UserLocationsValidated.as_view()),
     path('location/validate-only/', views.ValidateLocation.as_view(), name='validate-location-only'),
@@ -54,6 +55,11 @@ urlpatterns = [
     path('<int:friend_id>/addresses/validated/', views.FriendAddressesValidated.as_view()),  
     path('<int:friend_id>/addresses/add/', views.FriendAddressCreate.as_view()),
     path('<int:friend_id>/address/<int:pk>/', views.FriendAddressDetail.as_view()),
+
+    # History/stats
+     path('<int:friend_id>/categories/history/', users.views.UserCategoriesFriendHistoryAll.as_view()),
+
+
 
     path('dropdown/location-parking-type-choices/', views.LocationParkingTypeChoices.as_view(), name='location-parking-type-choices'),
     path('dropdown/hello-type-choices/', views.HelloTypeChoices.as_view(), name='hello-type-choices'),
