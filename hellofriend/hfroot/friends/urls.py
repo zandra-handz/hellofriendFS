@@ -57,7 +57,7 @@ urlpatterns = [
     path('<int:friend_id>/address/<int:pk>/', views.FriendAddressDetail.as_view()),
 
     # History/stats
-     path('<int:friend_id>/categories/history/', users.views.UserCategoriesFriendHistoryAll.as_view()),
+    path('<int:friend_id>/categories/history/', users.views.UserCategoriesFriendHistoryAll.as_view()),
 
 
 

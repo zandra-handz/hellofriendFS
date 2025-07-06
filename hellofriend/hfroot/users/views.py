@@ -245,9 +245,9 @@ class UserCategoriesView(generics.ListCreateAPIView):
 #         context['friend_id'] = self.kwargs.get(self.lookup_url_kwarg)
 #         return context
 
-# on front end. add query parameter ?only_with_capsules=true to end of url to get only relevant catagories
+# on front end, add query parameter ?only_with_capsules=true to end of url to get only relevant catagories
 class UserCategoriesFriendHistoryAll(generics.ListAPIView):
-    serializer_class = serializers.UserCategoryWithCompletedSerializer
+    serializer_class = serializers.UserCategoriesFriendHistorySerializer
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
 
@@ -268,8 +268,32 @@ class UserCategoriesFriendHistoryAll(generics.ListAPIView):
         context = super().get_serializer_context()
         context['friend_id'] = self.kwargs.get(self.lookup_url_kwarg)
         return context
-
     
+
+# on front end, add query parameter ?only_with_capsules=true to end of url to get only non-empty catagories
+
+class UserCategoriesHistoryAll(generics.ListAPIView):
+    serializer_class = serializers.UserCategoriesHistorySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = models.UserCategory.objects.filter(user=user)
+
+        only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
+        if only_with_capsules:
+            qs = qs.filter(completed_thought_capsules__user=user).distinct()
+
+        return qs
+
+    def get_serializer_context(self): 
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
+
+
+
+
 
 class UserCategoryDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.UserCategorySerializer

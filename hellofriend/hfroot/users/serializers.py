@@ -31,9 +31,7 @@ class UserCategorySerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'name', 'description', 'thought_capsules', 'images', 'is_active', 'max_active', 'is_in_top_five', 'is_deletable', 'created_on', 'updated_on']
 
 
-
-
-class UserCategoryWithCompletedSerializer(serializers.ModelSerializer):
+class UserCategoriesFriendHistorySerializer(serializers.ModelSerializer):
     completed_capsules_for_friend = serializers.SerializerMethodField()
 
     class Meta:
@@ -48,14 +46,41 @@ class UserCategoryWithCompletedSerializer(serializers.ModelSerializer):
         ]
 
     def get_completed_capsules_for_friend(self, obj):
-        from friends.serializers import CompletedThoughtCapsuleSerializer  # ✅ safe local import
-
+        from friends.serializers import CompletedThoughtCapsuleSerializer 
         friend_id = self.context.get('friend_id')
         capsules = obj.completed_thought_capsules.filter(friend_id=friend_id)
         return CompletedThoughtCapsuleSerializer(capsules, many=True).data
 
 
 
+class UserCategoriesHistorySerializer(serializers.ModelSerializer):
+    completed_capsules = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.UserCategory
+        fields = [
+            'id',
+            'name',
+            'description',
+            'created_on',
+            'updated_on',
+            'completed_capsules'
+        ]
+
+    def get_completed_capsules(self, obj):
+        from friends.serializers import CompletedThoughtCapsuleSerializer
+
+        request = self.context.get('request', None)
+        if not request or not hasattr(request, 'user'):
+            # No user in context, return empty list for safety
+            return []
+
+        user = request.user
+
+        # Filter capsules linked to this category AND owned by current user
+        capsules = obj.completed_thought_capsules.filter(user=user)
+
+        return CompletedThoughtCapsuleSerializer(capsules, many=True).data
 
 
 
