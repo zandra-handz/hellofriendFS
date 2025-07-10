@@ -175,8 +175,12 @@ class UserSettingsDetail(generics.RetrieveUpdateAPIView):
     lookup_url_kwarg = 'user_id'
 
     def get_queryset(self):
-        # Prefetch user_categories on the related user to avoid N+1 queries
-        return models.UserSettings.objects.select_related('user').prefetch_related('user__user_categories')
+        return models.UserSettings.objects.select_related('user').prefetch_related(
+            Prefetch(
+                'user__user_categories',
+                queryset=models.UserCategory.objects.prefetch_related('thought_capsules', 'images')
+            )
+        )
 
     def get_object(self):
         user_id = self.kwargs['user_id']

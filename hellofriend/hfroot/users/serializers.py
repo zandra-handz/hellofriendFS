@@ -134,6 +134,7 @@ class UserSettingsSerializer(serializers.ModelSerializer):
         return UserCategorySerializer(categories, many=True).data
 
 
+
 class BadRainbowzUserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(required=False)
     settings = UserSettingsSerializer(required=False)
