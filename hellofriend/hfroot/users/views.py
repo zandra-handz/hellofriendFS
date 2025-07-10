@@ -286,36 +286,72 @@ class UserCategoriesFriendHistoryAll(generics.ListAPIView):
 
 # on front end, add query parameter ?only_with_capsules=true to end of url to get only non-empty catagories
 
+# class UserCategoriesHistoryAll(generics.ListAPIView):
+#     serializer_class = serializers.UserCategoriesHistorySerializer
+#     permission_classes = [IsAuthenticated]
+
+ 
+#     def get_queryset(self):
+#         user = self.request.user
+#         CompletedCapsule = apps.get_model('friends', 'CompletedThoughtCapsulez')
+
+#         only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
+
+#         # Prefetch only the current user's capsules
+#         # capsule_qs = CompletedCapsule.objects.filter(user=user)
+#         capsule_qs = CompletedCapsule.objects.filter(user=user).select_related(
+#             "friend", "user", "hello", "user_category"
+#         )
+
+        
+#         qs = models.UserCategory.objects.filter(user=user).prefetch_related(
+#             Prefetch("completed_thought_capsules", queryset=capsule_qs, to_attr="prefetched_capsules")
+#         )
+
+#         if only_with_capsules:
+#             qs = qs.filter(completed_thought_capsules__user=user).distinct()
+
+#         return qs
+    
+#     def get_serializer_context(self): 
+#         context = super().get_serializer_context()
+#         context['request'] = self.request
+#         return context
+
+
 class UserCategoriesHistoryAll(generics.ListAPIView):
     serializer_class = serializers.UserCategoriesHistorySerializer
     permission_classes = [IsAuthenticated]
 
- 
     def get_queryset(self):
         user = self.request.user
         CompletedCapsule = apps.get_model('friends', 'CompletedThoughtCapsulez')
 
         only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
+        friend_id = self.request.query_params.get("friend_id")
 
-        # Prefetch only the current user's capsules
-        # capsule_qs = CompletedCapsule.objects.filter(user=user)
-        capsule_qs = CompletedCapsule.objects.filter(user=user).select_related(
-            "friend", "user", "hello", "user_category"
-        )
+        capsule_qs = CompletedCapsule.objects.filter(user=user)
+        if friend_id:
+            capsule_qs = capsule_qs.filter(friend_id=friend_id)
 
-        
+        capsule_qs = capsule_qs.select_related("friend", "user", "hello", "user_category")
+
         qs = models.UserCategory.objects.filter(user=user).prefetch_related(
             Prefetch("completed_thought_capsules", queryset=capsule_qs, to_attr="prefetched_capsules")
         )
 
         if only_with_capsules:
-            qs = qs.filter(completed_thought_capsules__user=user).distinct()
+            # This filtering is still necessary to only return categories with any relevant capsules
+            if friend_id:
+                qs = qs.filter(completed_thought_capsules__user=user, completed_thought_capsules__friend_id=friend_id).distinct()
+            else:
+                qs = qs.filter(completed_thought_capsules__user=user).distinct()
 
         return qs
-    
+
     def get_serializer_context(self): 
         context = super().get_serializer_context()
-        context['request'] = self.request
+        context['friend_id'] = self.request.query_params.get("friend_id")
         return context
 
 

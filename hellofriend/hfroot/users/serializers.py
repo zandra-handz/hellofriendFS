@@ -57,6 +57,26 @@ class UserCategoriesFriendHistorySerializer(serializers.ModelSerializer):
         return CompletedThoughtCapsuleSerializer(capsules, many=True).data
 
 
+# class UserCategoriesHistorySerializer(serializers.ModelSerializer):
+#     completed_capsules = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = models.UserCategory
+#         fields = [
+#             'id',
+#             'name',
+#             'description',
+#             'created_on',
+#             'updated_on',
+#             'completed_capsules'
+#         ]
+
+#     def get_completed_capsules(self, obj):
+#         from friends.serializers import CompletedThoughtCapsuleSerializer
+#         capsules = getattr(obj, "prefetched_capsules", [])
+#         return CompletedThoughtCapsuleSerializer(capsules, many=True).data
+
+
 class UserCategoriesHistorySerializer(serializers.ModelSerializer):
     completed_capsules = serializers.SerializerMethodField()
 
@@ -73,8 +93,14 @@ class UserCategoriesHistorySerializer(serializers.ModelSerializer):
 
     def get_completed_capsules(self, obj):
         from friends.serializers import CompletedThoughtCapsuleSerializer
+        friend_id = self.context.get('friend_id')
+
         capsules = getattr(obj, "prefetched_capsules", [])
+        if friend_id:
+            capsules = [c for c in capsules if str(c.friend_id) == str(friend_id)]
+
         return CompletedThoughtCapsuleSerializer(capsules, many=True).data
+
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     user_categories = serializers.SerializerMethodField()
