@@ -24,7 +24,16 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = models.UserProfile
         fields = ['first_name', 'last_name', 'date_of_birth', 'gender']
 
+# class UserCategorySerializer(serializers.ModelSerializer):
+
+#     class Meta:
+#         model = models.UserCategory
+#         fields = ['id', 'user', 'name', 'description', 'thought_capsules', 'images', 'is_active', 'max_active', 'is_in_top_five', 'is_deletable', 'created_on', 'updated_on']
+
+
 class UserCategorySerializer(serializers.ModelSerializer):
+    thought_capsules = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
+    images = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
 
     class Meta:
         model = models.UserCategory
