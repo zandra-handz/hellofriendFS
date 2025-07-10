@@ -834,6 +834,9 @@ class CompletedThoughtCapsulez(models.Model):
         verbose_name_plural = "Completed Moments (Thought Capsulez)"
         indexes = [
             models.Index(fields=['friend']),
+            models.Index(fields=['user']),
+            models.Index(fields=['user_category']),
+        
         ]
  
     def save(self, *args, **kwargs): 

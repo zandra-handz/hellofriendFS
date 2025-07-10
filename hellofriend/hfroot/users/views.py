@@ -3,12 +3,15 @@ from . import serializers
 from django.core.mail import send_mail
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count
+from django.db.models import Prefetch
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, response, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
+
 
 from rest_framework.views import APIView 
 
@@ -196,6 +199,8 @@ class UserProfileDetail(generics.RetrieveUpdateAPIView):
         return get_object_or_404(models.UserProfile, user__id=user_id)
 
 
+
+
 class UserCategoriesView(generics.ListCreateAPIView):
     serializer_class = serializers.UserCategorySerializer
     permission_classes = [IsAuthenticated]
@@ -276,12 +281,27 @@ class UserCategoriesHistoryAll(generics.ListAPIView):
     serializer_class = serializers.UserCategoriesHistorySerializer
     permission_classes = [IsAuthenticated]
 
+    # def get_queryset(self):
+    #     user = self.request.user
+    #     qs = models.UserCategory.objects.filter(user=user)
+
+    #     only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
+    #     if only_with_capsules:
+    #         qs = qs.filter(completed_thought_capsules__user=user).distinct()
+
+    #     return qs
+    
     def get_queryset(self):
         user = self.request.user
-        qs = models.UserCategory.objects.filter(user=user)
+        completed_capsules_qs = models.CompletedThoughtCapsulez.objects.filter(user=user)
+        
+        qs = models.UserCategory.objects.filter(user=user).prefetch_related(
+            Prefetch("completed_thought_capsules", queryset=completed_capsules_qs)
+        )
 
         only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
         if only_with_capsules:
+            # More efficient existence check instead of filtering directly on M2M
             qs = qs.filter(completed_thought_capsules__user=user).distinct()
 
         return qs
@@ -292,6 +312,38 @@ class UserCategoriesHistoryAll(generics.ListAPIView):
         return context
 
 
+
+class UserCategoriesHistoryCountOnly(generics.ListAPIView):
+    serializer_class = serializers.UserCategoriesHistorySerializer
+    permission_classes = [IsAuthenticated]
+
+    # def get_queryset(self):
+    #     user = self.request.user
+    #     qs = models.UserCategory.objects.filter(user=user)
+
+    #     only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
+    #     if only_with_capsules:
+    #         qs = qs.filter(completed_thought_capsules__user=user).distinct()
+
+    #     return qs
+    
+    def get_queryset(self):
+        user = self.request.user
+
+        qs = models.UserCategory.objects.filter(user=user).annotate(
+            capsule_count=Count('completed_thought_capsules', filter=Q(completed_thought_capsules__user=user))
+        )
+
+        only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
+        if only_with_capsules:
+            qs = qs.filter(capsule_count__gt=0)
+
+        return qs
+
+    def get_serializer_context(self): 
+        context = super().get_serializer_context()
+        context['request'] = self.request
+        return context
 
 
 
