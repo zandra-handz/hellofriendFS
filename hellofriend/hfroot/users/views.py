@@ -259,13 +259,22 @@ class UserCategoriesFriendHistoryAll(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        qs = models.UserCategory.objects.filter(user=user)
-
-        only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
         friend_id = self.kwargs.get(self.lookup_url_kwarg)
+        only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
+
+        CompletedCapsule = apps.get_model('friends', 'CompletedThoughtCapsulez')
+ 
+        capsule_filter = CompletedCapsule.objects.filter(user=user)
+        if friend_id:
+            capsule_filter = capsule_filter.filter(friend_id=friend_id)
+ 
+        capsule_filter = capsule_filter.select_related('hello', 'user_category')
+
+        qs = models.UserCategory.objects.filter(user=user).prefetch_related(
+            Prefetch('completed_thought_capsules', queryset=capsule_filter, to_attr='prefetched_capsules')
+        )
 
         if only_with_capsules and friend_id:
-            # Filter only categories that have at least 1 completed capsule for the friend
             qs = qs.filter(completed_thought_capsules__friend_id=friend_id).distinct()
 
         return qs
