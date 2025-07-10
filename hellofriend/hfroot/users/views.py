@@ -293,18 +293,14 @@ class UserCategoriesHistoryAll(generics.ListAPIView):
     
     def get_queryset(self):
         user = self.request.user
-        completed_capsules_qs = models.CompletedThoughtCapsulez.objects.filter(user=user)
-        
-        qs = models.UserCategory.objects.filter(user=user).prefetch_related(
-            Prefetch("completed_thought_capsules", queryset=completed_capsules_qs)
-        )
+
+        qs = models.UserCategory.objects.filter(user=user)
 
         only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
         if only_with_capsules:
-            # More efficient existence check instead of filtering directly on M2M
             qs = qs.filter(completed_thought_capsules__user=user).distinct()
-
-        return qs
+ 
+        return qs.prefetch_related("completed_thought_capsules")
 
     def get_serializer_context(self): 
         context = super().get_serializer_context()
