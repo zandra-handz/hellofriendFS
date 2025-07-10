@@ -263,12 +263,12 @@ class UserCategoriesFriendHistoryAll(generics.ListAPIView):
         only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
 
         CompletedCapsule = apps.get_model('friends', 'CompletedThoughtCapsulez')
- 
+
         capsule_filter = CompletedCapsule.objects.filter(user=user)
         if friend_id:
             capsule_filter = capsule_filter.filter(friend_id=friend_id)
- 
-        capsule_filter = capsule_filter.select_related('hello', 'user_category')
+
+        capsule_filter = capsule_filter.select_related('hello', 'user_category')  # ✅ optimized
 
         qs = models.UserCategory.objects.filter(user=user).prefetch_related(
             Prefetch('completed_thought_capsules', queryset=capsule_filter, to_attr='prefetched_capsules')
@@ -283,7 +283,6 @@ class UserCategoriesFriendHistoryAll(generics.ListAPIView):
         context = super().get_serializer_context()
         context['friend_id'] = self.kwargs.get(self.lookup_url_kwarg)
         return context
-    
 
 # on front end, add query parameter ?only_with_capsules=true to end of url to get only non-empty catagories
 
