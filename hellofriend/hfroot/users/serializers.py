@@ -46,41 +46,20 @@ class UserCategoriesFriendHistorySerializer(serializers.ModelSerializer):
         ]
 
     def get_completed_capsules(self, obj):
-        from friends.serializers import CompletedThoughtCapsuleSerializer 
+        from friends.serializers import CompletedThoughtCapsuleSerializer
         friend_id = self.context.get('friend_id')
-        capsules = obj.completed_thought_capsules.filter(friend_id=friend_id)
-        return CompletedThoughtCapsuleSerializer(capsules, many=True).data
 
+        # Use prefetched capsules if available
+        capsules = getattr(obj, 'prefetched_capsules', None)
+        if capsules is not None:
+            # Filter the prefetched capsules by friend_id in memory to avoid DB queries
+            filtered_capsules = [c for c in capsules if c.friend_id == friend_id] if friend_id else capsules
+        else:
+            # Fallback to queryset filtering (less efficient)
+            filtered_capsules = obj.completed_thought_capsules.filter(friend_id=friend_id) if friend_id else obj.completed_thought_capsules.all()
 
+        return CompletedThoughtCapsuleSerializer(filtered_capsules, many=True).data
 
-# class UserCategoriesHistorySerializer(serializers.ModelSerializer):
-#     completed_capsules = serializers.SerializerMethodField()
-
-#     class Meta:
-#         model = models.UserCategory
-#         fields = [
-#             'id',
-#             'name',
-#             'description',
-#             'created_on',
-#             'updated_on',
-#             'completed_capsules'
-#         ]
-
-#     def get_completed_capsules(self, obj):
-#         from friends.serializers import CompletedThoughtCapsuleSerializer
-
-#         request = self.context.get('request', None)
-#         if not request or not hasattr(request, 'user'):
-#             # No user in context, return empty list for safety
-#             return []
-
-#         user = request.user
-
-#         # Filter capsules linked to this category AND owned by current user
-#         capsules = obj.completed_thought_capsules.filter(user=user)
-
-#         return CompletedThoughtCapsuleSerializer(capsules, many=True).data
 
 
 class UserCategoriesHistorySerializer(serializers.ModelSerializer):
@@ -99,7 +78,6 @@ class UserCategoriesHistorySerializer(serializers.ModelSerializer):
 
     def get_completed_capsules(self, obj):
         from friends.serializers import CompletedThoughtCapsuleSerializer
-
         capsules = getattr(obj, "prefetched_capsules", [])
         return CompletedThoughtCapsuleSerializer(capsules, many=True).data
 
