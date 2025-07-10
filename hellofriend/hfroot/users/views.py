@@ -282,16 +282,7 @@ class UserCategoriesHistoryAll(generics.ListAPIView):
     serializer_class = serializers.UserCategoriesHistorySerializer
     permission_classes = [IsAuthenticated]
 
-    # def get_queryset(self):
-    #     user = self.request.user
-    #     qs = models.UserCategory.objects.filter(user=user)
-
-    #     only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
-    #     if only_with_capsules:
-    #         qs = qs.filter(completed_thought_capsules__user=user).distinct()
-
-    #     return qs
-    
+ 
     def get_queryset(self):
         user = self.request.user
         CompletedCapsule = apps.get_model('friends', 'CompletedThoughtCapsulez')
@@ -299,7 +290,12 @@ class UserCategoriesHistoryAll(generics.ListAPIView):
         only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
 
         # Prefetch only the current user's capsules
-        capsule_qs = CompletedCapsule.objects.filter(user=user)
+        # capsule_qs = CompletedCapsule.objects.filter(user=user)
+        capsule_qs = CompletedCapsule.objects.filter(user=user).select_related(
+            "friend", "user", "hello", "user_category"
+        )
+
+        
         qs = models.UserCategory.objects.filter(user=user).prefetch_related(
             Prefetch("completed_thought_capsules", queryset=capsule_qs, to_attr="prefetched_capsules")
         )
