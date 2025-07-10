@@ -53,6 +53,36 @@ class UserCategoriesFriendHistorySerializer(serializers.ModelSerializer):
 
 
 
+# class UserCategoriesHistorySerializer(serializers.ModelSerializer):
+#     completed_capsules = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = models.UserCategory
+#         fields = [
+#             'id',
+#             'name',
+#             'description',
+#             'created_on',
+#             'updated_on',
+#             'completed_capsules'
+#         ]
+
+#     def get_completed_capsules(self, obj):
+#         from friends.serializers import CompletedThoughtCapsuleSerializer
+
+#         request = self.context.get('request', None)
+#         if not request or not hasattr(request, 'user'):
+#             # No user in context, return empty list for safety
+#             return []
+
+#         user = request.user
+
+#         # Filter capsules linked to this category AND owned by current user
+#         capsules = obj.completed_thought_capsules.filter(user=user)
+
+#         return CompletedThoughtCapsuleSerializer(capsules, many=True).data
+
+
 class UserCategoriesHistorySerializer(serializers.ModelSerializer):
     completed_capsules = serializers.SerializerMethodField()
 
@@ -70,19 +100,8 @@ class UserCategoriesHistorySerializer(serializers.ModelSerializer):
     def get_completed_capsules(self, obj):
         from friends.serializers import CompletedThoughtCapsuleSerializer
 
-        request = self.context.get('request', None)
-        if not request or not hasattr(request, 'user'):
-            # No user in context, return empty list for safety
-            return []
-
-        user = request.user
-
-        # Filter capsules linked to this category AND owned by current user
-        capsules = obj.completed_thought_capsules.filter(user=user)
-
+        capsules = getattr(obj, "prefetched_capsules", [])
         return CompletedThoughtCapsuleSerializer(capsules, many=True).data
-
-
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     user_categories = serializers.SerializerMethodField()

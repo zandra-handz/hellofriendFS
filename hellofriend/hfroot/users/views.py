@@ -1,5 +1,6 @@
 from . import models
 from . import serializers
+from django.apps import apps
 from django.core.mail import send_mail
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
@@ -293,15 +294,21 @@ class UserCategoriesHistoryAll(generics.ListAPIView):
     
     def get_queryset(self):
         user = self.request.user
-
-        qs = models.UserCategory.objects.filter(user=user)
+        CompletedCapsule = apps.get_model('friends', 'CompletedThoughtCapsulez')
 
         only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
+
+        # Prefetch only the current user's capsules
+        capsule_qs = CompletedCapsule.objects.filter(user=user)
+        qs = models.UserCategory.objects.filter(user=user).prefetch_related(
+            Prefetch("completed_thought_capsules", queryset=capsule_qs, to_attr="prefetched_capsules")
+        )
+
         if only_with_capsules:
             qs = qs.filter(completed_thought_capsules__user=user).distinct()
- 
-        return qs.prefetch_related("completed_thought_capsules")
 
+        return qs
+    
     def get_serializer_context(self): 
         context = super().get_serializer_context()
         context['request'] = self.request
