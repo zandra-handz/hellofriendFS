@@ -27,16 +27,43 @@ class CreateUserView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
 
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def get_current_user(request):
+#     if not request.user.is_authenticated:
+#         return response.Response({'error': 'User not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+#     request.user.check_subscription_active()
+    
+#     serializer = serializers.BadRainbowzUserSerializer(request.user)
+#     return JsonResponse(serializer.data)
+
+
+
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_current_user(request):
     if not request.user.is_authenticated:
         return response.Response({'error': 'User not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
-    
-    request.user.check_subscription_active()
-    
-    serializer = serializers.BadRainbowzUserSerializer(request.user)
+
+    # Use select_related and prefetch_related to optimize nested fetches
+    user_qs = models.BadRainbowzUser.objects.filter(pk=request.user.pk).select_related(
+        'profile',          # assuming OneToOneField to UserProfile
+        'settings'          # assuming OneToOneField to UserSettings
+    ).prefetch_related(
+        'user_categories',  # M2M relation UserCategory
+        # Prefetch nested M2M on user_categories as needed
+        Prefetch('user_categories__thought_capsules'),
+        Prefetch('user_categories__images')
+    )
+
+    user = get_object_or_404(user_qs)
+
+    serializer = serializers.BadRainbowzUserSerializer(user)
     return JsonResponse(serializer.data)
+
 
 
 @api_view(['POST'])

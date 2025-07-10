@@ -135,28 +135,51 @@ class UserSettingsSerializer(serializers.ModelSerializer):
 
 
 
+# class BadRainbowzUserSerializer(serializers.ModelSerializer):
+#     profile = UserProfileSerializer(required=False)
+#     settings = UserSettingsSerializer(required=False)
+#     user_categories = UserCategorySerializer(many=True, read_only=True, required=False)
+
+#     class Meta:
+#         model = models.BadRainbowzUser
+#         fields = ['user_categories', 'id', 'created_on', 'is_banned_user', 'is_subscribed_user', 'subscription_expiration_date', 'username', 'password', 'email', 'app_setup_complete', 'is_test_user', 'phone_number', 'addresses', 'profile', 'settings']
+#         extra_kwargs = {
+#             "password": {"write_only": True}, 
+#         }
+
+#     def create(self, validated_data):
+#         profile_data = validated_data.pop('profile', {})
+#         settings_data = validated_data.pop('settings', {})
+#         user = models.BadRainbowzUser.objects.create_user(**validated_data)
+#         if profile_data:
+#             models.UserProfile.objects.create(user=user, **profile_data)
+#         if settings_data:
+#             models.UserSettings.objects.create(user=user, **settings_data)
+#         return user
+    
+
 class BadRainbowzUserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(required=False)
     settings = UserSettingsSerializer(required=False)
-    user_categories = UserCategorySerializer(many=True, read_only=True, required=False)
+    user_categories = serializers.SerializerMethodField()
 
     class Meta:
         model = models.BadRainbowzUser
-        fields = ['user_categories', 'id', 'created_on', 'is_banned_user', 'is_subscribed_user', 'subscription_expiration_date', 'username', 'password', 'email', 'app_setup_complete', 'is_test_user', 'phone_number', 'addresses', 'profile', 'settings']
-        extra_kwargs = {
-            "password": {"write_only": True}, 
-        }
+        fields = [
+            'user_categories',
+            'id', 'created_on', 'is_banned_user', 'is_subscribed_user', 'subscription_expiration_date',
+            'username', 'password', 'email', 'app_setup_complete', 'is_test_user', 'phone_number', 'addresses',
+            'profile', 'settings'
+        ]
+        extra_kwargs = {"password": {"write_only": True}}
 
-    def create(self, validated_data):
-        profile_data = validated_data.pop('profile', {})
-        settings_data = validated_data.pop('settings', {})
-        user = models.BadRainbowzUser.objects.create_user(**validated_data)
-        if profile_data:
-            models.UserProfile.objects.create(user=user, **profile_data)
-        if settings_data:
-            models.UserSettings.objects.create(user=user, **settings_data)
-        return user
-    
+    def get_user_categories(self, obj):
+        # Use the prefetched cache if available
+        categories = getattr(obj, '_prefetched_user_categories_cache', None)
+        if categories is None:
+            categories = obj.user_categories.all()
+        return UserCategorySerializer(categories, many=True).data
+
 
 
 class PasswordResetCodeValidationSerializer(serializers.Serializer):
