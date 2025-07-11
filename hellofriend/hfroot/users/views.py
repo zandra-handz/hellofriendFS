@@ -50,14 +50,17 @@ def get_current_user(request):
 
     # Use select_related and prefetch_related to optimize nested fetches
     user_qs = models.BadRainbowzUser.objects.filter(pk=request.user.pk).select_related(
-        'profile',          # assuming OneToOneField to UserProfile
-        'settings'          # assuming OneToOneField to UserSettings
-    ).prefetch_related(
-        'user_categories',  # M2M relation UserCategory
-        # Prefetch nested M2M on user_categories as needed
-        Prefetch('user_categories__thought_capsules'),
-        Prefetch('user_categories__images')
+        'profile'
+        #,          # assuming OneToOneField to UserProfile
+      #  'settings'
     )
+              # assuming OneToOneField to UserSettings
+    # ).prefetch_related(
+    #     'user_categories',  # M2M relation UserCategory
+    #     # Prefetch nested M2M on user_categories as needed
+    #     Prefetch('user_categories__thought_capsules'),
+    #     Prefetch('user_categories__images')
+    # )
 
     user = get_object_or_404(user_qs)
 
