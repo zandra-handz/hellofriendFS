@@ -4,8 +4,7 @@ from django.apps import apps
 from django.core.mail import send_mail
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
-from django.db.models import Prefetch
+from django.db.models import Count, Prefetch, Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404
@@ -243,7 +242,7 @@ class UserSettingsDetail(generics.RetrieveUpdateAPIView):
 
 
 
-    
+
 class UserProfileDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.UserProfileSerializer
     permission_classes = [IsAuthenticated]
@@ -363,16 +362,6 @@ class UserCategoriesHistoryCountOnly(generics.ListAPIView):
     serializer_class = serializers.UserCategoriesHistorySerializer
     permission_classes = [IsAuthenticated]
 
-    # def get_queryset(self):
-    #     user = self.request.user
-    #     qs = models.UserCategory.objects.filter(user=user)
-
-    #     only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
-    #     if only_with_capsules:
-    #         qs = qs.filter(completed_thought_capsules__user=user).distinct()
-
-    #     return qs
-    
     def get_queryset(self):
         user = self.request.user
 
