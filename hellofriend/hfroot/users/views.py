@@ -207,7 +207,10 @@ class UserSettingsDetail(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user.settings   
+    
 
+    # def get_queryset(self):
+    #     return models.UserSettings.objects.select_related('user')
     # def get_queryset(self):
     #     return models.UserSettings.objects.select_related('user').prefetch_related(
     #         Prefetch(

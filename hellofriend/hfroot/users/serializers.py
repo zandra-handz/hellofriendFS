@@ -111,7 +111,7 @@ class UserCategoriesHistorySerializer(serializers.ModelSerializer):
         return CompletedThoughtCapsuleSerializer(capsules, many=True).data
 
 class UserSettingsSerializer(serializers.ModelSerializer):
-    user_categories = serializers.SerializerMethodField()
+    # user_categories = serializers.SerializerMethodField()
 
     class Meta:
         model = models.UserSettings
@@ -124,14 +124,14 @@ class UserSettingsSerializer(serializers.ModelSerializer):
             'screen_reader',
             'manual_dark_mode',
             'expo_push_token',
-            'user_categories'
+            # 'user_categories'
         ]
 
-    def get_user_categories(self, obj):
-        categories = getattr(obj.user, '_prefetched_user_categories_cache', None)
-        if categories is None:
-            categories = obj.user.user_categories.all()
-        return UserCategorySerializer(categories, many=True).data
+    # def get_user_categories(self, obj):
+    #     categories = getattr(obj.user, '_prefetched_user_categories_cache', None)
+    #     if categories is None:
+    #         categories = obj.user.user_categories.all()
+    #     return UserCategorySerializer(categories, many=True).data
 
 
 
