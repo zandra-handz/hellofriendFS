@@ -333,25 +333,38 @@ class UserCategoriesHistoryAll(generics.ListAPIView):
         user_category_id = self.request.query_params.get("user_category_id")
         friend_id = self.request.query_params.get("friend_id")
 
-        capsule_qs = CompletedCapsule.objects.filter(user=user)
+
+        filters = {"user": user}
+
         if friend_id:
-            capsule_qs = capsule_qs.filter(friend_id=friend_id)
+            filters["friend_id"] = friend_id
 
         if user_category_id:
-            capsule_qs = capsule_qs.filter(id=user_category_id)
+            filters["user_category_id"] = user_category_id
 
-        capsule_qs = capsule_qs.select_related("friend", "user", "hello", "user_category")
+        capsule_qs = CompletedCapsule.objects.filter(**filters).select_related(
+            "friend", "user", "hello", "user_category"
+        )
+
+
+        # capsule_qs = CompletedCapsule.objects.filter(user=user)
+        # if friend_id:
+        #     capsule_qs = capsule_qs.filter(friend_id=friend_id)
+
+        # if user_category_id:
+        #     capsule_qs = capsule_qs.filter(id=user_category_id)
+
+        # capsule_qs = capsule_qs.select_related("friend", "user", "hello", "user_category")
 
         qs = models.UserCategory.objects.filter(user=user).prefetch_related(
             Prefetch("completed_thought_capsules", queryset=capsule_qs, to_attr="prefetched_capsules")
         )
 
-        if only_with_capsules:
-            # This filtering is still necessary to only return categories with any relevant capsules
-            if friend_id:
-                qs = qs.filter(completed_thought_capsules__user=user, completed_thought_capsules__friend_id=friend_id).distinct()
-            else:
-                qs = qs.filter(completed_thought_capsules__user=user).distinct()
+        if only_with_capsules: 
+            # Return only UserCategories that have any prefetched capsules
+            qs = [uc for uc in qs if uc.prefetched_capsules]
+        else:
+            qs = qs.filter(completed_thought_capsules__user=user).distinct()
 
         return qs
 
