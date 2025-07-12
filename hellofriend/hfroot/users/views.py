@@ -338,7 +338,7 @@ class UserCategoriesHistoryAll(generics.ListAPIView):
             capsule_qs = capsule_qs.filter(friend_id=friend_id)
 
         if user_category_id:
-            capsule_qs = capsule_qs.filter(user_category_id=user_category_id)
+            capsule_qs = capsule_qs.filter(id=user_category_id)
 
         capsule_qs = capsule_qs.select_related("friend", "user", "hello", "user_category")
 
