@@ -14,7 +14,8 @@ urlpatterns = [
     path('<int:user_id>/categories/add/', views.UserCategoriesView.as_view()), 
     path('<int:user_id>/category/<int:pk>/', views.UserCategoryDetail.as_view()), 
     path('categories/history/', views.UserCategoriesHistoryAll.as_view()),
-    path('categories/history/summary/', views.UserCategoriesHistoryCountOnly.as_view()),
+    path('categories/history/summary/', views.UserCategoriesHistoryCapsuleIdsOnly.as_view()),
+    path('categories/history/count/', views.UserCategoriesHistoryCountOnly.as_view()),
 
 
     

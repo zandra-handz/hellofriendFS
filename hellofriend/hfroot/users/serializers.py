@@ -135,6 +135,31 @@ class UserCategoriesHistoryCountSerializer(serializers.ModelSerializer):
             capsules = [c for c in capsules if str(c.friend_id) == str(friend_id)]
 
         return CompletedThoughtCapsuleSerializer(capsules, many=True).data
+    
+class UserCategoriesHistoryCapsuleIdsSerializer(serializers.ModelSerializer):
+    capsule_ids = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.UserCategory
+        fields = [
+            'id',
+            'name',
+            'description',
+            'created_on',
+            'updated_on',
+            'capsule_ids',
+        ]
+
+    def get_capsule_ids(self, obj):
+        # You assume that capsules were prefetched and attached as `prefetched_capsules`
+        capsules = getattr(obj, "prefetched_capsules", [])
+        friend_id = self.context.get('friend_id')
+
+        if friend_id:
+            capsules = [c for c in capsules if str(c.friend_id) == str(friend_id)]
+
+        return [c.id for c in capsules]
+
 
 class UserSettingsSerializer(serializers.ModelSerializer):
     # user_categories = serializers.SerializerMethodField()

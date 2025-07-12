@@ -379,6 +379,46 @@ class UserCategoriesHistoryCountOnly(generics.ListAPIView):
         context = super().get_serializer_context()
         context['request'] = self.request
         return context
+    
+ 
+class UserCategoriesHistoryCapsuleIdsOnly(generics.ListAPIView):
+    serializer_class = serializers.UserCategoriesHistoryCapsuleIdsSerializer
+
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        CompletedCapsule = apps.get_model('friends', 'CompletedThoughtCapsulez')  # dynamically loaded
+  
+        friend_id = self.request.query_params.get("friend_id")
+        only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
+
+        # Build capsule filtering logic
+        capsule_filter = Q(user=user)
+        if friend_id:
+            capsule_filter &= Q(friend_id=friend_id)
+
+        capsule_qs = CompletedCapsule.objects.filter(capsule_filter)
+
+        # Prefetch capsules using to_attr
+        capsule_prefetch = Prefetch(
+            'completed_thought_capsules',
+            queryset=capsule_qs,
+            to_attr='prefetched_capsules'
+        )
+
+        qs = models.UserCategory.objects.filter(user=user).prefetch_related(capsule_prefetch)
+
+        # Filter categories that have capsules if requested
+        if only_with_capsules:
+            qs = [uc for uc in qs if getattr(uc, 'prefetched_capsules', [])]
+
+        return qs
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['friend_id'] = self.request.query_params.get("friend_id")
+        return context
 
 
 
