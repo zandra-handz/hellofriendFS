@@ -359,7 +359,7 @@ class UserCategoriesHistoryAll(generics.ListAPIView):
 
 
 class UserCategoriesHistoryCountOnly(generics.ListAPIView):
-    serializer_class = serializers.UserCategoriesHistorySerializer
+    serializer_class = serializers.UserCategoriesHistoryCountSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
