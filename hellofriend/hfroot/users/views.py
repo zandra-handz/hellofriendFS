@@ -330,11 +330,15 @@ class UserCategoriesHistoryAll(generics.ListAPIView):
         CompletedCapsule = apps.get_model('friends', 'CompletedThoughtCapsulez')
 
         only_with_capsules = self.request.query_params.get("only_with_capsules", "false").lower() == "true"
+        user_category_id = self.request.query_params.get("user_category_id")
         friend_id = self.request.query_params.get("friend_id")
 
         capsule_qs = CompletedCapsule.objects.filter(user=user)
         if friend_id:
             capsule_qs = capsule_qs.filter(friend_id=friend_id)
+
+        if user_category_id:
+            capsule_qs = capsule_qs.filter(user_category_id=user_category_id)
 
         capsule_qs = capsule_qs.select_related("friend", "user", "hello", "user_category")
 
