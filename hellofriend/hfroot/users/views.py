@@ -208,6 +208,10 @@ class UserSettingsDetail(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user.settings   
     
+    # def get(self, request, *args, **kwargs):
+    #     user = request.user
+
+    
 
     # def get_queryset(self):
     #     return models.UserSettings.objects.select_related('user')
