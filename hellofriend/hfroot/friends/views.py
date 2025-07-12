@@ -471,7 +471,7 @@ class UpcomingMeetsAll24(generics.ListCreateAPIView):
 
 class CompletedThoughtCapsulesAll(generics.ListAPIView):
     serializer_class = serializers.CompletedThoughtCapsuleSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
 
     def get_queryset(self):
@@ -483,13 +483,27 @@ class CompletedThoughtCapsulesAll(generics.ListAPIView):
 
 class ThoughtCapsulesAll(generics.ListAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
 
     def get_queryset(self):
         user = self.request.user
-        friend_id = self.kwargs['friend_id'] 
-        return models.ThoughtCapsulez.objects.filter(user=user, friend_id=friend_id)
+        friend_id = self.kwargs['friend_id']
+
+        return models.ThoughtCapsulez.objects.filter(
+            user=user,
+            friend_id=friend_id
+        ).select_related(
+            'user_category',
+            'category',
+            'friend',
+            'user'
+        )
+
+    # def get_queryset(self):
+    #     user = self.request.user
+    #     friend_id = self.kwargs['friend_id'] 
+    #     return models.ThoughtCapsulez.objects.filter(user=user, friend_id=friend_id)
 
 
 

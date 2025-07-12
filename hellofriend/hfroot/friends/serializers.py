@@ -221,12 +221,22 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ThoughtCapsulez
         fields = ['id', 'friend', 'user', 'typed_category', 'category', 'user_category', 'user_category_name', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello']
-
+    
+    # may not need (?)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        request = self.context.get('request')
         friend_id = self.context.get('friend_id')
-        if friend_id:
-            self.fields['category'].queryset = models.Category.objects.filter(user=self.context['request'].user, friend_id=friend_id)
+        if request and friend_id:
+            self.fields['category'].queryset = models.Category.objects.filter(
+                user=request.user,
+                friend_id=friend_id
+            )
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
+    #     friend_id = self.context.get('friend_id')
+    #     if friend_id:
+    #         self.fields['category'].queryset = models.Category.objects.filter(user=self.context['request'].user, friend_id=friend_id)
 
 
 class CompletedThoughtCapsuleSerializer(serializers.ModelSerializer): 

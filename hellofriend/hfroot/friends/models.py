@@ -672,7 +672,9 @@ class ThoughtCapsulez(models.Model):
     id = models.UUIDField(primary_key = True, default = uuid.uuid4, editable = False)
     friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+    # OBSOLETE FIELD:
     typed_category = models.CharField(max_length=50, null=True, blank=True)
+    # OBSOLETE FIELD:
     category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
     capsule = models.CharField(max_length=10000)
     # Connect an image (won't get saved in PastMeet, this is not a scrapbook) via the image model thought_capsule field
@@ -694,10 +696,13 @@ class ThoughtCapsulez(models.Model):
         verbose_name = "Moment (Thought Capsule)"
         verbose_name_plural = "Moments (Thought Capsulez)"
         indexes = [
-            models.Index(fields=['friend']),
+          #  models.Index(fields=['friend']),
+            models.Index(fields=['user', 'friend']),
         ]
 
 
+
+# check if can remove safely
     def get_existing_categories(self): 
 
         existing_categories = Category.objects.filter(
@@ -714,42 +719,37 @@ class ThoughtCapsulez(models.Model):
 
     def save(self, *args, **kwargs):
         # Check if the instance already exists (i.e., it has a primary key)
-        if self.pk is None:
-            # The instance is new, so apply category logic
-            if self.category:
-                self.typed_category = None
-            elif self.typed_category:
-                # If typed_category is provided and category is not selected, create a new category
-                try:
-                    # Check if a category with the typed_category already exists for the user and friend
-                    category = Category.objects.get(
-                        name=self.typed_category,
-                        user=self.user,
-                        friend=self.friend
-                    )
-                    self.category = category
-                except Category.DoesNotExist:
-                    # If the category doesn't exist, create a new one
-                    friend_suggestion_settings = FriendSuggestionSettings.objects.get(
-                        user=self.user,
-                        friend=self.friend
-                    )
-                    category = Category.objects.create(
-                        name=self.typed_category,
-                        user=self.user,
-                        friend=self.friend,
-                        friend_suggestion_settings=friend_suggestion_settings
-                    )
-                    self.category = category
-        else:
-            # The instance already exists, so skip the category logic
-            pass
-
-        # if not self.user_category:
-        #     from users.models import UserCategory 
-        #     self.user_category, __created = UserCategory.ensure_grab_bag_exists(self.user)
-        
-
+        # if self.pk is None:
+        #     # The instance is new, so apply category logic
+        #     if self.category:
+        #         self.typed_category = None
+        #     elif self.typed_category:
+        #         # If typed_category is provided and category is not selected, create a new category
+        #         try:
+        #             # Check if a category with the typed_category already exists for the user and friend
+        #             category = Category.objects.get(
+        #                 name=self.typed_category,
+        #                 user=self.user,
+        #                 friend=self.friend
+        #             )
+        #             self.category = category
+        #         except Category.DoesNotExist:
+        #             # If the category doesn't exist, create a new one
+        #             friend_suggestion_settings = FriendSuggestionSettings.objects.get(
+        #                 user=self.user,
+        #                 friend=self.friend
+        #             )
+        #             category = Category.objects.create(
+        #                 name=self.typed_category,
+        #                 user=self.user,
+        #                 friend=self.friend,
+        #                 friend_suggestion_settings=friend_suggestion_settings
+        #             )
+        #             self.category = category
+        # else:
+        #     # The instance already exists, so skip the category logic
+        #     pass
+ 
         if not self.user_category:
             try:
                 from users.models import UserCategory
@@ -764,10 +764,7 @@ class ThoughtCapsulez(models.Model):
 
  
         super().save(*args, **kwargs)
-
-    # def get_category_choices(self):
-    #    return ThoughtCapsule.objects.filter(friend=self.friend).value_list('category', flat=True).distinct()
-
+ 
     def __str__(self):
         return f"Thought capsule in the category {self.category}"
     
