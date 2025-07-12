@@ -202,21 +202,25 @@ class DeleteAddressView(APIView):
 class UserSettingsDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.UserSettingsSerializer
     permission_classes = [IsAuthenticated]
-    lookup_url_kwarg = 'user_id'
-
-    def get_queryset(self):
-        return models.UserSettings.objects.select_related('user').prefetch_related(
-            Prefetch(
-                'user__user_categories',
-                queryset=models.UserCategory.objects.prefetch_related('thought_capsules', 'images')
-            )
-        )
+    # lookup_url_kwarg = 'user_id'
+ 
 
     def get_object(self):
-        user_id = self.kwargs['user_id']
-        # Use the optimized queryset with prefetching
-        queryset = self.get_queryset()
-        return get_object_or_404(queryset, user__id=user_id)
+        return self.request.user.settings   
+
+    # def get_queryset(self):
+    #     return models.UserSettings.objects.select_related('user').prefetch_related(
+    #         Prefetch(
+    #             'user__user_categories',
+    #             queryset=models.UserCategory.objects.prefetch_related('thought_capsules', 'images')
+    #         )
+    #     )
+
+    # def get_object(self):
+    #     user_id = self.kwargs['user_id']
+    #     # Use the optimized queryset with prefetching
+    #     queryset = self.get_queryset()
+    #     return get_object_or_404(queryset, user__id=user_id)
 
     def update(self, request, *args, **kwargs):
         return super().update(request, *args, **kwargs)
