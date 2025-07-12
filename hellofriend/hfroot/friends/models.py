@@ -190,6 +190,10 @@ class FriendSuggestionSettings(models.Model):
     class Meta:
         verbose_name = "Friend suggestion settings"
         verbose_name_plural = "Friend suggestion settings"
+     
+        indexes = [
+            models.Index(fields=['user', 'friend']),
+        ]
 
     @property
     def category_limit_formula(self):
