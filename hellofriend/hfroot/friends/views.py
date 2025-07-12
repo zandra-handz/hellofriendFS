@@ -337,19 +337,20 @@ class FriendDashboardView(generics.ListAPIView):
     #     user = self.request.user
     #     friend_id = self.kwargs['friend_id']
     #     return models.NextMeet.objects.filter(user=user, friend_id=friend_id)
-    
+
     def get_queryset(self):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
         return models.NextMeet.objects.filter(user=user, friend_id=friend_id).select_related(
-            'friend',
-            'friend__friend_suggestion_settings',
-            'previous',  # if you access obj.previous.type in serializer
+            'friend',                             # Friend object
+            'friend_suggestion_settings',        # FK from NextMeet to FriendSuggestionSettings
+            'previous',                          # FK to PastMeet
         ).prefetch_related(
-            'friend__addresses',
-            'friend__friendfaves_set',  # or the correct related_name on FriendFaves
+            'friend__addresses',                 # Friend's addresses (reverse FK/many)
+            'friend__friendfaves',          # Friend's favorites (reverse FK/many)
+            # 'friend__suggestion_settings_friend', # Usually not needed here, NextMeet already links FriendSuggestionSettings directly
         )
-
+    
 
 
 
