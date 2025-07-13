@@ -1117,7 +1117,7 @@ class PastMeet(models.Model):
                         hello=self,
                         capsule=capsule_shared_with_friend.capsule,
                         user_category=associated_category,
-                        user_category_original_name='TEST'
+                        user_category_original_name=associated_category.name if associated_category else None
                     )
 
  

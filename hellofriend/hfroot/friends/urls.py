@@ -59,6 +59,8 @@ urlpatterns = [
     # History/stats
     path('<int:friend_id>/categories/history/', users.views.UserCategoriesFriendHistoryAll.as_view()),
 
+    path('categories/history/capsules/', views.CompletedCapsulesHistoryView.as_view()),
+
 
 
     path('dropdown/location-parking-type-choices/', views.LocationParkingTypeChoices.as_view(), name='location-parking-type-choices'),

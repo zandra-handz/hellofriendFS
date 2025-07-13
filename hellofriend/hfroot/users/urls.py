@@ -16,6 +16,9 @@ urlpatterns = [
     path('categories/history/', views.UserCategoriesHistoryAll.as_view()),
     path('categories/history/summary/', views.UserCategoriesHistoryCapsuleIdsOnly.as_view()),
     path('categories/history/count/', views.UserCategoriesHistoryCountOnly.as_view()),
+   # this one is in friends app views because capsules belong to that app:
+   # path('categories/history/capsules/', views.UserCapsulesHistoryView.as_view()),
+
 
 
     

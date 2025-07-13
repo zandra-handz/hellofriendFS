@@ -11,6 +11,7 @@ from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, response, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.decorators import api_view, throttle_classes, authentication_classes, permission_classes
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
@@ -479,6 +480,39 @@ class CompletedThoughtCapsulesAll(generics.ListAPIView):
         return models.CompletedThoughtCapsulez.objects.filter(user=user, friend_id=friend_id)
 
 
+
+class MediumPagination(PageNumberPagination):
+    page_size = 30
+
+
+class CompletedCapsulesHistoryView(generics.ListAPIView):
+ 
+    serializer_class = serializers.CompletedThoughtCapsuleSerializer  # Or whatever serializer you use for capsules
+    permission_classes = [IsAuthenticated]
+    pagination_class = MediumPagination
+
+    def get_queryset(self):
+        user = self.request.user
+       
+
+        filters = {"user": user}
+
+        friend_id = self.request.query_params.get("friend_id")
+        user_category_id = self.request.query_params.get("user_category_id")
+
+        if friend_id:
+            filters["friend_id"] = friend_id
+        if user_category_id:
+            filters["user_category_id"] = user_category_id
+
+        return models.CompletedThoughtCapsulez.objects.filter(**filters).select_related(
+            "friend", "user", "hello", "user_category"
+        ).order_by("-created_on")  # Optional sorting
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['friend_id'] = self.request.query_params.get("friend_id")
+        return context
 
 class ThoughtCapsulesAll(generics.ListAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer
