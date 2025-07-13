@@ -10,6 +10,7 @@ from django.shortcuts import render
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, response, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
 
@@ -319,11 +320,13 @@ class UserCategoriesFriendHistoryAll(generics.ListAPIView):
         return context
 
 # on front end, add query parameter ?only_with_capsules=true to end of url to get only non-empty catagories
- 
+class MediumPagination(PageNumberPagination):
+    page_size = 30
 
 class UserCategoriesHistoryAll(generics.ListAPIView):
     serializer_class = serializers.UserCategoriesHistorySerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = MediumPagination
 
     def get_queryset(self):
         user = self.request.user
@@ -344,27 +347,23 @@ class UserCategoriesHistoryAll(generics.ListAPIView):
 
         capsule_qs = CompletedCapsule.objects.filter(**filters).select_related(
             "friend", "user", "hello", "user_category"
-        )
-
-
-        # capsule_qs = CompletedCapsule.objects.filter(user=user)
-        # if friend_id:
-        #     capsule_qs = capsule_qs.filter(friend_id=friend_id)
-
-        # if user_category_id:
-        #     capsule_qs = capsule_qs.filter(id=user_category_id)
-
-        # capsule_qs = capsule_qs.select_related("friend", "user", "hello", "user_category")
+        ) 
 
         qs = models.UserCategory.objects.filter(user=user).prefetch_related(
             Prefetch("completed_thought_capsules", queryset=capsule_qs, to_attr="prefetched_capsules")
         )
 
-        if only_with_capsules: 
-            # Return only UserCategories that have any prefetched capsules
-            qs = [uc for uc in qs if uc.prefetched_capsules]
-        else:
-            qs = qs.filter(completed_thought_capsules__user=user).distinct()
+        
+
+        if only_with_capsules:
+            qs = qs.annotate(capsule_count=Count('completed_thought_capsules', filter=Q(completed_thought_capsules__in=capsule_qs)))
+            qs = qs.filter(capsule_count__gt=0)
+
+        # if only_with_capsules: 
+        #     # Return only UserCategories that have any prefetched capsules
+        #     qs = [uc for uc in qs if uc.prefetched_capsules]
+        # else:
+        #     qs = qs.filter(completed_thought_capsules__user=user).distinct()
 
         return qs
 
