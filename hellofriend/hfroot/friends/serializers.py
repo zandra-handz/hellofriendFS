@@ -151,7 +151,7 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
         return FriendFavesSerializer(friend_faves_instance).data if friend_faves_instance else None
 
     def get_friend_addresses(self, obj):
-        addresses = getattr(obj.friend, 'addresses', None) or obj.friend.addresses.all()
+        addresses = getattr(obj.friend, 'addresses_cache', None) or obj.friend.addresses.all()
         return FriendAddressSerializer(addresses, many=True).data
 
 
