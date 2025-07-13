@@ -143,13 +143,13 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
     #     return FriendAddressSerializer(addresses, many=True).data
 
     def get_friend_faves(self, obj):
-        friend_faves_qs = getattr(obj.friend, 'friendfaves_set', None)
-        if friend_faves_qs:
-            friend_faves_instance = next(iter(friend_faves_qs.all()), None)
-        else:
-            friend_faves_instance = None
-        return FriendFavesSerializer(friend_faves_instance).data if friend_faves_instance else None
-
+        friend = obj.friend
+        try:
+            friend_faves_instance = friend.friendfaves  # This is the correct reverse OneToOneField accessor
+            return FriendFavesSerializer(friend_faves_instance).data
+        except models.FriendFaves.DoesNotExist:
+            return None
+        
     def get_friend_addresses(self, obj):
         addresses = getattr(obj.friend, 'addresses_cache', None) or obj.friend.addresses.all()
         return FriendAddressSerializer(addresses, many=True).data
