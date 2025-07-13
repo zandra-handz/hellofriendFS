@@ -129,18 +129,7 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
                   'time_score', 'future_date_in_words', 'category_activations_left', 
                   'suggestion_settings', 'friend_faves', 'friend_addresses', 'previous_meet_type']
 
-    # def get_friend_faves(self, obj):
-    #     friend = obj.friend  
-    #     friend_faves_instance = models.FriendFaves.objects.filter(friend=friend).first()
-    #     if friend_faves_instance:
-    #         return FriendFavesSerializer(instance=friend_faves_instance).data
-    #     else:
-    #         return None
-
-    # def get_friend_addresses(self, obj):
-    #     friend = obj.friend   
-    #     addresses = friend.addresses.all()   
-    #     return FriendAddressSerializer(addresses, many=True).data
+ 
 
     def get_friend_faves(self, obj):
         friend = obj.friend
