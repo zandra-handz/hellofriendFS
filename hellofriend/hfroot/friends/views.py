@@ -449,14 +449,14 @@ class UpcomingMeetsQuickView(generics.ListCreateAPIView):
 
  
         # get last update date, if today then do not re-update
-        update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
-        if update_tracker.last_upcoming_update != today:
-            expired_meets = models.NextMeet.objects.user_expired_dates(user)
-            for meet in expired_meets:
-                meet.save()
+        # update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
+        # if update_tracker.last_upcoming_update != today:
+        #     expired_meets = models.NextMeet.objects.user_expired_dates(user)
+        #     for meet in expired_meets:
+        #         meet.save()
 
-            # mark as last updated on today's date:
-            update_tracker.upcoming_updated()
+        #     # mark as last updated on today's date:
+        #     update_tracker.upcoming_updated()
 
  
         return models.NextMeet.objects.filter(user=user).select_related('friend')
