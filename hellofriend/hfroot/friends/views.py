@@ -434,6 +434,34 @@ class UpcomingMeetsLightView(generics.ListCreateAPIView):
 
         return queryset
 
+class UpcomingMeetsQuickView(generics.ListCreateAPIView):
+    serializer_class = serializers.UpcomingMeetsLightSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        today = timezone.now().date()
+
+
+        # expired_meets = models.NextMeet.objects.expired_dates().filter(user=user)
+        # for meet in expired_meets:
+        #     meet.save()
+
+ 
+        # get last update date, if today then do not re-update
+        update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
+        if update_tracker.last_upcoming_update != today:
+            expired_meets = models.NextMeet.objects.user_expired_dates(user)
+            for meet in expired_meets:
+                meet.save()
+
+            # mark as last updated on today's date:
+            update_tracker.upcoming_updated()
+
+ 
+        return models.NextMeet.objects.filter(user=user).select_related('friend')
+
+         
  
 
 class UpcomingMeetsAll48(generics.ListCreateAPIView):
