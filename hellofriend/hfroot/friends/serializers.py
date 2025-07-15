@@ -19,6 +19,12 @@ class FriendSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class FriendMiniSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Friend
+        fields = ['id', 'name']   
+
+
 class FriendSuggestionSettingsSerializer(serializers.ModelSerializer):
 
     class Meta():
@@ -183,7 +189,7 @@ class UpcomingMeetsSerializer(serializers.ModelSerializer):
 
 class UpcomingMeetsLightSerializer(serializers.ModelSerializer):
 
-    friend = FriendSerializer()
+    friend = FriendMiniSerializer()
 
     friend_name = serializers.CharField(source='friend.name')
     
