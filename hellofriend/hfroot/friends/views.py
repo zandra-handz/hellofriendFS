@@ -421,12 +421,17 @@ class UpcomingMeetsLightView(generics.ListCreateAPIView):
 
 
         ten_days_from_now = today + datetime.timedelta(days=10)
+
+        queryset = models.NextMeet.objects.filter(user=user, date__range=[today, ten_days_from_now]).select_related('friend')
+
         
-        queryset = models.NextMeet.objects.filter(user=user, date__range=[today, ten_days_from_now])
+        # queryset = models.NextMeet.objects.filter(user=user, date__range=[today, ten_days_from_now])
         if not queryset.exists():
             soonest_date = models.NextMeet.objects.filter(user=user, date__gt=ten_days_from_now).aggregate(Min('date'))['date__min']
             if soonest_date:
-                queryset = models.NextMeet.objects.filter(user=user, date=soonest_date)
+                # queryset = models.NextMeet.objects.filter(user=user, date=soonest_date)
+                queryset = models.NextMeet.objects.filter(user=user, date=soonest_date).select_related('friend')
+
         return queryset
 
  
