@@ -189,14 +189,15 @@ class UpcomingMeetsSerializer(serializers.ModelSerializer):
 
 class UpcomingMeetsLightSerializer(serializers.ModelSerializer):
 
-   # friend = FriendMiniSerializer()
+    friend = FriendMiniSerializer()
 
-    friend_name = serializers.CharField(source='friend.name') 
+   # friend_name = serializers.CharField(source='friend.name')
+    
     
     class Meta():
         model = models.NextMeet
-        fields = ['id', 'date', 'days_since', 'days_since_words', 
-                  'time_score', 'future_date_in_words', 'friend', 'friend_name']
+        fields = ['id', 'date', 'friend', 'days_since', 'days_since_words', 
+                  'time_score', 'future_date_in_words'] #, 'friend_name']
 
 
 
