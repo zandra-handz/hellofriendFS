@@ -755,6 +755,17 @@ class HelloesAll(generics.ListAPIView):
         friend_id = self.kwargs['friend_id'] 
         return models.PastMeet.objects.filter(user=user, friend_id=friend_id)
 
+class HelloesLightAll(generics.ListAPIView):
+    serializer_class = serializers.PastMeetLightSerializer
+    permissions_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id'] 
+        return models.PastMeet.objects.filter(user=user, friend_id=friend_id)
+
+
 
 class ImagesByCategoryView(APIView):
 

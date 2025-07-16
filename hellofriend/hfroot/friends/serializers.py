@@ -314,6 +314,16 @@ class PastMeetSerializer(serializers.ModelSerializer):
 
 
 
+class PastMeetLightSerializer(serializers.ModelSerializer):
+
+    class Meta():
+        model = models.PastMeet
+        fields = ['id', 'user', 
+                    'date', 'past_date_in_words' ]
+
+
+
+
 
 class PastMeetTypeChoicesSerializer(serializers.Serializer):
     type_choices = serializers.ListField(child=serializers.CharField())
