@@ -756,7 +756,14 @@ class HelloesAll(generics.ListAPIView):
         user = self.request.user
         friend_id = self.kwargs['friend_id'] 
         return models.PastMeet.objects.filter(user=user, friend_id=friend_id)
-
+    
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("nopaginate") == "true":
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return response.Response(serializer.data)
+        
+        return super().list(request, *args, **kwargs)
 class HelloesLightAll(generics.ListAPIView):
     serializer_class = serializers.PastMeetLightSerializer
     permission_classes = [IsAuthenticated]
