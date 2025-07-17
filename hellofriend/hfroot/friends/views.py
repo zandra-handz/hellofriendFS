@@ -18,6 +18,8 @@ from rest_framework.views import APIView
 
 from .utils import Distance, NearbyDetails, PlaceDetailsFetcher, GeocodingFetcher
 
+class MediumPagination(PageNumberPagination):
+    page_size = 30
 
 # Create your views here.
 def index(request):
@@ -110,7 +112,7 @@ class FriendAddressesAll(generics.ListAPIView):
 
 class FriendAddressesValidated(generics.ListAPIView):
     serializer_class = serializers.FriendAddressSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
 
     def get_queryset(self):
@@ -519,8 +521,7 @@ class CompletedThoughtCapsulesAll(generics.ListAPIView):
 
 
 
-class MediumPagination(PageNumberPagination):
-    page_size = 30
+ 
 
 
 class CompletedCapsulesHistoryView(generics.ListAPIView):
@@ -607,7 +608,7 @@ class ThoughtCapsulesByCategory(generics.ListAPIView):
 
 class ThoughtCapsuleCreate(generics.ListCreateAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
@@ -747,8 +748,9 @@ class ImageDetail(generics.RetrieveUpdateDestroyAPIView):
 
 class HelloesAll(generics.ListAPIView):
     serializer_class = serializers.PastMeetSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
+    pagination_class = MediumPagination
 
     def get_queryset(self):
         user = self.request.user
@@ -757,7 +759,7 @@ class HelloesAll(generics.ListAPIView):
 
 class HelloesLightAll(generics.ListAPIView):
     serializer_class = serializers.PastMeetLightSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
 
     def get_queryset(self):
@@ -793,7 +795,7 @@ class ImagesByCategoryView(APIView):
 
 class HelloCreate(generics.ListCreateAPIView):
     serializer_class = serializers.PastMeetSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
@@ -850,7 +852,7 @@ class HelloTypeChoices(APIView):
 
 class UserLocationsAll(generics.ListAPIView):
     serializer_class = serializers.LocationSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
@@ -867,7 +869,7 @@ class LocationParkingTypeChoices(APIView):
 
 class UserLocationsValidated(generics.ListAPIView):
     serializer_class = serializers.LocationSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
@@ -884,7 +886,7 @@ class UserLocationCreate(generics.CreateAPIView):
 
 class FriendLocationsAll(generics.ListAPIView):
     serializer_class = serializers.LocationSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
 
     def get_queryset(self):
@@ -899,7 +901,7 @@ Not finished -- need to be for Location model
 
 class ThoughtCapsuleCreate(generics.ListCreateAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
