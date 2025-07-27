@@ -815,7 +815,7 @@ class CompletedThoughtCapsulez(models.Model):
     friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     hello = models.ForeignKey('friends.PastMeet', on_delete=models.CASCADE, related_name='completed_capsules')
-
+    time_score = models.PositiveIntegerField(default=0)
     capsule = models.CharField(max_length=10000)
     # Connect an image (won't get saved in PastMeet, this is not a scrapbook) via the image model thought_capsule field
     created_on = models.DateTimeField(auto_now_add=True) 
@@ -1082,33 +1082,22 @@ class PastMeet(models.Model):
 
         if self.thought_capsules_shared:
 
+            today = datetime.datetime.today().date()
+
             processed_categories = set()  # Set to keep track of processed categories
             for capsule_id, capsule_data in self.thought_capsules_shared.items():
            
-                try:
-                    # capsule_shared_with_friend = ThoughtCapsulez.objects.get(id=capsule_id)
-
-                    # user_category_id = capsule_shared_with_friend.user_category  # string ID or None
-                    # associated_category = None
-
-                    # if user_category_id:
-                    #     try:
-                    #         associated_category = UserCategory.objects.get(id=user_category_id)
-                    #     except UserCategory.DoesNotExist:
-                    #         associated_category = None
-
-                    # completed_capsule = CompletedThoughtCapsulez.objects.create(
-                    #     original_id=str(capsule_shared_with_friend.id),
-                    #     friend=self.friend,
-                    #     user=self.user,
-                    #     hello=self, 
-                    #     capsule=capsule_shared_with_friend.capsule,
-                    #     user_category=associated_category,
-                    #     user_category_original_name=associated_category.name if associated_category else None
-                    # )
+                try: 
                     capsule_shared_with_friend = ThoughtCapsulez.objects.get(id=capsule_id)
 
                     associated_category = capsule_shared_with_friend.user_category  # Already the UserCategory instance or None
+                    
+             
+                    days_difference = (today - capsule_shared_with_friend.updated_on.date()).days
+                    
+
+                    time_score = int(days_difference) if days_difference is not None else 0
+
 
                     completed_capsule = CompletedThoughtCapsulez.objects.create(
                         original_id=str(capsule_shared_with_friend.id),
@@ -1116,6 +1105,7 @@ class PastMeet(models.Model):
                         user=self.user,
                         hello=self,
                         capsule=capsule_shared_with_friend.capsule,
+                        time_score=time_score,
                         user_category=associated_category,
                         user_category_original_name=associated_category.name if associated_category else None
                     )
