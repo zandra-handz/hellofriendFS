@@ -161,8 +161,12 @@ class UserCategoriesHistoryCapsuleIdsSerializer(serializers.ModelSerializer):
         return [c.id for c in capsules]
 
 
-class UserSettingsSerializer(serializers.ModelSerializer):
-    # user_categories = serializers.SerializerMethodField()
+class UserSettingsSerializer(serializers.ModelSerializer): 
+
+    def validate_user_default_category(self, value): 
+        if value and value.user != self.context['request'].user:
+            raise serializers.ValidationError("Default category must belong to the authenticated user.")
+        return value
 
     class Meta:
         model = models.UserSettings
@@ -175,15 +179,24 @@ class UserSettingsSerializer(serializers.ModelSerializer):
             'screen_reader',
             'manual_dark_mode',
             'expo_push_token',
-            # 'user_categories'
+            'user_default_category',
         ]
 
-    # def get_user_categories(self, obj):
-    #     categories = getattr(obj.user, '_prefetched_user_categories_cache', None)
-    #     if categories is None:
-    #         categories = obj.user.user_categories.all()
-    #     return UserCategorySerializer(categories, many=True).data
-
+    # class Meta:
+    #     model = models.UserSettings
+    #     fields = [
+    #         'receive_notifications',
+    #         'simplify_app_for_focus',
+    #         'language_preference',
+    #         'large_text',
+    #         'high_contrast_mode',
+    #         'screen_reader',
+    #         'manual_dark_mode',
+    #         'expo_push_token',
+    #         'user_default_category',
+ 
+    #     ]
+ 
 
 
 # class BadRainbowzUserSerializer(serializers.ModelSerializer):

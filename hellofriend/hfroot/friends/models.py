@@ -489,6 +489,7 @@ class FriendFaves(models.Model):
 
     friend = models.OneToOneField(Friend, on_delete=models.CASCADE)
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+
     locations = models.ManyToManyField('friends.Location', blank=True)
     
     dark_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the dark theme")
@@ -500,6 +501,8 @@ class FriendFaves(models.Model):
     use_friend_color_theme = models.BooleanField(null=True, blank=True)
     second_color_option = models.BooleanField(default=False, null=True, blank=True)
 
+
+    friend_default_category = models.OneToOneField('users.UserCategory', null=True, blank=True, on_delete=models.SET_NULL)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
