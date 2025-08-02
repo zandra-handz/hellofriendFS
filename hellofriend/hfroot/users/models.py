@@ -285,7 +285,7 @@ class UserSettings(models.Model):
     screen_reader = models.BooleanField(default=False)
     manual_dark_mode = models.BooleanField(null=True, blank=True)
     expo_push_token = models.CharField(max_length=255, null=True, blank=True) 
-    user_default_category = models.OneToOneField(UserCategory, null=True, blank=True, on_delete=models.SET_NULL)
+    user_default_category = models.ForeignKey(UserCategory, null=True, blank=True, on_delete=models.SET_NULL)
 
     class Meta:
         verbose_name = "User settings"
