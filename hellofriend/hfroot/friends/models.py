@@ -502,7 +502,13 @@ class FriendFaves(models.Model):
     second_color_option = models.BooleanField(default=False, null=True, blank=True)
 
 
-    friend_default_category = models.OneToOneField('users.UserCategory', null=True, blank=True, on_delete=models.SET_NULL)
+    friend_default_category = models.ForeignKey(
+        'users.UserCategory', 
+        null=True, 
+        blank=True, 
+        on_delete=models.SET_NULL,
+        related_name="friend_faves"  # optional but useful for reverse lookups
+    )
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
