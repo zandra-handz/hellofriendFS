@@ -1,9 +1,14 @@
+
+from django.apps import apps
+from django.core.exceptions import ValidationError
+
 from django.db import models
 # import friends.models could cause circular import because this file imports users. using 'friends.ThoughtCapsulez' and 'friends.Image' below instead
 
 # Create your models here.
 from datetime import datetime
 from . import utils
+ 
 
 
 def format_date(dt):
@@ -212,9 +217,24 @@ class UserCategory(models.Model):
         self.full_clean() # runs all validation checks on model, beyond the ones added in clean()
         super().save(*args, **kwargs)
 
+    # def delete(self, *args, **kwargs):
+    #     if not self.is_deletable:
+    #         raise ValidationError("This category cannot be deleted.")
+    #     super().delete(*args, **kwargs)
+
     def delete(self, *args, **kwargs):
         if not self.is_deletable:
             raise ValidationError("This category cannot be deleted.")
+
+        # Avoid circular import by fetching model dynamically
+        ThoughtCapsulez = apps.get_model('friends', 'ThoughtCapsulez')
+
+        # Get or create the 'Grab bag' for this user
+        grab_bag, _ = UserCategory.get_or_create_grab_bag_category(self.user)
+
+        # Reassign all related thought capsules to the Grab bag
+        ThoughtCapsulez.objects.filter(user_category=self).update(user_category=grab_bag)
+
         super().delete(*args, **kwargs)
 
 
