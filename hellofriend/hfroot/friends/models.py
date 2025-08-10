@@ -243,6 +243,32 @@ class FriendAddress(models.Model):
     def __str__(self):
         return f"Friend address: {self.address}, validated: {self.validated_address}"
 
+class VoidedMeet(models.Model):
+    id = models.UUIDField(primary_key = True, default = uuid.uuid4, editable = False) # to match PastMeets because I will be querying the two models together
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+    friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
+    date = models.DateField(null=True, blank=True) #why is this null and blank?
+    manual_reset = models.BooleanField(default=False)
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True, null=True, blank=True)
+
+    class Meta:
+        ordering = ('-date', '-created_on',)
+        indexes = [
+            models.Index(fields=['user', 'friend']), # might remove in future because friend object in this app doesn't exist outside of user
+            models.Index(fields=['friend', '-date']), 
+        ]
+
+    @property
+    def past_date_in_words(self):
+        date = self.date
+        l = calendar.day_name[date.weekday()]
+        p = date.strftime("%B") + " " + str(date.day)
+        s = date.strftime("%Y")
+        words = f"{l}, {p}" #, {s}"
+        return words
+
+
 
 
 # All this knows is the friend it is connected to, the settings, and the last meet up it is connected to
@@ -252,8 +278,11 @@ class NextMeet(models.Model):
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     date = models.DateField(default=get_yesterday)
     # NOT DONE YET MIGHT MAKE SEPARATE TABLE INSTEAD IF WRITE TIME ISN'T TOO BAD
+    # void_count
+    # last_voided_date 
     # miss_count = models.PositiveIntegerField(default=0)
-    # miss_dates = [array of DateTime]
+    # last_missed_date = models.DateTimeField   (this would be the creation date of the last saved Voided)
+    # 
     previous = models.ForeignKey('friends.PastMeet', on_delete=models.SET_NULL, null=True, blank=True)
     updated_on = models.DateTimeField(auto_now=True)
 
