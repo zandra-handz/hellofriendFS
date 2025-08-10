@@ -311,6 +311,18 @@ class VoidedMeetLightSerializer(serializers.ModelSerializer):
                     'date', 'past_date_in_words' ]
 
 
+# class CombinedMeetLightSerializer(serializers.Serializer):
+#     id = serializers.UUIDField()
+#     user = serializers.PrimaryKeyRelatedField(read_only=True)
+#     date = serializers.DateField()
+#     past_date_in_words = serializers.CharField()
+
+#     def to_representation(self, instance):
+#         # This will call the property 'past_date_in_words' from both models
+#         rep = super().to_representation(instance)
+#         rep['past_date_in_words'] = instance.past_date_in_words
+#         return rep
+
 
 class PastMeetSerializer(serializers.ModelSerializer):
 

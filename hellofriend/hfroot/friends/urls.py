@@ -33,6 +33,7 @@ urlpatterns = [
     path('<int:friend_id>/images/add/', views.ImageCreate.as_view()),
     path('<int:friend_id>/image/<int:pk>/', views.ImageDetail.as_view()),
     path('<int:friend_id>/categories/', views.CategoriesView.as_view()),
+    path('<int:friend_id>/combinedhelloes/summary/', views.CombinedHelloesLightAll.as_view()),
     path('<int:friend_id>/voidedhelloes/summary/', views.VoidedHelloesLightAll.as_view()),
     path('<int:friend_id>/helloes/summary/', views.HelloesLightAll.as_view()),
     path('<int:friend_id>/helloes/', views.HelloesAll.as_view()),

@@ -787,6 +787,34 @@ class HelloesLightAll(generics.ListAPIView):
         return models.PastMeet.objects.filter(user=user, friend_id=friend_id)
 
 
+from itertools import chain
+from operator import attrgetter
+class CombinedHelloesLightAll(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Same as above: combined sorted list
+        user = self.request.user
+        friend_id = self.kwargs['friend_id']
+
+        past_meets = list(models.PastMeet.objects.filter(user=user, friend_id=friend_id))
+        voided_meets = list(models.VoidedMeet.objects.filter(user=user, friend_id=friend_id))
+
+        combined = sorted(chain(past_meets, voided_meets), key=attrgetter('date'))
+        return combined
+
+    def get_serializer(self, *args, **kwargs):
+        instance = kwargs.get('instance', None)
+        if instance:
+            if isinstance(instance, models.PastMeet):
+                serializer_class = serializers.PastMeetLightSerializer
+            elif isinstance(instance, models.VoidedMeet):
+                serializer_class = serializers.VoidedMeetLightSerializer
+            else:
+                serializer_class = serializers.PastMeetLightSerializer  # fallback
+            kwargs['context'] = self.get_serializer_context()
+            return serializer_class(*args, **kwargs)
+        return super().get_serializer(*args, **kwargs)
 
 class ImagesByCategoryView(APIView):
 
