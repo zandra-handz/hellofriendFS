@@ -308,7 +308,7 @@ class VoidedMeetLightSerializer(serializers.ModelSerializer):
     class Meta():
         model = models.VoidedMeet
         fields = ['id', 'user', 
-                    'date', 'past_date_in_words' ]
+                    'date', 'past_date_in_words', 'manual_reset' ]
 
 
 # class CombinedMeetLightSerializer(serializers.Serializer):
