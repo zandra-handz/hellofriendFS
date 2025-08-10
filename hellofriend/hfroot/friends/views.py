@@ -800,7 +800,12 @@ class CombinedHelloesLightAll(generics.ListAPIView):
         past_meets = list(models.PastMeet.objects.filter(user=user, friend_id=friend_id))
         voided_meets = list(models.VoidedMeet.objects.filter(user=user, friend_id=friend_id))
 
-        combined = sorted(chain(past_meets, voided_meets), key=attrgetter('date'))
+        #combined = sorted(chain(past_meets, voided_meets), key=attrgetter('date'))
+        combined = sorted(
+            chain(past_meets, voided_meets),
+            key=attrgetter('date'),
+            reverse=True
+        )
         return combined
 
     def list(self, request, *args, **kwargs):
