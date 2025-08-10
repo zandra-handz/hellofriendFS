@@ -277,12 +277,13 @@ class NextMeet(models.Model):
     friend_suggestion_settings = models.OneToOneField(FriendSuggestionSettings, on_delete=models.CASCADE, editable=False, related_name='next_meet_friend_suggestion_settings')
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     date = models.DateField(default=get_yesterday)
-    # NOT DONE YET MIGHT MAKE SEPARATE TABLE INSTEAD IF WRITE TIME ISN'T TOO BAD
-    # void_count
-    # last_voided_date 
-    # miss_count = models.PositiveIntegerField(default=0)
-    # last_missed_date = models.DateTimeField   (this would be the creation date of the last saved Voided)
-    # 
+    # includes manual resets 
+    void_count = models.PositiveIntegerField(default=0)
+    last_voided_date = models.DateField(null=True, blank=True)
+    # TRUE MISSES, does not include manual resets
+    miss_count = models.PositiveIntegerField(default=0) 
+    last_missed_date = models.DateField(null=True, blank=True)   
+ 
     previous = models.ForeignKey('friends.PastMeet', on_delete=models.SET_NULL, null=True, blank=True)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -397,13 +398,13 @@ class NextMeet(models.Model):
  
       
         
-    # This is probably the first 'algorithm' I ever wrote and I do not have the energy or moral fortitude to sift through this chaos at this time I'm so sorry! Soon
-
-    def create_new_date_if_needed(self):
+    # This is probably the first 'algorithm' I ever wrote in my life and I do not have the energy or moral fortitude to ~refactor~ it at this time I'm sorry
+    # VOIDED MEETS ARE CREATED HRE AND ONLY HERE
+    def create_new_date_if_needed(self, manual_reset=False):
         if self.date < datetime.date.today():
 
             days_since = self.days_since
-            if days_since is not None:  # Check if days_since is not None
+            if days_since is not None:  
                 days = int(days_since)
             else:
                 days = 7
@@ -432,7 +433,25 @@ class NextMeet(models.Model):
             x = x + y
             x = float(x)
             end_date = datetime.date.today() + datetime.timedelta(days=x)
+
+ 
+            VoidedMeet.objects.create(
+                user=self.user,
+                friend=self.friend,
+                date=self.date,
+                manual_reset=manual_reset,
+            )
+
+            if not manual_reset:
+                self.miss_count += 1
+                self.last_missed_date = self.date
+
+            self.void_count += 1
+            self.last_voided_date = self.date
+
+
             self.date = end_date
+
             return end_date
 
 
@@ -441,7 +460,7 @@ class NextMeet(models.Model):
         date = self.date
         l = calendar.day_name[date.weekday()]
         p = date.strftime("%B") + " " + str(date.day)
-        s = date.strftime("%Y")
+        # s = date.strftime("%Y")
         words = f"{l}, {p}" #, {s}"
         return words
 
@@ -512,7 +531,7 @@ class NextMeet(models.Model):
         most_recent_past_meet = PastMeet.objects.filter(friend=self.friend).order_by('-date').first()
         self.previous = most_recent_past_meet
         
-        self.create_new_date_if_needed()
+        self.create_new_date_if_needed() #does nothing if date not needed
         super().save(*args, **kwargs)
 
     def __str__(self):

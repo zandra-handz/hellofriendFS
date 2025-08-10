@@ -325,7 +325,7 @@ def remix_all_next_meets(request):
 
     for next_meet in next_meets:
         next_meet.reset_date()
-        next_meet.create_new_date_if_needed()
+        next_meet.create_new_date_if_needed(manual_reset=True)
         next_meet.save()
 
     return response.Response({"message": "All next meets have been remixed successfully."})
@@ -745,6 +745,18 @@ class ImageDetail(generics.RetrieveUpdateDestroyAPIView):
             "id": id 
         }, status=200)
 
+
+
+class VoidedHelloesLightAll(generics.ListAPIView):
+    serializer_class = serializers.VoidedMeetLightSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id'] 
+        return models.VoidedMeet.objects.filter(user=user, friend_id=friend_id)
+    
 
 class HelloesAll(generics.ListAPIView):
     serializer_class = serializers.PastMeetSerializer

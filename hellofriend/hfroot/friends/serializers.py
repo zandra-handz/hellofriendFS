@@ -197,7 +197,8 @@ class UpcomingMeetsLightSerializer(serializers.ModelSerializer):
     class Meta():
         model = models.NextMeet
         fields = ['id', 'date', 'friend', 'days_since', 'days_since_words', 
-                  'time_score', 'future_date_in_words'] #, 'friend_name']
+                  'time_score', 'future_date_in_words', 'void_count', 'last_voided_date',
+                  'miss_count', 'last_missed_date'] #, 'friend_name']
 
 
 
@@ -302,6 +303,12 @@ class UpdatesTrackerSerializer(serializers.ModelSerializer):
         model = models.UpdatesTracker
         fields = '__all__'
 
+class VoidedMeetLightSerializer(serializers.ModelSerializer):
+
+    class Meta():
+        model = models.VoidedMeet
+        fields = ['id', 'user', 
+                    'date', 'past_date_in_words' ]
 
 
 
