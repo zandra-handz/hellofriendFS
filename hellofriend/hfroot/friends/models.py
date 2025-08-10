@@ -243,12 +243,17 @@ class FriendAddress(models.Model):
     def __str__(self):
         return f"Friend address: {self.address}, validated: {self.validated_address}"
 
+
+
 # All this knows is the friend it is connected to, the settings, and the last meet up it is connected to
 class NextMeet(models.Model):
     friend = models.OneToOneField(Friend, on_delete=models.CASCADE, editable=False, related_name='next_meet_friend')
     friend_suggestion_settings = models.OneToOneField(FriendSuggestionSettings, on_delete=models.CASCADE, editable=False, related_name='next_meet_friend_suggestion_settings')
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     date = models.DateField(default=get_yesterday)
+    # NOT DONE YET MIGHT MAKE SEPARATE TABLE INSTEAD IF WRITE TIME ISN'T TOO BAD
+    # miss_count = models.PositiveIntegerField(default=0)
+    # miss_dates = [array of DateTime]
     previous = models.ForeignKey('friends.PastMeet', on_delete=models.SET_NULL, null=True, blank=True)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -899,8 +904,10 @@ class PastMeet(models.Model):
         ordering = ('-date', '-created_on',)
         indexes = [
             models.Index(fields=['user', 'friend']), # might remove in future because friend object in this app doesn't exist outside of user
-            models.Index(fields=['friend']),
+            models.Index(fields=['friend', '-date']), 
         ]
+
+        
 
 
     def is_earliest_for_friend(self): 
