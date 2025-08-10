@@ -117,7 +117,7 @@ WSGI_APPLICATION = 'hfroot.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-
+''' 
 
 DATABASES = {
     'default': {
@@ -127,7 +127,6 @@ DATABASES = {
 }
  
 
-'''
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -155,16 +154,21 @@ DATABASES = {
     }
 }
   
+'''
 
-
-# to run in local/test, just switch to sqlite above, already has admin and 2 friends
+# to run in local/test, just switch to sqlite above (or copy-paste localsettings.py temporarily), already has admin and 2 friends
 # cd hellofriend, venv\Scripts\Activate, cd hfroot, run server
 # after changes, run makemigration and migrate
 # cd.. to hellofriendFs, push changes and migration file to git
 # in digital ocean server, go to top level (hellofriendFS) and git pull origin main
-# cd to hellofriend, activate env, cd to hfroot and run migrate (and collectstatic?)
+# cd to hellofriend, source venv/bin/activate, cd to hfroot and run migrate (and collectstatic?)
 # then restart gunicorn and nginx and verify status (don't need to restart socket)
 # (sudo systemctl restart nginx, sudo systemctl restart gunicorn  )
+
+
+# other:
+# nginx config on digital ocean: sudo nano /etc/nginx/sites-available/badrainbowz.com
+# verify nginx changes are okay: sudo nginx -t
 DATABASES = {
     'default': {
         "ENGINE": 'django.db.backends.postgresql',
@@ -176,7 +180,6 @@ DATABASES = {
     }
 } 
    
-'''
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
