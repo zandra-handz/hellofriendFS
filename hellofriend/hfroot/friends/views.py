@@ -791,9 +791,9 @@ from itertools import chain
 from operator import attrgetter
 class CombinedHelloesLightAll(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = serializers.PastMeetLightSerializer  # default fallback
 
     def get_queryset(self):
-        # Same as above: combined sorted list
         user = self.request.user
         friend_id = self.kwargs['friend_id']
 
@@ -803,19 +803,18 @@ class CombinedHelloesLightAll(generics.ListAPIView):
         combined = sorted(chain(past_meets, voided_meets), key=attrgetter('date'))
         return combined
 
-    def get_serializer(self, *args, **kwargs):
-        instance = kwargs.get('instance', None)
-        if instance:
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serialized_data = []
+        for instance in queryset:
             if isinstance(instance, models.PastMeet):
-                serializer_class = serializers.PastMeetLightSerializer
+                serializer = serializers.PastMeetLightSerializer(instance, context=self.get_serializer_context())
             elif isinstance(instance, models.VoidedMeet):
-                serializer_class = serializers.VoidedMeetLightSerializer
+                serializer = serializers.VoidedMeetLightSerializer(instance, context=self.get_serializer_context())
             else:
-                serializer_class = serializers.PastMeetLightSerializer  # fallback
-            kwargs['context'] = self.get_serializer_context()
-            return serializer_class(*args, **kwargs)
-        return super().get_serializer(*args, **kwargs)
-
+                serializer = serializers.PastMeetLightSerializer(instance, context=self.get_serializer_context())
+            serialized_data.append(serializer.data)
+        return response.Response(serialized_data)
 class ImagesByCategoryView(APIView):
 
     # For testing
