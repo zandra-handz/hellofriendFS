@@ -9,9 +9,10 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, response, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import UserRateThrottle 
 
 
 from rest_framework.views import APIView 
@@ -19,6 +20,10 @@ from rest_framework.views import APIView
 from django.conf import settings
 
 # Create your views here.
+
+
+class TenPerMinuteUserThrottle(UserRateThrottle):
+    rate = '10/min'
 
 class CreateUserView(generics.CreateAPIView):
 

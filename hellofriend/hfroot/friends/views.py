@@ -26,6 +26,13 @@ def index(request):
     return render(request, 'index.html', {})
 
 
+class TenPerMinuteUserThrottle(UserRateThrottle):
+    rate = '10/min'
+
+class FivePerMinuteUserThrottle(UserRateThrottle):
+    rate = '5/min'
+
+
 class FriendsView(generics.ListAPIView):
     serializer_class = serializers.FriendSerializer
     permission_classes = [IsAuthenticated]
@@ -334,6 +341,7 @@ def remix_all_next_meets(request):
 class FriendDashboardView(generics.ListAPIView):
     serializer_class = serializers.FriendDashboardSerializer
     permission_classes = [IsAuthenticated]
+    throttle_classes = [FivePerMinuteUserThrottle]
     lookup_url_kwarg = 'friend_id'
 
     # def get_queryset(self):
