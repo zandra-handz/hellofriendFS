@@ -337,7 +337,7 @@ class PastMeetLightSerializer(serializers.ModelSerializer):
 
     class Meta():
         model = models.PastMeet
-        fields = ['id', 'user', 
+        fields = ['id', 'user', 'type',
                     'date', 'past_date_in_words' ]
 
 
