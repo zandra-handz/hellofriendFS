@@ -357,9 +357,11 @@ class FriendDashboardView(generics.ListAPIView):
             'friend__friendfaves',                # OneToOneField to FriendFaves (where no related name is set, hence friendfaves instead of friend_faves)
             'friend_suggestion_settings',         # FK to FriendSuggestionSettings
             'previous',                           # FK to PastMeet
-        ).prefetch_related(
-            'friend__addresses',                  # Reverse FK: friend.addresses.all()
         )
+    
+    # .prefetch_related(
+    #         'friend__addresses',                  # Reverse FK: friend.addresses.all()
+    #     )
     
 
 

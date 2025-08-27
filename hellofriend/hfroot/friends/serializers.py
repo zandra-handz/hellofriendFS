@@ -122,7 +122,7 @@ class NextMeetSerializer(serializers.ModelSerializer):
 class FriendDashboardSerializer(serializers.ModelSerializer):
     suggestion_settings = FriendSuggestionSettingsSerializer(source='friend_suggestion_settings', read_only=True)
     friend_faves = serializers.SerializerMethodField()
-    friend_addresses = serializers.SerializerMethodField()
+    # friend_addresses = serializers.SerializerMethodField()
     name = serializers.CharField(source='friend.name')
     first_name = serializers.CharField(source='friend.first_name')
     last_name = serializers.CharField(source='friend.last_name') 
@@ -131,9 +131,12 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.NextMeet
-        fields = ['id', 'date', 'name', 'first_name', 'last_name', 'first_meet_entered', 'days_since', 'days_since_words', 
+        fields = ['id', 'date', 'name', 'first_meet_entered', 'days_since', 'days_since_words', 
                   'time_score', 'future_date_in_words', 'category_activations_left', 
-                  'suggestion_settings', 'friend_faves', 'friend_addresses', 'previous_meet_type']
+                  'suggestion_settings', 'friend_faves',
+                    # 'first_name', 'last_name',  # not in use (yet)
+                    #'friend_addresses',  # getting through a separate fetch on front end
+                  'previous_meet_type']
 
  
 
@@ -145,9 +148,9 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
         except models.FriendFaves.DoesNotExist:
             return None
         
-    def get_friend_addresses(self, obj):
-        addresses = getattr(obj.friend, 'addresses_cache', None) or obj.friend.addresses.all()
-        return FriendAddressSerializer(addresses, many=True).data
+    # def get_friend_addresses(self, obj):
+    #     addresses = getattr(obj.friend, 'addresses_cache', None) or obj.friend.addresses.all()
+    #     return FriendAddressSerializer(addresses, many=True).data
 
 
 
