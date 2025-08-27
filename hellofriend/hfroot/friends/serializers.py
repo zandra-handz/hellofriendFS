@@ -124,8 +124,8 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
     friend_faves = serializers.SerializerMethodField()
     # friend_addresses = serializers.SerializerMethodField()
     name = serializers.CharField(source='friend.name')
-    first_name = serializers.CharField(source='friend.first_name')
-    last_name = serializers.CharField(source='friend.last_name') 
+    # first_name = serializers.CharField(source='friend.first_name')
+    # last_name = serializers.CharField(source='friend.last_name') 
     first_meet_entered = serializers.DateField(source='friend.first_meet_entered')
     previous_meet_type = serializers.CharField(source='previous.type', read_only=True)  
 
@@ -133,10 +133,10 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
         model = models.NextMeet
         fields = ['id', 'date', 'name', 'first_meet_entered', 'days_since', 'days_since_words', 
                   'time_score', 'future_date_in_words', 'category_activations_left', 
-                  'suggestion_settings', 'friend_faves',
+                  'suggestion_settings', 'friend_faves', 'previous_meet_type']
                     # 'first_name', 'last_name',  # not in use (yet)
                     #'friend_addresses',  # getting through a separate fetch on front end
-                  'previous_meet_type']
+                
 
  
 
