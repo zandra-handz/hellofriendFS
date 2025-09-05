@@ -462,15 +462,33 @@ class UserCategoryDetail(generics.RetrieveUpdateDestroyAPIView):
 
 
 
-class UserAddressesAll(generics.ListAPIView):
+# class UserAddressesAll(generics.ListAPIView):
+#     serializer_class = serializers.UserAddressSerializer
+#     permissions_classes = [IsAuthenticated]
+
+#     def get_queryset(self):
+#         user = self.request.user
+#         return models.UserAddress.objects.filter(user=user)
+
+
+class UserAddressesAll(generics.GenericAPIView):
     serializer_class = serializers.UserAddressSerializer
-    permissions_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
-    def get_queryset(self):
-        user = self.request.user
-        return models.UserAddress.objects.filter(user=user)
+    def get(self, request, *args, **kwargs):
+        user = request.user
 
+        # Fetch saved addresses
+        saved_qs = models.UserAddress.objects.filter(user=user)
+        saved = serializers.UserAddressSerializer(saved_qs, many=True).data
 
+        # Return full structured response
+        return response.Response({
+            "saved": saved,
+            "temp": [],      # empty initially
+            "chosen": None   # empty initially
+        }, status=status.HTTP_200_OK)
+    
 class UserAddressesValidated(generics.ListAPIView):
     serializer_class = serializers.UserAddressSerializer
     permissions_classes = [IsAuthenticated]
