@@ -106,16 +106,36 @@ class FriendDetail(generics.RetrieveUpdateDestroyAPIView):
             "id": id 
         }, status=200)
 
-class FriendAddressesAll(generics.ListAPIView):
+# class FriendAddressesAll(generics.ListAPIView):
+#     serializer_class = serializers.FriendAddressSerializer
+#     permission_classes = [IsAuthenticated]
+#     lookup_url_kwarg = 'friend_id'
+
+#     def get_queryset(self):
+#         user = self.request.user
+#         friend_id = self.kwargs['friend_id']
+#         return models.FriendAddress.objects.filter(user=user, friend_id=friend_id)
+
+
+class FriendAddressesAll(generics.GenericAPIView):
     serializer_class = serializers.FriendAddressSerializer
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
 
-    def get_queryset(self):
-        user = self.request.user
+    def get(self, request, *args, **kwargs):
+        user = request.user
         friend_id = self.kwargs['friend_id']
-        return models.FriendAddress.objects.filter(user=user, friend_id=friend_id)
 
+        # Fetch saved addresses
+        saved_qs = models.FriendAddress.objects.filter(user=user, friend_id=friend_id)
+        saved = serializers.FriendAddressSerializer(saved_qs, many=True).data
+
+        # Return full structured response
+        return response.Response({
+            "saved": saved,
+            "temp": [],      # empty for now
+            "chosen": None   # empty for now
+        }, status=status.HTTP_200_OK)
 
 class FriendAddressesValidated(generics.ListAPIView):
     serializer_class = serializers.FriendAddressSerializer
