@@ -245,6 +245,20 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
     #     return UserCategorySerializer(categories, many=True).data
 
 
+class CreateBadRainbowzUserSerializer(serializers.ModelSerializer):
+    profile = UserProfileSerializer(required=False)
+    #settings = UserSettingsSerializer(required=False)
+    # user_categories = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.BadRainbowzUser
+        fields = [ 
+           
+            'username', 'password', 'email', 'phone_number', 'addresses',
+            'profile' #,  'settings'
+        ]
+        extra_kwargs = {"password": {"write_only": True}}
+
 
 class PasswordResetCodeValidationSerializer(serializers.Serializer):
     email = serializers.EmailField()

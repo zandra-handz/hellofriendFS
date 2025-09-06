@@ -130,11 +130,12 @@ class FriendAddressesAll(generics.GenericAPIView):
         saved_qs = models.FriendAddress.objects.filter(user=user, friend_id=friend_id)
         saved = serializers.FriendAddressSerializer(saved_qs, many=True).data
 
-        # Return full structured response
+        # TEMP AND CHOSEN ARE JUST STORAGE PLACES FOR FRONT END TANSTACK
+        # DO NOT REFACTOR
         return response.Response({
             "saved": saved,
-            "temp": [],      # empty for now
-            "chosen": None   # empty for now
+            "temp": [],     
+            "chosen": None   
         }, status=status.HTTP_200_OK)
 
 class FriendAddressesValidated(generics.ListAPIView):

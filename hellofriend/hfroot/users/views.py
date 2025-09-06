@@ -28,7 +28,7 @@ class TenPerMinuteUserThrottle(UserRateThrottle):
 class CreateUserView(generics.CreateAPIView):
 
     queryset = models.BadRainbowzUser.objects.all()
-    serializer_class = serializers.BadRainbowzUserSerializer
+    serializer_class = serializers.CreateBadRainbowzUserSerializer
     permission_classes = [AllowAny]
 
 
@@ -482,11 +482,12 @@ class UserAddressesAll(generics.GenericAPIView):
         saved_qs = models.UserAddress.objects.filter(user=user)
         saved = serializers.UserAddressSerializer(saved_qs, many=True).data
 
-        # Return full structured response
+        # TEMP AND CHOSEN ARE JUST STORAGE PLACES FOR FRONT END TANSTACK
+        # DO NOT REFACTOR
         return response.Response({
             "saved": saved,
-            "temp": [],      # empty initially
-            "chosen": None   # empty initially
+            "temp": [],       
+            "chosen": None 
         }, status=status.HTTP_200_OK)
     
 class UserAddressesValidated(generics.ListAPIView):
