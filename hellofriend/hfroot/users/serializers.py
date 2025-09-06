@@ -257,7 +257,27 @@ class CreateBadRainbowzUserSerializer(serializers.ModelSerializer):
             'username', 'password', 'email', 'phone_number', 'addresses',
             'profile' #,  'settings'
         ]
-        # extra_kwargs = {"password": {"write_only": True}}
+        extra_kwargs = {"password": {"write_only": True}}
+
+
+class CreateBadRainbowzUserSerializer(serializers.ModelSerializer):
+  
+
+    class Meta:
+        model = models.BadRainbowzUser
+        fields = ["username", "password", "email" ]
+        extra_kwargs = {"password": {"write_only": True}}
+
+    def create(self, validated_data): 
+        password = validated_data.pop("password")
+
+        # create_user calls save() internally, so your custom save() logic runs
+        user = models.BadRainbowzUser.objects.create_user(
+            password=password,
+            **validated_data
+        )
+
+        return user
 
 
 class PasswordResetCodeValidationSerializer(serializers.Serializer):
