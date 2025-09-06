@@ -257,7 +257,7 @@ class CreateBadRainbowzUserSerializer(serializers.ModelSerializer):
             'username', 'password', 'email', 'phone_number', 'addresses',
             'profile' #,  'settings'
         ]
-        extra_kwargs = {"password": {"write_only": True}}
+        # extra_kwargs = {"password": {"write_only": True}}
 
 
 class PasswordResetCodeValidationSerializer(serializers.Serializer):
