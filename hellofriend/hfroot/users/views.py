@@ -525,20 +525,27 @@ def send_email_to_user(request):
     """
     email_address = request.data.get('email')
     
+    
     if not email_address:
+        print(request.data)
+        print('no email')
+        print(request.content_type)
+        print(request.data)
+
         return response.Response({'error': 'Email address is required'}, status=400)
 
     subject = 'Welcome to Our Service'  # Predefined subject
     message = 'Thank you for joining us! We are excited to have you as part of our community.'  # Predefined message
 
     try:
+        print('hi')
         # Send the email
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,  # Ensure this is set in your settings.py
-            [email_address],
-        )
+        # send_mail(
+        #     subject,
+        #     message,
+        #     settings.DEFAULT_FROM_EMAIL,  # Ensure this is set in your settings.py
+        #     [email_address],
+        # )
         return response.Response({'success': f'Email successfully sent to {email_address}'}, status=200)
     except Exception as e:
         return response.Response({'error': f'Failed to send email: {str(e)}'}, status=500)

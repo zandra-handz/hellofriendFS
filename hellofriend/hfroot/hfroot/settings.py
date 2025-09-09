@@ -168,9 +168,12 @@ DATABASES = {
 # (sudo systemctl restart nginx, sudo systemctl restart gunicorn  )
 
 
+
 # other:
 # nginx config on digital ocean: sudo nano /etc/nginx/sites-available/badrainbowz.com
 # verify nginx changes are okay: sudo nginx -t
+# To set env variables on backend/edit: nano ~/.bashrc, arrow down to bottom, export etc. CTRL + O, ENTER to save, CTRL x to exit
+#     then source ~/.bashrc to reload
 DATABASES = {
     'default': {
         "ENGINE": 'django.db.backends.postgresql',
