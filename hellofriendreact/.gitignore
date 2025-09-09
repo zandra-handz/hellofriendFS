@@ -24,3 +24,5 @@ dist-ssr
 *.sw?
 
 .env
+
+/hellofriend/hfroot/db.sqlite3
