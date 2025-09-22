@@ -172,6 +172,9 @@ class Friend(models.Model):
 
 # A separate class to keep this data separate and secret from NextMeet and Friend
 class FriendSuggestionSettings(models.Model):
+
+    #friend = models.OneToOneField(Friend, on_delete=models.CASCADE, related_name='suggestion_settings')
+   
     friend = models.ForeignKey(Friend, on_delete=models.CASCADE, related_name='suggestion_settings_friend')
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     phone_number = models.CharField(validators=[phone_regex], max_length=17, null=True, blank=True)
@@ -939,7 +942,12 @@ class PastMeet(models.Model):
     delete_all_unshared_capsules = models.BooleanField(default=False)
     additional_notes = models.CharField(max_length=3000, null=True, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
-    
+    freeze_effort_required = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
+    )
+    freeze_priority_level = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(3)], default=2
+    )
     updated_on = models.DateTimeField(auto_now=True, null=True, blank=True)
 
 
@@ -1128,6 +1136,15 @@ class PastMeet(models.Model):
 
                 else:
                     self.location = None
+
+        if self.friend.suggestion_settings:
+
+            effort = self.friend.suggestion_settings.effort_required
+            priority = self.friend.suggestion_settings.priority_level
+            if effort:
+                self.freeze_effort_required = effort
+            if priority:
+                self.freeze_priority_level= priority
 
         
         super().save(*args, **kwargs)
