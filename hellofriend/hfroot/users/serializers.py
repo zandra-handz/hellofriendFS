@@ -171,6 +171,8 @@ class UserSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.UserSettings
         fields = [
+            'id',
+            'user',
             'receive_notifications',
             'simplify_app_for_focus',
             'lock_in_next',
