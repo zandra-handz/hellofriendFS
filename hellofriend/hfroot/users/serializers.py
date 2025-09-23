@@ -173,6 +173,8 @@ class UserSettingsSerializer(serializers.ModelSerializer):
         fields = [
             'receive_notifications',
             'simplify_app_for_focus',
+            'lock_in_next',
+            'lock_in_custom_string',
             'language_preference',
             'large_text',
             'high_contrast_mode',

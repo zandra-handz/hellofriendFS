@@ -298,6 +298,9 @@ class UserSettings(models.Model):
     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='settings')
     receive_notifications = models.BooleanField(default=False)
     simplify_app_for_focus = models.BooleanField(default=False)
+    lock_in_next = models.BooleanField(default=False) # a boolean to use to automatically select next friend when user logs in
+    lock_in_custom_string = models.CharField(max_length=1000, null=True, blank=True) # did not want a connection to friends table, but can store id or name here and set/retrieve on front end to automatically select friend chosen by user on log in
+
     language_preference = models.CharField(max_length=10, choices=[('en', 'English'), ('es', 'Spanish')], blank=True)
     # Accessibility settings options for front end
     large_text = models.BooleanField(default=False)
