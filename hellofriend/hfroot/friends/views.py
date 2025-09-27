@@ -472,6 +472,9 @@ class UpcomingMeetsLightView(generics.ListCreateAPIView):
 
         return queryset
 
+
+
+
 class UpcomingMeetsQuickView(generics.ListCreateAPIView):
     serializer_class = serializers.UpcomingMeetsLightSerializer
     permission_classes = [IsAuthenticated]
@@ -498,6 +501,37 @@ class UpcomingMeetsQuickView(generics.ListCreateAPIView):
 
  
         return models.NextMeet.objects.filter(user=user).select_related('friend')
+
+
+
+class CombinedFriendsUpcomingView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+        today = timezone.now().date()
+
+        # Handle updates for upcoming meets
+        update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
+        if update_tracker.last_upcoming_update != today:
+            expired_meets = models.NextMeet.objects.user_expired_dates(user)
+            for meet in expired_meets:
+                meet.save()
+            update_tracker.upcoming_updated()
+
+        # Query both datasets
+        upcoming_qs = models.NextMeet.objects.filter(user=user).select_related("friend")
+        friends_qs = models.Friend.objects.filter(user=user)
+
+        # Serialize them
+        upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
+        friends_data = serializers.FriendSerializer(friends_qs, many=True).data
+
+        # Return under two keys
+        return response.Response({
+            "friends": friends_data,
+            "upcoming": upcoming_data,
+        })
 
          
  
