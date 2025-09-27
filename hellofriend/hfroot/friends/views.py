@@ -531,6 +531,7 @@ class CombinedFriendsUpcomingView(APIView):
         return response.Response({
             "friends": friends_data,
             "upcoming": upcoming_data,
+            "next": None, # a holding space for front end, does not interact with anything on the back end. just shapes cache on front end
         })
 
          
