@@ -5,7 +5,7 @@ import users.views
 urlpatterns = [
     path('', views.index, name='index'),
     #path('nextmeets/', views.NextMeetsAllView.as_view()),
-    # path('upcoming/', views.UpcomingMeetsLightView.as_view()),
+    path('upcoming/', views.UpcomingMeetsLightView.as_view()),
     path('upcoming/', views.UpcomingMeetsQuickView.as_view()), # swapping this to test speed; just returns all next meets after checking if they'be been updated for the day
     path('upcoming/comprehensive/', views.UpcomingMeetsView.as_view()),
     path('all/', views.FriendsView.as_view()),
