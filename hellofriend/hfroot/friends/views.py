@@ -586,11 +586,72 @@ class CompletedThoughtCapsulesAll(generics.ListAPIView):
         return models.CompletedThoughtCapsulez.objects.filter(user=user, friend_id=friend_id)
 
 
+from collections import defaultdict
+class CompletedCapsulesHistoryView(generics.ListAPIView):
+    serializer_class = serializers.CompletedThoughtCapsuleSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = MediumPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        filters = {"user": user}
+
+        friend_id = self.request.query_params.get("friend_id")
+        user_category_id = self.request.query_params.get("user_category_id")
+
+        if friend_id:
+            filters["friend_id"] = friend_id
+        if user_category_id:
+            filters["user_category_id"] = user_category_id
+
+        return models.CompletedThoughtCapsulez.objects.filter(**filters).select_related(
+            "friend", "user", "hello", "user_category"
+        ).order_by("-created_on")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['friend_id'] = self.request.query_params.get("friend_id")
+        return context
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        
+        # Apply pagination (standard DRF)
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+
+            # Group paginated data by hello
+            grouped = defaultdict(list)
+            for item in serializer.data:
+                hello_id = item.get("hello")
+                grouped[hello_id].append(item)
+
+            grouped_list = [
+                {"hello": hello_id, "capsules": capsules}
+                for hello_id, capsules in grouped.items()
+            ]
+
+            # Sort within page (optional)
+            grouped_list.sort(key=lambda g: g["capsules"][0]["created_on"], reverse=True)
+
+            # Return paginated response
+            return self.get_paginated_response(grouped_list)
+
+        # Fallback if pagination not triggered
+        serializer = self.get_serializer(queryset, many=True)
+        grouped = defaultdict(list)
+        for item in serializer.data:
+            grouped[item.get("hello")].append(item)
+        grouped_list = [{"hello": k, "capsules": v} for k, v in grouped.items()]
+        grouped_list.sort(key=lambda g: g["capsules"][0]["created_on"], reverse=True)
+        return response.Response(grouped_list, status=status.HTTP_200_OK)
+
 
  
 
 
-class CompletedCapsulesHistoryView(generics.ListAPIView):
+class CompletedCapsulesHistoryViewOld(generics.ListAPIView):
  
     serializer_class = serializers.CompletedThoughtCapsuleSerializer  # Or whatever serializer you use for capsules
     permission_classes = [IsAuthenticated]
@@ -618,6 +679,8 @@ class CompletedCapsulesHistoryView(generics.ListAPIView):
         context = super().get_serializer_context()
         context['friend_id'] = self.request.query_params.get("friend_id")
         return context
+    
+
 
 class ThoughtCapsulesAll(generics.ListAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer

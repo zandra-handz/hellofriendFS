@@ -443,6 +443,8 @@ class UserCategoriesHistoryCapsuleIdsOnly(generics.ListAPIView):
 
 
 
+
+
 class UserCategoryDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.UserCategorySerializer
     permission_classes = [IsAuthenticated]
