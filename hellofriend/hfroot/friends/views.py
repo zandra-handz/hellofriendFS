@@ -587,7 +587,107 @@ class CompletedThoughtCapsulesAll(generics.ListAPIView):
 
 
 from collections import defaultdict
+
+
+
+
 class CompletedCapsulesHistoryView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = MediumPagination
+    serializer_class = serializers.CompletedThoughtCapsuleSerializer  
+ 
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.request.query_params.get("friend_id")
+        user_category_id = self.request.query_params.get("user_category_id")
+
+        capsule_qs = models.CompletedThoughtCapsulez.objects.filter(user=user)
+
+        if friend_id:
+            capsule_qs = capsule_qs.filter(friend_id=friend_id)
+        if user_category_id:
+            capsule_qs = capsule_qs.filter(user_category_id=user_category_id)
+
+        capsule_qs = capsule_qs.select_related(
+            "friend", "user", "hello", "user_category"
+        ).order_by("-created_on")
+ 
+        if not user_category_id:
+            hello_qs = models.PastMeet.objects.filter(user=user)
+            if friend_id:
+                hello_qs = hello_qs.filter(friend_id=friend_id)
+
+            hello_ids_with_capsules = capsule_qs.values_list("hello_id", flat=True)
+            self.helloes_without_capsules = hello_qs.exclude(id__in=hello_ids_with_capsules)
+        else:
+            self.helloes_without_capsules = []
+
+        return capsule_qs
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+
+        if page is not None:
+            capsule_serializer = self.get_serializer(page, many=True)
+
+            grouped = defaultdict(list)
+            for item in capsule_serializer.data:
+                hello_id = item.get("hello")
+                grouped[hello_id].append(item)
+ 
+            hello_ids = list(grouped.keys())
+            hello_qs = models.PastMeet.objects.filter(id__in=hello_ids)
+            hello_data = {
+                h.id: serializers.PastMeetLightSerializer(h).data
+                for h in hello_qs
+            }
+ 
+            for hello in getattr(self, "helloes_without_capsules", []):
+                hello_data[hello.id] = serializers.PastMeetLightSerializer(hello).data
+                grouped[hello.id] = []
+ 
+            grouped_list = [
+                {
+                    "hello": hello_data[hello_id],
+                    "capsules": grouped[hello_id],
+                }
+                for hello_id in hello_data
+            ]
+ 
+            grouped_list.sort(
+                key=lambda g: g["hello"]["date"] or "0000-00-00",
+                reverse=True
+            )
+
+            return self.get_paginated_response(grouped_list)
+
+        # Fallback if no pagination
+        capsule_serializer = self.get_serializer(queryset, many=True)
+        grouped = defaultdict(list)
+        for item in capsule_serializer.data:
+            grouped[item.get("hello")].append(item)
+
+        hello_ids = list(grouped.keys())
+        hello_qs = models.PastMeet.objects.filter(id__in=hello_ids)
+        hello_data = {
+            h.id: serializers.PastMeetLightSerializer(h).data
+            for h in hello_qs
+        }
+
+        for hello in getattr(self, "helloes_without_capsules", []):
+            hello_data[hello.id] = serializers.PastMeetLightSerializer(hello).data
+            grouped[hello.id] = []
+
+        grouped_list = [
+            {"hello": hello_data[k], "capsules": v} for k, v in grouped.items()
+        ]
+
+        grouped_list.sort(key=lambda g: g["hello"]["date"], reverse=True)
+        return response.Response(grouped_list, status=status.HTTP_200_OK)
+    
+class CompletedCapsulesHistoryViewOldTwo(generics.ListAPIView):
     serializer_class = serializers.CompletedThoughtCapsuleSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = MediumPagination
