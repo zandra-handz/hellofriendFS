@@ -529,10 +529,11 @@ class CombinedFriendsUpcomingView(APIView):
 
         # Return under two keys
         return response.Response({
+            "user": user.id,
             "friends": friends_data,
             "upcoming": upcoming_data,
-            "next": None, # a holding space for front end, does not interact with anything on the back end. just shapes cache on front end
-            "user": user.id
+            "next": None # a holding space for front end, does not interact with anything on the back end. just shapes cache on front end
+          
 
         })
 
