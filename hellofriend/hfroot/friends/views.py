@@ -213,17 +213,7 @@ class FriendSuggestionSettingsDetail(generics.RetrieveUpdateAPIView):
         return instance
 
 
-
-# class FriendSuggestionSettingsCategoryLimit(generics.RetrieveAPIView):
-#     serializer_class = serializers.CategoryLimitSerializer
-#     permission_classes = [IsAuthenticated]
-#     lookup_url_kwarg = 'friend_id'
-
-#     def get_object(self):
-#         user = self.request.user
-#         friend_id = self.kwargs['friend_id']
-#         return models.FriendSuggestionSettings.objects.get(user=user, friend_id=friend_id)
-    
+ 
 class FriendFavesDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.FriendFavesSerializer
     permission_classes = [IsAuthenticated]
@@ -803,40 +793,7 @@ class ThoughtCapsulesAll(generics.ListAPIView):
             'friend',
             'user'
         )
-
-    # def get_queryset(self):
-    #     user = self.request.user
-    #     friend_id = self.kwargs['friend_id'] 
-    #     return models.ThoughtCapsulez.objects.filter(user=user, friend_id=friend_id)
-
-
-
-# class ThoughtCapsulesByCategory(generics.ListAPIView):
-#     serializer_class = serializers.ThoughtCapsuleSerializer
-#     permission_classes = [IsAuthenticated]
-#     lookup_url_kwarg = 'friend_id'
-
-#     def get_queryset(self):
-#         user = self.request.user
-#         friend_id = self.kwargs['friend_id'] 
-#         return models.ThoughtCapsulez.objects.filter(user=user, friend_id=friend_id)
-
-#     def list(self, request, *args, **kwargs):
-#         queryset = self.get_queryset()
-#         friend_id = self.kwargs['friend_id']
-        
-#         categories = models.Category.objects.filter(user=request.user, friend_id=friend_id)
-        
-#         capsules_by_category = {}
-        
-#         for category in categories:
-#             capsules = queryset.filter(category=category)
-#             serialized_capsules = self.get_serializer(capsules, many=True).data
-#             capsules_by_category[category.name] = serialized_capsules
-        
-#         return response.Response(capsules_by_category, status=status.HTTP_200_OK)
-
-
+ 
 
 class ThoughtCapsuleCreate(generics.ListCreateAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer
