@@ -1,8 +1,7 @@
 from django.contrib import admin
 from . import models
 
-# Register your models here.
-admin.site.register(models.Category)
+# Register your models here. 
 admin.site.register(models.Friend)
 admin.site.register(models.FriendAddress)
 admin.site.register(models.FriendSuggestionSettings)

@@ -214,15 +214,15 @@ class FriendSuggestionSettingsDetail(generics.RetrieveUpdateAPIView):
 
 
 
-class FriendSuggestionSettingsCategoryLimit(generics.RetrieveAPIView):
-    serializer_class = serializers.CategoryLimitSerializer
-    permission_classes = [IsAuthenticated]
-    lookup_url_kwarg = 'friend_id'
+# class FriendSuggestionSettingsCategoryLimit(generics.RetrieveAPIView):
+#     serializer_class = serializers.CategoryLimitSerializer
+#     permission_classes = [IsAuthenticated]
+#     lookup_url_kwarg = 'friend_id'
 
-    def get_object(self):
-        user = self.request.user
-        friend_id = self.kwargs['friend_id']
-        return models.FriendSuggestionSettings.objects.get(user=user, friend_id=friend_id)
+#     def get_object(self):
+#         user = self.request.user
+#         friend_id = self.kwargs['friend_id']
+#         return models.FriendSuggestionSettings.objects.get(user=user, friend_id=friend_id)
     
 class FriendFavesDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.FriendFavesSerializer
@@ -319,15 +319,15 @@ class FriendFavesLocationRemove(generics.UpdateAPIView):
             return response.Response({"error": "Location not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
-class CategoriesView(generics.ListAPIView):
-    serializer_class = serializers.CategorySerializer
-    permission_classes = [IsAuthenticated]
-    lookup_url_kwarg = 'friend_id'
+# class CategoriesView(generics.ListAPIView):
+#     serializer_class = serializers.CategorySerializer
+#     permission_classes = [IsAuthenticated]
+#     lookup_url_kwarg = 'friend_id'
 
-    def get_queryset(self):
-        user = self.request.user
-        friend_id = self.kwargs['friend_id']
-        return models.Category.objects.filter(user=user, friend_id=friend_id)
+#     def get_queryset(self):
+#         user = self.request.user
+#         friend_id = self.kwargs['friend_id']
+#         return models.Category.objects.filter(user=user, friend_id=friend_id)
 
 class NextMeetView(generics.ListAPIView):
     serializer_class = serializers.UpcomingMeetsSerializer
@@ -799,7 +799,7 @@ class ThoughtCapsulesAll(generics.ListAPIView):
             friend_id=friend_id
         ).select_related(
             'user_category',
-            'category',
+          
             'friend',
             'user'
         )
@@ -811,30 +811,30 @@ class ThoughtCapsulesAll(generics.ListAPIView):
 
 
 
-class ThoughtCapsulesByCategory(generics.ListAPIView):
-    serializer_class = serializers.ThoughtCapsuleSerializer
-    permission_classes = [IsAuthenticated]
-    lookup_url_kwarg = 'friend_id'
+# class ThoughtCapsulesByCategory(generics.ListAPIView):
+#     serializer_class = serializers.ThoughtCapsuleSerializer
+#     permission_classes = [IsAuthenticated]
+#     lookup_url_kwarg = 'friend_id'
 
-    def get_queryset(self):
-        user = self.request.user
-        friend_id = self.kwargs['friend_id'] 
-        return models.ThoughtCapsulez.objects.filter(user=user, friend_id=friend_id)
+#     def get_queryset(self):
+#         user = self.request.user
+#         friend_id = self.kwargs['friend_id'] 
+#         return models.ThoughtCapsulez.objects.filter(user=user, friend_id=friend_id)
 
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        friend_id = self.kwargs['friend_id']
+#     def list(self, request, *args, **kwargs):
+#         queryset = self.get_queryset()
+#         friend_id = self.kwargs['friend_id']
         
-        categories = models.Category.objects.filter(user=request.user, friend_id=friend_id)
+#         categories = models.Category.objects.filter(user=request.user, friend_id=friend_id)
         
-        capsules_by_category = {}
+#         capsules_by_category = {}
         
-        for category in categories:
-            capsules = queryset.filter(category=category)
-            serialized_capsules = self.get_serializer(capsules, many=True).data
-            capsules_by_category[category.name] = serialized_capsules
+#         for category in categories:
+#             capsules = queryset.filter(category=category)
+#             serialized_capsules = self.get_serializer(capsules, many=True).data
+#             capsules_by_category[category.name] = serialized_capsules
         
-        return response.Response(capsules_by_category, status=status.HTTP_200_OK)
+#         return response.Response(capsules_by_category, status=status.HTTP_200_OK)
 
 
 
@@ -1052,6 +1052,7 @@ class CombinedHelloesLightAll(generics.ListAPIView):
                 serializer = serializers.PastMeetLightSerializer(instance, context=self.get_serializer_context())
             serialized_data.append(serializer.data)
         return response.Response(serialized_data)
+    
 class ImagesByCategoryView(APIView):
 
     # For testing

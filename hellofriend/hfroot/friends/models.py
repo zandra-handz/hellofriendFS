@@ -198,6 +198,8 @@ class FriendSuggestionSettings(models.Model):
             models.Index(fields=['user', 'friend']),
         ]
 
+    # Not doing anything right now, was connected to old Category model and having different limits for each friend
+    # now it is just a static limit on number of overall user categories themselves (10/26/2025)
     @property
     def category_limit_formula(self):
         return self.effort_required * 2
@@ -470,56 +472,56 @@ class NextMeet(models.Model):
 
 
     # Not sure if being used
-    @property
-    def thought_capsules_by_category(self):
-        thought_capsules = ThoughtCapsulez.objects.filter(
-            friend=self.friend,
-            user=self.user)
+    # @property
+    # def thought_capsules_by_category(self):
+    #     thought_capsules = ThoughtCapsulez.objects.filter(
+    #         friend=self.friend,
+    #         user=self.user)
 
-        capsules_by_category = {}
-        for capsule in thought_capsules:
-            category_name = capsule.category.name
-            capsules_by_category.setdefault(category_name, []).append(capsule)
-        return capsules_by_category
+    #     capsules_by_category = {}
+    #     for capsule in thought_capsules:
+    #         category_name = capsule.category.name
+    #         capsules_by_category.setdefault(category_name, []).append(capsule)
+    #     return capsules_by_category
 
 
-    @property
-    def all_categories(self):
-        categories = Category.objects.filter(
-            friend=self.friend,
-            user=self.user)
+    # @property
+    # def all_categories(self):
+    #     categories = Category.objects.filter(
+    #         friend=self.friend,
+    #         user=self.user)
 
-        return categories
+    #     return categories
     
 
-    @property
-    def active_categories(self):
-        # Filter categories that have related thought capsules
-        categories = Category.objects.filter(
-            friend=self.friend,
-            user=self.user,
-            thoughtcapsulez__isnull=False
-        ).distinct()
+    # @property
+    # def active_categories(self):
+    #     # Filter categories that have related thought capsules
+    #     categories = Category.objects.filter(
+    #         friend=self.friend,
+    #         user=self.user,
+    #         thoughtcapsulez__isnull=False
+    #     ).distinct()
 
-        return categories
+    #     return categories
 
-    @property
-    def inactive_categories(self):
-        # Filter categories that have related thought capsules
-        categories = Category.objects.filter(
-            friend=self.friend,
-            user=self.user,
-            thoughtcapsulez__isnull=True
-        ).distinct()
+    # @property
+    # def inactive_categories(self):
+    #     # Filter categories that have related thought capsules
+    #     categories = Category.objects.filter(
+    #         friend=self.friend,
+    #         user=self.user,
+    #         thoughtcapsulez__isnull=True
+    #     ).distinct()
 
-        return categories
+    #     return categories
 
 
-    @property
-    def category_activations_left(self): 
-        active_category_count = self.active_categories.count()
-        activations_left = self.friend_suggestion_settings.category_limit_formula - active_category_count
-        return activations_left
+    # @property
+    # def category_activations_left(self): 
+    #     active_category_count = self.active_categories.count()
+    #     activations_left = self.friend_suggestion_settings.category_limit_formula - active_category_count
+    #     return activations_left
 
     def save(self, *args, **kwargs):
 
@@ -670,65 +672,65 @@ class FriendFaves(models.Model):
 
     
 
-class Category(models.Model):
+# class Category(models.Model):
 
-    friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
-    friend_suggestion_settings = models.ForeignKey(FriendSuggestionSettings, on_delete=models.CASCADE)
-    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
-    name = models.CharField(max_length=50)
-    times_used = models.PositiveIntegerField(default=0)
-    item_type = models.CharField(max_length=50, null=True, blank=True)
-    created_on = models.DateTimeField(auto_now_add=True) 
+#     friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
+#     friend_suggestion_settings = models.ForeignKey(FriendSuggestionSettings, on_delete=models.CASCADE)
+#     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+#     name = models.CharField(max_length=50)
+#     times_used = models.PositiveIntegerField(default=0)
+#     item_type = models.CharField(max_length=50, null=True, blank=True)
+#     created_on = models.DateTimeField(auto_now_add=True) 
 
 
-    class Meta:
-        verbose_name = "Category"
-        verbose_name_plural = "Categories"
-
-    
-   # @classmethod
-   # def get_category_count(cls, user, friend_id):
-   #     return cls.objects.filter(user=user, friend_id=friend_id).count()
-    
-    @classmethod
-    def get_category_count(cls, user, friend_id):
-        # Get the IDs of categories associated with thought capsules
-        categories_with_capsules = set(ThoughtCapsulez.objects.filter(
-            user=user, 
-            friend_id=friend_id
-        ).values_list('category_id', flat=True))
-
-        # Count categories that have related thought capsules
-        return cls.objects.filter(
-            user=user, 
-            friend_id=friend_id, 
-            id__in=categories_with_capsules
-        ).count()
-    
-    @property
-    def category_count(self):
-        return self.get_category_count(self.user, self.friend_id)
+#     class Meta:
+#         verbose_name = "Category"
+#         verbose_name_plural = "Categories"
 
     
+#    # @classmethod
+#    # def get_category_count(cls, user, friend_id):
+#    #     return cls.objects.filter(user=user, friend_id=friend_id).count()
+    
+#     @classmethod
+#     def get_category_count(cls, user, friend_id):
+#         # Get the IDs of categories associated with thought capsules
+#         categories_with_capsules = set(ThoughtCapsulez.objects.filter(
+#             user=user, 
+#             friend_id=friend_id
+#         ).values_list('category_id', flat=True))
 
-    # Will probably have to get rid of this if we are differentiating active categories from just stored ones
-    def save(self, *args, **kwargs):
+#         # Count categories that have related thought capsules
+#         return cls.objects.filter(
+#             user=user, 
+#             friend_id=friend_id, 
+#             id__in=categories_with_capsules
+#         ).count()
+    
+#     @property
+#     def category_count(self):
+#         return self.get_category_count(self.user, self.friend_id)
 
-        if not self.pk: 
-            next_meet = NextMeet.objects.get(
-                friend=self.friend, 
-                user=self.user
-            )  
+    
 
-            if next_meet.category_activations_left < 1:
-                raise ValidationError("Category limit reached. You cannot add more categories, but you can add to or delete existing ones.")
+#     # Will probably have to get rid of this if we are differentiating active categories from just stored ones
+#     def save(self, *args, **kwargs):
 
-        super().save(*args, **kwargs)
+#         if not self.pk: 
+#             next_meet = NextMeet.objects.get(
+#                 friend=self.friend, 
+#                 user=self.user
+#             )  
+
+#             if next_meet.category_activations_left < 1:
+#                 raise ValidationError("Category limit reached. You cannot add more categories, but you can add to or delete existing ones.")
+
+#         super().save(*args, **kwargs)
 
 
 
-    def __str__(self):
-        return f"Category: {self.name}"
+#     def __str__(self):
+#         return f"Category: {self.name}"
 
 
 
@@ -740,7 +742,7 @@ class ThoughtCapsulez(models.Model):
     # OBSOLETE FIELD:
     typed_category = models.CharField(max_length=50, null=True, blank=True)
     # OBSOLETE FIELD:
-    category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+    # category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
     capsule = models.CharField(max_length=10000)
     # Connect an image (won't get saved in PastMeet, this is not a scrapbook) via the image model thought_capsule field
     created_on = models.DateTimeField(auto_now_add=True) 
@@ -768,13 +770,13 @@ class ThoughtCapsulez(models.Model):
 
 
 # check if can remove safely
-    def get_existing_categories(self): 
+    # def get_existing_categories(self): 
 
-        existing_categories = Category.objects.filter(
-            friend=self.friend,
-            user=self.user
-        )
-        return existing_categories
+    #     existing_categories = Category.objects.filter(
+    #         friend=self.friend,
+    #         user=self.user
+    #     )
+    #     return existing_categories
     
         
     def delete(self, *args, **kwargs): 
@@ -831,7 +833,7 @@ class ThoughtCapsulez(models.Model):
         super().save(*args, **kwargs)
  
     def __str__(self):
-        return f"Thought capsule in the category {self.category}"
+        return f"Thought capsule in the category {self.user_category}"
     
 
 
@@ -1165,7 +1167,7 @@ class PastMeet(models.Model):
 
             today = datetime.datetime.today().date()
 
-            processed_categories = set()  # Set to keep track of processed categories
+            # processed_categories = set()  # Set to keep track of processed categories
             for capsule_id, capsule_data in self.thought_capsules_shared.items():
            
                 try: 
@@ -1198,12 +1200,12 @@ class PastMeet(models.Model):
                         associated_category.completed_thought_capsules.add(completed_capsule)
 
 
-                    if capsule_shared_with_friend.category:
-                        category = capsule_shared_with_friend.category
-                        if category not in processed_categories:
-                            category.times_used += 1 
-                            category.save() 
-                            processed_categories.add(category) 
+                    # if capsule_shared_with_friend.category:
+                    #     category = capsule_shared_with_friend.category
+                    #     if category not in processed_categories:
+                    #         category.times_used += 1 
+                    #         category.save() 
+                    #         processed_categories.add(category) 
 
                     
 
