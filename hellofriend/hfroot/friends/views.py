@@ -510,34 +510,58 @@ class CombinedFriendsUpcomingView(APIView):
             update_tracker.upcoming_updated()
 
         # Query both datasets
-        upcoming_qs = models.NextMeet.objects.filter(user=user).select_related("friend")
-        # friends_qs = models.Friend.objects.filter(user=user)
+        # upcoming_qs = models.NextMeet.objects.filter(user=user).select_related("friend")
+        # # friends_qs = models.Friend.objects.filter(user=user)
 
-                # Prefetch ThoughtCapsulez to avoid N+1 queries
+        #         # Prefetch ThoughtCapsulez to avoid N+1 queries
+        # friends_qs = (
+        #     models.Friend.objects
+        #     .filter(user=user)
+        #     .prefetch_related("thoughtcapsulez_set__user_category")
+        # )
+
+     
+        # upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
+        # friends_data = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
+
+        # # Return under two 
+
+        # # Serialize them
+        # # upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
+        # # friends_data = serializers.FriendSerializer(friends_qs, many=True).data
+
+        # # Return under two keys
+        # return response.Response({
+        #     "user": user.id,
+        #     "friends": friends_data,
+        #     "upcoming": upcoming_data,
+        #     "next": None # a holding space for front end, does not interact with anything on the back end. just shapes cache on front end
+          
+
+        # })
+    
+        upcoming_qs = models.NextMeet.objects.filter(user=user).select_related("friend")
+
+        # Query friends and prefetch capsules to avoid N+1
         friends_qs = (
             models.Friend.objects
             .filter(user=user)
             .prefetch_related("thoughtcapsulez_set__user_category")
         )
 
-     
+        # Serialize upcoming meets without adding capsule data
         upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
-        friends_data = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
 
-        # Return under two 
+        # Serialize friends with capsule data
+        friends_data = serializers.FriendSerializer(friends_qs, many=True).data
+        capsule_summaries = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
 
-        # Serialize them
-        # upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
-        # friends_data = serializers.FriendSerializer(friends_qs, many=True).data
-
-        # Return under two keys
         return response.Response({
             "user": user.id,
             "friends": friends_data,
             "upcoming": upcoming_data,
-            "next": None # a holding space for front end, does not interact with anything on the back end. just shapes cache on front end
-          
-
+            "capsule_summaries": capsule_summaries,
+            "next": None  # placeholder for frontend
         })
 
          
