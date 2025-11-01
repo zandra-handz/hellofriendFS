@@ -13,6 +13,65 @@ class FriendSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+from rest_framework import serializers
+from django.db.models import Count
+from . import models
+
+class FriendSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Friend
+        fields = '__all__'
+
+
+class ThoughtCapsuleSerializer(serializers.ModelSerializer):
+    user_category_name = serializers.CharField(source='user_category.name', read_only=True)
+
+    class Meta:
+        model = models.ThoughtCapsulez
+        fields = [
+            'id',
+            'friend',
+            'user',
+            'user_category',
+            'user_category_name',
+            'capsule',
+            'created_on',
+            'updated_on',
+            'pre_added_to_hello'
+        ]
+
+
+class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
+    capsule_count = serializers.SerializerMethodField()
+    capsule_summary = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.Friend
+        fields = '__all__'  # or list explicitly + ['capsule_count', 'capsule_summary']
+
+    def get_capsule_count(self, obj):
+        return models.ThoughtCapsulez.objects.filter(friend=obj).count()
+
+    def get_capsule_summary(self, obj):
+        # Example summary grouped by category
+        summary = (
+            models.ThoughtCapsulez.objects
+            .filter(friend=obj)
+            .values('user_category__name')
+            .annotate(count=Count('id'))
+            .order_by('-count')
+        )
+
+        return [
+            {
+                "user_category_name": item['user_category__name'],
+                "count": item['count']
+            }
+            for item in summary
+        ]
+
+
+
 class FriendMiniSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Friend
@@ -174,6 +233,8 @@ class UpcomingMeetsAllSerializer(serializers.ModelSerializer):
         model = models.NextMeet
         fields = ['id', 'date', 'friend', 'friend_name', 'days_since', 'days_since_words',
                   'time_score', 'future_date_in_words', 'user'] 
+        
+
 
       
 class ThoughtCapsuleSerializer(serializers.ModelSerializer):

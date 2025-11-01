@@ -511,11 +511,24 @@ class CombinedFriendsUpcomingView(APIView):
 
         # Query both datasets
         upcoming_qs = models.NextMeet.objects.filter(user=user).select_related("friend")
-        friends_qs = models.Friend.objects.filter(user=user)
+        # friends_qs = models.Friend.objects.filter(user=user)
+
+                # Prefetch ThoughtCapsulez to avoid N+1 queries
+        friends_qs = (
+            models.Friend.objects
+            .filter(user=user)
+            .prefetch_related("thoughtcapsulez_set__user_category")
+        )
+
+     
+        upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
+        friends_data = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
+
+        # Return under two 
 
         # Serialize them
-        upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
-        friends_data = serializers.FriendSerializer(friends_qs, many=True).data
+        # upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
+        # friends_data = serializers.FriendSerializer(friends_qs, many=True).data
 
         # Return under two keys
         return response.Response({
