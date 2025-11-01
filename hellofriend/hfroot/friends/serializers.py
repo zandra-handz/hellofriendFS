@@ -211,7 +211,12 @@ class UpcomingMeetsSerializer(serializers.ModelSerializer):
 
 class UpcomingMeetsLightSerializer(serializers.ModelSerializer):
 
-    friend = FriendMiniSerializer()
+    # friend = FriendMiniSerializer()
+
+    # if below is not performant, try something else
+    # on the combined friendlist + upcoming view, the friend is pulling in the capsule summary too
+    # it's more difficult grab this data for upcoming lists on the front end though
+    friend = FriendAndCapsuleSummarySerializer(read_only=True)
 
    # friend_name = serializers.CharField(source='friend.name')
     
