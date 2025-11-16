@@ -514,23 +514,12 @@ class CombinedFriendsUpcomingView(APIView):
         upcoming_qs = models.NextMeet.objects.filter(user=user).select_related("friend")
 
 
-
-        capsule_prefetch = Prefetch(
-            "thoughtcapsulez",  # <-- correct related_name
-            queryset=models.ThoughtCapsulez.objects.select_related("user_category"),
-            to_attr="prefetched_capsules"
-        )
-
+ 
         friends_qs = (
-            models.Friend.objects.filter(user=user)
-            .prefetch_related(capsule_prefetch)
-            .annotate(capsule_count=Count('thoughtcapsulez'))  # <-- correct
+            models.Friend.objects
+            .filter(user=user)
+            .prefetch_related("thoughtcapsulez_set__user_category")
         )
-        # friends_qs = (
-        #     models.Friend.objects
-        #     .filter(user=user)
-        #     .prefetch_related("thoughtcapsulez_set__user_category")
-        # )
 
         # Serialize upcoming meets without adding capsule data
         upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
