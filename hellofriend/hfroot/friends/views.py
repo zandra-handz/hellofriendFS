@@ -526,7 +526,7 @@ class CombinedFriendsUpcomingView(APIView):
 
         # Serialize friends with capsule data
         # friends_data = serializers.FriendSerializer(friends_qs, many=True).data
-        friends_data = serializers.FriendWithCapsuleSummarySerializer(friends_qs, many=True).data
+        friends_data = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
 
         # capsule_summaries = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
 
