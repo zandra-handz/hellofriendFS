@@ -41,6 +41,7 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
         ]
 
 
+
 class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
     capsule_count = serializers.SerializerMethodField()
     capsule_summary = serializers.SerializerMethodField()
@@ -49,27 +50,28 @@ class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
         model = models.Friend
         fields = '__all__'
 
-    # ----------------------------------------------------------
-    # INTERNAL CACHE: shared per-object so both fields reuse it
-    # ----------------------------------------------------------
-    def _get_capsules(self, obj):
-        if not hasattr(obj, "_cached_capsules"):
-            obj._cached_capsules = list(
-                models.ThoughtCapsulez.objects
-                .filter(friend=obj)
-                .select_related("user_category")
-            )
-        return obj._cached_capsules
+    # --------------------------------------------------------
+    # GET ALL CAPSULES FOR USER ONCE (comes from context)
+    # --------------------------------------------------------
+    def _get_user_capsules(self):
+        return self.context.get("user_capsules", [])
 
-    # ----------------------------------------------------------
+    # --------------------------------------------------------
+    # FILTER CAPSULES FOR THIS SPECIFIC FRIEND
+    # (still no DB hit — it's all in memory)
+    # --------------------------------------------------------
+    def _get_capsules_for_friend(self, obj):
+        user_capsules = self._get_user_capsules()
+        return [cap for cap in user_capsules if cap.friend_id == obj.id]
+
+    # --------------------------------------------------------
     # FIELDS
-    # ----------------------------------------------------------
+    # --------------------------------------------------------
     def get_capsule_count(self, obj):
-        capsules = self._get_capsules(obj)
-        return len(capsules)
+        return len(self._get_capsules_for_friend(obj))
 
     def get_capsule_summary(self, obj):
-        capsules = self._get_capsules(obj)
+        capsules = self._get_capsules_for_friend(obj)
 
         summary = {}
         for cap in capsules:
@@ -80,6 +82,47 @@ class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
             {"user_category_name": name, "count": count}
             for name, count in summary.items()
         ]
+
+
+# class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
+#     capsule_count = serializers.SerializerMethodField()
+#     capsule_summary = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = models.Friend
+#         fields = '__all__'
+
+#     # ----------------------------------------------------------
+#     # INTERNAL CACHE: shared per-object so both fields reuse it
+#     # ----------------------------------------------------------
+#     def _get_capsules(self, obj):
+#         if not hasattr(obj, "_cached_capsules"):
+#             obj._cached_capsules = list(
+#                 models.ThoughtCapsulez.objects
+#                 .filter(friend=obj)
+#                 .select_related("user_category")
+#             )
+#         return obj._cached_capsules
+
+#     # ----------------------------------------------------------
+#     # FIELDS
+#     # ----------------------------------------------------------
+#     def get_capsule_count(self, obj):
+#         capsules = self._get_capsules(obj)
+#         return len(capsules)
+
+#     def get_capsule_summary(self, obj):
+#         capsules = self._get_capsules(obj)
+
+#         summary = {}
+#         for cap in capsules:
+#             cat = cap.user_category.name if cap.user_category else "Uncategorized"
+#             summary[cat] = summary.get(cat, 0) + 1
+
+#         return [
+#             {"user_category_name": name, "count": count}
+#             for name, count in summary.items()
+#         ]
 
 
 class FriendWithCapsuleSummarySerializer(serializers.ModelSerializer):

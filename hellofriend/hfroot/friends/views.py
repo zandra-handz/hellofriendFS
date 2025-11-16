@@ -494,6 +494,52 @@ class UpcomingMeetsQuickView(generics.ListCreateAPIView):
 
 
 
+# class CombinedFriendsUpcomingView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, *args, **kwargs):
+#         user = request.user
+#         today = timezone.now().date()
+
+#         # Handle updates for upcoming meets
+#         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
+#         if update_tracker.last_upcoming_update != today:
+#             expired_meets = models.NextMeet.objects.user_expired_dates(user)
+#             for meet in expired_meets:
+#                 meet.save()
+#             update_tracker.upcoming_updated()
+
+ 
+    
+#         upcoming_qs = models.NextMeet.objects.filter(user=user).select_related("friend")
+
+
+ 
+#         friends_qs = (
+#             models.Friend.objects
+#             .filter(user=user)
+#             .prefetch_related("thoughtcapsulez_set__user_category")
+#         )
+
+#         # Serialize upcoming meets without adding capsule data
+#         upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
+
+#         # Serialize friends with capsule data
+#         # friends_data = serializers.FriendSerializer(friends_qs, many=True).data
+#         friends_data = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
+
+#         # capsule_summaries = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
+
+#         return response.Response({
+#             "user": user.id,
+#             "friends": friends_data,
+#             "upcoming": upcoming_data,
+#             # "capsule_summaries": capsule_summaries,
+#             "capsule_summaries": friends_data,
+#             "next": None  # placeholder for frontend
+#         })
+
+         
 class CombinedFriendsUpcomingView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -501,7 +547,9 @@ class CombinedFriendsUpcomingView(APIView):
         user = request.user
         today = timezone.now().date()
 
-        # Handle updates for upcoming meets
+        # --------------------------------------------------
+        # HANDLE NEXT MEET EXPIRATION UPDATES
+        # --------------------------------------------------
         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
         if update_tracker.last_upcoming_update != today:
             expired_meets = models.NextMeet.objects.user_expired_dates(user)
@@ -509,37 +557,53 @@ class CombinedFriendsUpcomingView(APIView):
                 meet.save()
             update_tracker.upcoming_updated()
 
- 
-    
-        upcoming_qs = models.NextMeet.objects.filter(user=user).select_related("friend")
+        # --------------------------------------------------
+        # UPCOMING MEETS QUERY
+        # --------------------------------------------------
+        upcoming_qs = (
+            models.NextMeet.objects
+            .filter(user=user)
+            .select_related("friend")
+        )
+        upcoming_data = serializers.UpcomingMeetsLightSerializer(
+            upcoming_qs, many=True
+        ).data
 
-
- 
+        # --------------------------------------------------
+        # FRIENDS QUERY
+        # --------------------------------------------------
         friends_qs = (
             models.Friend.objects
             .filter(user=user)
-            .prefetch_related("thoughtcapsulez_set__user_category")
         )
 
-        # Serialize upcoming meets without adding capsule data
-        upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
+        # --------------------------------------------------
+        # ONE QUERY: ALL CAPSULES FOR THE USER
+        # --------------------------------------------------
+        user_capsules = list(
+            models.ThoughtCapsulez.objects
+            .filter(user=user)
+            .select_related("friend", "user_category")
+        )
 
-        # Serialize friends with capsule data
-        # friends_data = serializers.FriendSerializer(friends_qs, many=True).data
-        friends_data = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
+        # --------------------------------------------------
+        # SERIALIZE FRIENDS USING THE NEW OPTIMIZED SERIALIZER
+        # --------------------------------------------------
+        friends_data = serializers.FriendAndCapsuleSummarySerializer(
+            friends_qs,
+            many=True,
+            context={"user_capsules": user_capsules}
+        ).data
 
-        # capsule_summaries = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
-
+        # Return same structure your frontend expects
         return response.Response({
             "user": user.id,
             "friends": friends_data,
             "upcoming": upcoming_data,
-            # "capsule_summaries": capsule_summaries,
-            "capsule_summaries": friends_data,
-            "next": None  # placeholder for frontend
+            "capsule_summaries": friends_data,  # stays identical to before
+            "next": None
         })
 
-         
  
 
 class UpcomingMeetsAll48(generics.ListCreateAPIView):
