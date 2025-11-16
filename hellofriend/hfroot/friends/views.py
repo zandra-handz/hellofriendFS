@@ -5,7 +5,7 @@ import users.serializers
 from . import serializers
 
 from django.core.exceptions import ValidationError
-from django.db.models import Min
+from django.db.models import Count, Min, Prefetch
 
 from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, response, status, viewsets
@@ -509,45 +509,30 @@ class CombinedFriendsUpcomingView(APIView):
                 meet.save()
             update_tracker.upcoming_updated()
 
-        # Query both datasets
-        # upcoming_qs = models.NextMeet.objects.filter(user=user).select_related("friend")
-        # # friends_qs = models.Friend.objects.filter(user=user)
+ 
+    
+        upcoming_qs = models.NextMeet.objects.filter(user=user).select_related("friend")
 
-        #         # Prefetch ThoughtCapsulez to avoid N+1 queries
+
+
+        capsule_prefetch = Prefetch(
+            "thoughtcapsulez_set",
+            queryset=models.ThoughtCapsulez.objects.select_related("user_category"),
+            to_attr="prefetched_capsules"
+        )
+
+        friends_qs = (
+            models.Friend.objects
+            .filter(user=user)
+            .prefetch_related(capsule_prefetch)
+            .annotate(capsule_count=Count('thoughtcapsulez_set'))
+        )
+                # Query friends and prefetch capsules to avoid N+1
         # friends_qs = (
         #     models.Friend.objects
         #     .filter(user=user)
         #     .prefetch_related("thoughtcapsulez_set__user_category")
         # )
-
-     
-        # upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
-        # friends_data = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
-
-        # # Return under two 
-
-        # # Serialize them
-        # # upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
-        # # friends_data = serializers.FriendSerializer(friends_qs, many=True).data
-
-        # # Return under two keys
-        # return response.Response({
-        #     "user": user.id,
-        #     "friends": friends_data,
-        #     "upcoming": upcoming_data,
-        #     "next": None # a holding space for front end, does not interact with anything on the back end. just shapes cache on front end
-          
-
-        # })
-    
-        upcoming_qs = models.NextMeet.objects.filter(user=user).select_related("friend")
-
-        # Query friends and prefetch capsules to avoid N+1
-        friends_qs = (
-            models.Friend.objects
-            .filter(user=user)
-            .prefetch_related("thoughtcapsulez_set__user_category")
-        )
 
         # Serialize upcoming meets without adding capsule data
         upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data

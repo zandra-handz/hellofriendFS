@@ -41,34 +41,52 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
         ]
 
 
+# class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
+#     capsule_count = serializers.SerializerMethodField()
+#     capsule_summary = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = models.Friend
+#         fields = '__all__'  # or list explicitly + ['capsule_count', 'capsule_summary']
+
+#     def get_capsule_count(self, obj):
+#         return models.ThoughtCapsulez.objects.filter(friend=obj).count()
+
+#     def get_capsule_summary(self, obj):
+#         # Example summary grouped by category
+#         summary = (
+#             models.ThoughtCapsulez.objects
+#             .filter(friend=obj)
+#             .values('user_category__name')
+#             .annotate(count=Count('id'))
+#             .order_by('-count')
+#         )
+
+#         return [
+#             {
+#                 "user_category_name": item['user_category__name'],
+#                 "count": item['count']
+#             }
+#             for item in summary
+#         ]
+
+
 class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
-    capsule_count = serializers.SerializerMethodField()
+    capsule_count = serializers.IntegerField(read_only=True)  # Already annotated
     capsule_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Friend
-        fields = '__all__'  # or list explicitly + ['capsule_count', 'capsule_summary']
-
-    def get_capsule_count(self, obj):
-        return models.ThoughtCapsulez.objects.filter(friend=obj).count()
+        fields = '__all__'  # Or list explicitly + ['capsule_count', 'capsule_summary']
 
     def get_capsule_summary(self, obj):
-        # Example summary grouped by category
-        summary = (
-            models.ThoughtCapsulez.objects
-            .filter(friend=obj)
-            .values('user_category__name')
-            .annotate(count=Count('id'))
-            .order_by('-count')
-        )
+        summary = {}
+        for capsule in getattr(obj, "prefetched_capsules", []):
+            cat_name = capsule.user_category.name if capsule.user_category else "Uncategorized"
+            summary[cat_name] = summary.get(cat_name, 0) + 1
 
-        return [
-            {
-                "user_category_name": item['user_category__name'],
-                "count": item['count']
-            }
-            for item in summary
-        ]
+        # Convert to list of dicts
+        return [{"user_category_name": k, "count": v} for k, v in summary.items()]
 
 
 
