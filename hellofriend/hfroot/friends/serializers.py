@@ -71,6 +71,21 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
 #         ]
 
 
+class FriendWithCapsuleSummarySerializer(serializers.ModelSerializer):
+    capsule_count = serializers.IntegerField(read_only=True)
+    capsule_summary = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.Friend
+        fields = '__all__'
+
+    def get_capsule_summary(self, obj):
+        summary = {}
+        for c in getattr(obj, "prefetched_capsules", []):
+            cat_name = c.user_category.name if c.user_category else "Uncategorized"
+            summary[cat_name] = summary.get(cat_name, 0) + 1
+        return [{"user_category_name": k, "count": v} for k, v in summary.items()]
+
 class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
     capsule_count = serializers.IntegerField(read_only=True)  # Already annotated
     capsule_summary = serializers.SerializerMethodField()

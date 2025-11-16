@@ -538,14 +538,17 @@ class CombinedFriendsUpcomingView(APIView):
         upcoming_data = serializers.UpcomingMeetsLightSerializer(upcoming_qs, many=True).data
 
         # Serialize friends with capsule data
-        friends_data = serializers.FriendSerializer(friends_qs, many=True).data
-        capsule_summaries = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
+        # friends_data = serializers.FriendSerializer(friends_qs, many=True).data
+        friends_data = serializers.FriendWithCapsuleSummarySerializer(friends_qs, many=True).data
+
+        # capsule_summaries = serializers.FriendAndCapsuleSummarySerializer(friends_qs, many=True).data
 
         return response.Response({
             "user": user.id,
             "friends": friends_data,
             "upcoming": upcoming_data,
-            "capsule_summaries": capsule_summaries,
+            # "capsule_summaries": capsule_summaries,
+            "capsule_summaries": friends_data,
             "next": None  # placeholder for frontend
         })
 
