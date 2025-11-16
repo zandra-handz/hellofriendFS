@@ -47,27 +47,38 @@ class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Friend
-        fields = '__all__'  # or list explicitly + ['capsule_count', 'capsule_summary']
+        fields = '__all__'
 
+    # ----------------------------------------------------------
+    # INTERNAL CACHE: shared per-object so both fields reuse it
+    # ----------------------------------------------------------
+    def _get_capsules(self, obj):
+        if not hasattr(obj, "_cached_capsules"):
+            obj._cached_capsules = list(
+                models.ThoughtCapsulez.objects
+                .filter(friend=obj)
+                .select_related("user_category")
+            )
+        return obj._cached_capsules
+
+    # ----------------------------------------------------------
+    # FIELDS
+    # ----------------------------------------------------------
     def get_capsule_count(self, obj):
-        return models.ThoughtCapsulez.objects.filter(friend=obj).count()
+        capsules = self._get_capsules(obj)
+        return len(capsules)
 
     def get_capsule_summary(self, obj):
-        # Example summary grouped by category
-        summary = (
-            models.ThoughtCapsulez.objects
-            .filter(friend=obj)
-            .values('user_category__name')
-            .annotate(count=Count('id'))
-            .order_by('-count')
-        )
+        capsules = self._get_capsules(obj)
+
+        summary = {}
+        for cap in capsules:
+            cat = cap.user_category.name if cap.user_category else "Uncategorized"
+            summary[cat] = summary.get(cat, 0) + 1
 
         return [
-            {
-                "user_category_name": item['user_category__name'],
-                "count": item['count']
-            }
-            for item in summary
+            {"user_category_name": name, "count": count}
+            for name, count in summary.items()
         ]
 
 
