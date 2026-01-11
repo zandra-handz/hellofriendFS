@@ -754,6 +754,16 @@ class ThoughtCapsulez(models.Model):
     null=True,
     blank=True,
     related_name='thought_capsule')
+    screen_x = models.FloatField(
+        default=0.5,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)]
+        # help_text="Normalized X position (0.0 – 1.0)"
+    )
+    screen_y = models.FloatField(
+        default=0.5,
+        validators=[MinValueValidator(0.0), MaxValueValidator(1.0)]
+        # help_text="Normalized Y position (0.0 – 1.0)"
+    )
 
     class Meta:
         # if I want alphabetized
