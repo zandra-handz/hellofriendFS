@@ -45,9 +45,6 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer'
     ],
-#     'DEFAULT_PARSER_CLASSES': [
-#     'rest_framework.parsers.JSONParser',
-# ]   ,
     'DEFAULT_PERMISSIONS_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
@@ -55,11 +52,11 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": datetime.timedelta(hours=1),
+    #"ACCESS_TOKEN_LIFETIME": datetime.timedelta(minutes=1),
+    
     "REFRESH_TOKEN_LIFETIME": datetime.timedelta(days=14),
 }
 
-
- 
 
 # Application definition
 
@@ -122,7 +119,7 @@ WSGI_APPLICATION = 'hfroot.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-
+''' 
 
 DATABASES = {
     'default': {
@@ -132,7 +129,6 @@ DATABASES = {
 }
  
 
-'''
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -160,16 +156,24 @@ DATABASES = {
     }
 }
   
+'''
 
-
-# to run in local/test, just switch to sqlite above, already has admin and 2 friends
+# to run in local/test, just switch to sqlite above (or copy-paste localsettings.py temporarily), already has admin and 2 friends
 # cd hellofriend, venv\Scripts\Activate, cd hfroot, run server
 # after changes, run makemigration and migrate
 # cd.. to hellofriendFs, push changes and migration file to git
 # in digital ocean server, go to top level (hellofriendFS) and git pull origin main
-# cd to hellofriend, activate env, cd to hfroot and run migrate (and collectstatic?)
+# cd to hellofriend, source venv/bin/activate, cd to hfroot and run migrate (and collectstatic?)
 # then restart gunicorn and nginx and verify status (don't need to restart socket)
 # (sudo systemctl restart nginx, sudo systemctl restart gunicorn  )
+
+
+
+# other:
+# nginx config on digital ocean: sudo nano /etc/nginx/sites-available/badrainbowz.com
+# verify nginx changes are okay: sudo nginx -t
+# To set env variables on backend/edit: nano ~/.bashrc, arrow down to bottom, export etc. CTRL + O, ENTER to save, CTRL x to exit
+#     then source ~/.bashrc to reload
 DATABASES = {
     'default': {
         "ENGINE": 'django.db.backends.postgresql',
@@ -181,7 +185,6 @@ DATABASES = {
     }
 } 
    
-'''
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
@@ -254,48 +257,36 @@ AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')  # or the region where your
 # If you have a specific endpoint for your space
 AWS_S3_ENDPOINT_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com'
 
-
-
-    # Local dev → just use filesystem
-DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
-STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
-
-MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
-
-STATIC_URL = "/static/"
-STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
-
-# STORAGES = {
-#     # Media files
-#     "default": {
-#         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-#         "OPTIONS": {
-#             "access_key": AWS_ACCESS_KEY_ID,
-#             "secret_key": AWS_SECRET_ACCESS_KEY,
-#             "bucket_name": AWS_STORAGE_BUCKET_NAME,
-#             "region_name": AWS_S3_REGION_NAME,
-#             "endpoint_url": AWS_S3_ENDPOINT_URL,
-#             "file_overwrite": False,
-#             "default_acl": 'public-read',
-#             "verify": True,
-#         },
-#     },
-#     # Static files
-#     "staticfiles": {
-#         "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
-#         "OPTIONS": {
-#             "access_key": AWS_ACCESS_KEY_ID,
-#             "secret_key": AWS_SECRET_ACCESS_KEY,
-#             "bucket_name": AWS_STORAGE_BUCKET_NAME,
-#             "region_name": AWS_S3_REGION_NAME,
-#             "endpoint_url": AWS_S3_ENDPOINT_URL,
-#             "default_acl": 'public-read',
-#             "verify": True,
-#            # "location": "static",  # optional folder prefix in your bucket
-#         },
-#     },
-# }
+STORAGES = {
+    # Media files
+    "default": {
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+        "OPTIONS": {
+            "access_key": AWS_ACCESS_KEY_ID,
+            "secret_key": AWS_SECRET_ACCESS_KEY,
+            "bucket_name": AWS_STORAGE_BUCKET_NAME,
+            "region_name": AWS_S3_REGION_NAME,
+            "endpoint_url": AWS_S3_ENDPOINT_URL,
+            "file_overwrite": False,
+            "default_acl": 'public-read',
+            "verify": True,
+        },
+    },
+    # Static files
+    "staticfiles": {
+        "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
+        "OPTIONS": {
+            "access_key": AWS_ACCESS_KEY_ID,
+            "secret_key": AWS_SECRET_ACCESS_KEY,
+            "bucket_name": AWS_STORAGE_BUCKET_NAME,
+            "region_name": AWS_S3_REGION_NAME,
+            "endpoint_url": AWS_S3_ENDPOINT_URL,
+            "default_acl": 'public-read',
+            "verify": True,
+           # "location": "static",  # optional folder prefix in your bucket
+        },
+    },
+}
 
 # Media URL configuration
 MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/'
@@ -315,7 +306,7 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'climatetwin@gmail.com'
-EMAIL_HOST_PASSWORD = 'kufx lamo jwem wkno'
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = 'climatetwin@gmail.com'
 ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
