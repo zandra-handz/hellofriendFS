@@ -923,13 +923,13 @@ class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
         Updates only if coordinates differ
         """
         user = request.user
-        payload = request.data  # array of {id, screen_x, screen_y}
+        payload = request.data  
         updated = []
 
         for item in payload:
             try:
                 capsule = models.ThoughtCapsulez.objects.get(user=user, id=item['id'])
-                # Only update if different
+            
                 if (
                     abs(capsule.screen_x - item['screen_x']) > 1e-5
                     or abs(capsule.screen_y - item['screen_y']) > 1e-5
@@ -937,7 +937,11 @@ class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
                     capsule.screen_x = item['screen_x']
                     capsule.screen_y = item['screen_y']
                     capsule.save()
-                    updated.append(capsule.id)
+                    updated.append({
+                        "id": str(capsule.id),
+                        "screen_x": capsule.screen_x,
+                        "screen_y": capsule.screen_y,
+                    })
             except models.ThoughtCapsulez.DoesNotExist:
                 continue
 
