@@ -4,6 +4,8 @@ import users.models
 import users.serializers
 from . import serializers
 
+
+from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Min, Prefetch
 
@@ -908,6 +910,60 @@ class ThoughtCapsuleDetail(generics.RetrieveUpdateDestroyAPIView):
             "message": "Moment deleted successfully",
             "id": id 
         }, status=200)
+    
+
+    
+class ThoughtCapsuleBulkUpdateCoords(generics.GenericAPIView):
+    """
+    Bulk update coordinates for a list of ThoughtCapsulez.
+    Only updates if the coordinates differ from the existing values.
+    Expects payload:
+    [
+        {"id": "<capsule_id>", "screen_x": 0.5, "screen_y": 0.5},
+        {"id": "<capsule_id>", "screen_x": 0.3, "screen_y": 0.8},
+        ...
+    ]
+    """
+    serializer_class = serializers.ThoughtCapsuleSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return models.ThoughtCapsulez.objects.filter(user=user)
+
+    @transaction.atomic
+    def put(self, request, *args, **kwargs):
+        user = request.user
+        updates = request.data  # expecting a list of {id, screen_x, screen_y}
+
+        updated_capsules = []
+        epsilon = 1e-5
+
+        for item in updates:
+            capsule_id = item.get("id")
+            screen_x = item.get("screen_x")
+            screen_y = item.get("screen_y")
+
+            if capsule_id is None or screen_x is None or screen_y is None:
+                continue  # skip invalid entries
+
+            try:
+                capsule = models.ThoughtCapsulez.objects.get(id=capsule_id, user=user)
+            except models.ThoughtCapsulez.DoesNotExist:
+                continue  # skip capsules not owned by user
+
+            # Only update if coords differ by more than epsilon
+            if (abs(capsule.screen_x - screen_x) > epsilon or
+                abs(capsule.screen_y - screen_y) > epsilon):
+                capsule.screen_x = screen_x
+                capsule.screen_y = screen_y
+                capsule.save(update_fields=["screen_x", "screen_y"])
+                updated_capsules.append(capsule.id)
+
+        return response.Response({
+            "message": "Coordinates updated successfully",
+            "updated_ids": updated_capsules
+        }, status=status.HTTP_200_OK)
 
 class ThoughtCapsulesUpdateMultiple(APIView):
     permission_classes = [IsAuthenticated]
