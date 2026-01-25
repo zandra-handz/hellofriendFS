@@ -912,15 +912,14 @@ class ThoughtCapsuleDetail(generics.RetrieveUpdateDestroyAPIView):
         }, status=200)
     
 
-    
 
 class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
 
     def patch(self, request, friend_id):
         """
-        Expects data: [{id: uuid, screen_x: float, screen_y: float}, ...]
-        Updates only if coordinates differ
+        Expects data: [{id: uuid, screen_x: float, screen_y: float, stored_index: int|null}, ...]
+        Updates only if values differ
         """
         user = request.user
         payload = request.data  
@@ -929,23 +928,64 @@ class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
         for item in payload:
             try:
                 capsule = models.ThoughtCapsulez.objects.get(user=user, id=item['id'])
-            
+                
+                # Check if anything changed
                 if (
                     abs(capsule.screen_x - item['screen_x']) > 1e-5
                     or abs(capsule.screen_y - item['screen_y']) > 1e-5
+                    or ('stored_index' in item and capsule.stored_index != item['stored_index'])
                 ):
                     capsule.screen_x = item['screen_x']
                     capsule.screen_y = item['screen_y']
+                    if 'stored_index' in item:
+                        capsule.stored_index = item['stored_index']
+                    
                     capsule.save()
                     updated.append({
                         "id": str(capsule.id),
                         "screen_x": capsule.screen_x,
                         "screen_y": capsule.screen_y,
+                        "stored_index": capsule.stored_index,
                     })
             except models.ThoughtCapsulez.DoesNotExist:
                 continue
 
         return response.Response({"updated": updated}, status=status.HTTP_200_OK)
+    
+
+# class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def patch(self, request, friend_id):
+#         """
+#         Expects data: [{id: uuid, screen_x: float, screen_y: float}, ...]
+#         Updates only if coordinates differ
+#         """
+#         user = request.user
+#         payload = request.data  
+#         updated = []
+
+#         for item in payload:
+#             try:
+#                 capsule = models.ThoughtCapsulez.objects.get(user=user, id=item['id'])
+            
+#                 if (
+#                     abs(capsule.screen_x - item['screen_x']) > 1e-5
+#                     or abs(capsule.screen_y - item['screen_y']) > 1e-5
+#                 ):
+#                     capsule.screen_x = item['screen_x']
+#                     capsule.screen_y = item['screen_y']
+#                     capsule.save()
+#                     updated.append({
+#                         "id": str(capsule.id),
+#                         "screen_x": capsule.screen_x,
+#                         "screen_y": capsule.screen_y,
+#                         "stored_index": capsule.stored_index,
+#                     })
+#             except models.ThoughtCapsulez.DoesNotExist:
+#                 continue
+
+#         return response.Response({"updated": updated}, status=status.HTTP_200_OK)
 
 class ThoughtCapsulesUpdateMultiple(APIView):
     permission_classes = [IsAuthenticated]

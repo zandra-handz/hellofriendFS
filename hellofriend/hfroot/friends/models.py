@@ -764,6 +764,9 @@ class ThoughtCapsulez(models.Model):
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)]
         # help_text="Normalized Y position (0.0 – 1.0)"
     )
+    # used for front end --> gecko holding
+    # front end will decide if need to be unique, and how to handle from there
+    stored_index = models.PositiveIntegerField(blank=True, null=True)
 
     class Meta:
         # if I want alphabetized
