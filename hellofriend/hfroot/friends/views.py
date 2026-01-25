@@ -927,7 +927,11 @@ class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
 
         for item in payload:
             try:
-                capsule = models.ThoughtCapsulez.objects.get(user=user, id=item['id'])
+                capsule = models.ThoughtCapsulez.objects.get(
+                    user=user, 
+                    friend_id=friend_id,
+                    id=item['id']
+                )
                 
                 # Check if anything changed
                 if (
@@ -951,7 +955,6 @@ class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
                 continue
 
         return response.Response({"updated": updated}, status=status.HTTP_200_OK)
-    
 
 # class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
 #     permission_classes = [IsAuthenticated]
