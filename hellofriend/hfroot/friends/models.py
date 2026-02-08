@@ -768,6 +768,46 @@ class ThoughtCapsulez(models.Model):
     # front end will decide if need to be unique, and how to handle from there
     stored_index = models.PositiveIntegerField(blank=True, null=True)
 
+    # USE TOGETHER ON FE
+    easy_score = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
+    )
+    hard_score = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
+    )
+    ###
+
+    # USE TOGETHER ON FE
+    quick_score = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
+    )
+    long_score = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
+    )
+    ###
+
+    # USE TOGETHER ON FE
+    relevant_score = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
+    )
+    random_score = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
+    )
+    ###
+
+    # USE TOGETHER ON FE
+    unique_score = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
+    )
+    generic_score = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
+    ) 
+
+
+
+
+    
+
     class Meta:
         # if I want alphabetized
         # ordering = [OrderBy(F('user_category__name'), nulls_last=True)]
