@@ -447,5 +447,5 @@ class FriendPickSessionSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = models.FriendPickSession
-        fields = ['id', 'friend', 'friend_name', 'pressed_at', 'created_on', 'expires_on', 'is_expired']
+        fields = ['id', 'friend', 'friend_name', 'dark_color', 'light_color', 'pressed_at', 'created_on', 'expires_on', 'is_expired']
         read_only_fields = ['id', 'pressed_at', 'created_on', 'is_expired']

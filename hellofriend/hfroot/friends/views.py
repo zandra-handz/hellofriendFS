@@ -1664,12 +1664,51 @@ class LocationDetail(generics.RetrieveUpdateDestroyAPIView):
 
 
 # API: Create session (from your app)
+# class FriendPickSessionCreate(generics.CreateAPIView):
+#     serializer_class = serializers.FriendPickSessionSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def perform_create(self, serializer):
+#         serializer.save(user=self.request.user)
+
+
+
+# deletes old ones
+# class FriendPickSessionCreate(generics.CreateAPIView):
+#     serializer_class = serializers.FriendPickSessionSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def perform_create(self, serializer):
+#         # Delete any old sessions for this user/friend
+#         models.FriendPickSession.objects.filter(
+#             user=self.request.user,
+#             friend_id=serializer.validated_data['friend']
+#         ).delete()
+        
+#         serializer.save(user=self.request.user)
+
 class FriendPickSessionCreate(generics.CreateAPIView):
     serializer_class = serializers.FriendPickSessionSerializer
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        # Delete any old sessions for this user/friend
+        models.FriendPickSession.objects.filter(
+            user=self.request.user,
+            friend_id=serializer.validated_data['friend']
+        ).delete()
+        
+        # Get friend colors
+        friend = serializer.validated_data['friend']
+        dark_color = friend.theme_color_dark or '#1a1a2e'
+        light_color = friend.theme_color_light or '#6c63ff'
+        
+        serializer.save(
+            user=self.request.user,
+            dark_color=dark_color,
+            light_color=light_color
+        )
+
 
 
 # API: Check if they've pressed (poll from your app)

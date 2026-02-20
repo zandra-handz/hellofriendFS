@@ -1418,12 +1418,16 @@ class ConsiderTheDrive(models.Model):
 
 
 
-
+# create view for this deletes old ones
 class FriendPickSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
     friend_name = models.CharField(max_length=64)
+    
+  
+    dark_color = models.CharField(max_length=7, null=True, blank=True)
+    light_color = models.CharField(max_length=7, null=True, blank=True)
     
     pressed_at = models.DateTimeField(null=True, blank=True)
     
@@ -1432,7 +1436,7 @@ class FriendPickSession(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.expires_on:
-            self.expires_on = timezone.now() + datetime.timedelta(minutes=1)
+            self.expires_on = timezone.now() + datetime.timedelta(seconds=30)
         super().save(*args, **kwargs)
 
     @property

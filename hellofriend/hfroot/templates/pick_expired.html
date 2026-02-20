@@ -4,23 +4,41 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Expired</title>
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #1a1a2e;
-            color: #eee;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
             margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
+            text-align: center;
+            padding: 20px;
         }
-        h1 { color: #ff6b6b; }
-        p { color: #aaa; }
+
+        h1 {
+            color: var(--accent);
+            margin-bottom: 12px;
+        }
+
+        p {
+            color: var(--muted);
+        }
     </style>
 </head>
-<body>
+
+<body
+    style="
+        --bg: {{ request.session.dark_color|default:'#1a1a2e' }};
+        --accent: {{ request.session.light_color|default:'#ff6b6b' }};
+        --text: #eee;
+        --muted: #aaa;
+    "
+>
     <h1>Link expired</h1>
     <p>Ask them to generate a new QR code.</p>
 </body>

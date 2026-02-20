@@ -4,21 +4,32 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Done!</title>
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #1a1a2e;
-            color: #eee;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
             margin: 0;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        h1 { color: #6c63ff; }
+
+        h1 {
+            color: var(--accent);
+        }
     </style>
 </head>
-<body>
+
+<body
+    style="
+        --bg: {{ request.session.dark_color|default:'#1a1a2e' }};
+        --accent: {{ request.session.light_color|default:'#6c63ff' }};
+        --text: #eee;
+    "
+>
     <h1>✓ You're all set!</h1>
 </body>
 </html>

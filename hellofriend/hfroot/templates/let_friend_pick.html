@@ -3,12 +3,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ready?</title>
+    <title>Ready</title>
+
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #1a1a2e;
-            color: #eee;
+            background: var(--bg);
+            color: white;
             min-height: 100vh;
             margin: 0;
             display: flex;
@@ -17,23 +18,43 @@
             justify-content: center;
             padding: 20px;
         }
-        h1 { margin-bottom: 32px; }
+
+        h1 {
+            margin-bottom: 32px;
+        }
+
         button {
-            background: #6c63ff;
+            background: var(--btn);
             color: white;
             border: none;
             border-radius: 16px;
             padding: 24px 64px;
             font-size: 24px;
             cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        button:hover {
+            opacity: 0.85;
         }
     </style>
 </head>
-<body>
-    <h1>Hey {{ session.friend_name }}!</h1>
+
+<body
+    style="
+        --bg: {{ request.session.dark_color|default:'#1a1a2e' }};
+        --btn: {{ request.session.light_color|default:'#36c63f' }};
+    "
+>
+
+    <h1>
+        Hey {{ request.session.friend_name|default:"Friend" }}!
+    </h1>
+
     <form method="post">
         {% csrf_token %}
         <button type="submit">I'm ready!</button>
     </form>
+
 </body>
 </html>
