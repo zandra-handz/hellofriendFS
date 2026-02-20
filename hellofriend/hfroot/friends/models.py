@@ -7,6 +7,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator, RegexVa
 from django.db import models, transaction
 from django.db.models import F
 from django.db.models.expressions import OrderBy
+from django.utils import timezone
 import traceback
 
 import datetime
@@ -1416,6 +1417,8 @@ class ConsiderTheDrive(models.Model):
 '''
 
 
+
+
 class FriendPickSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
@@ -1429,12 +1432,12 @@ class FriendPickSession(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.expires_on:
-            self.expires_on = datetime.datetime.now() + datetime.timedelta(minutes=1)
+            self.expires_on = timezone.now() + datetime.timedelta(minutes=1)
         super().save(*args, **kwargs)
 
     @property
     def is_expired(self):
-        return datetime.datetime.now() > self.expires_on
+        return timezone.now() > self.expires_on
 
     def __str__(self):
         return f"Pick session for {self.friend_name}"
