@@ -437,3 +437,15 @@ class FriendProfileSerializer(serializers.ModelSerializer):
             return serializer.data
         else:
             return None
+        
+
+
+
+
+class FriendPickSessionSerializer(serializers.ModelSerializer):
+    is_expired = serializers.BooleanField(read_only=True)
+    
+    class Meta:
+        model = models.FriendPickSession
+        fields = ['id', 'friend', 'friend_name', 'pressed_at', 'created_on', 'expires_on', 'is_expired']
+        read_only_fields = ['id', 'pressed_at', 'created_on', 'is_expired']

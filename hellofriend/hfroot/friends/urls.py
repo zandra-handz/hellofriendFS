@@ -4,6 +4,7 @@ import users.views
 
 urlpatterns = [
     path('', views.index, name='index'),
+    
     #path('nextmeets/', views.NextMeetsAllView.as_view()),
     path('upcoming/', views.UpcomingMeetsLightView.as_view()),
     path('upcoming/', views.UpcomingMeetsQuickView.as_view()), # swapping this to test speed; just returns all next meets after checking if they'be been updated for the day
@@ -85,4 +86,8 @@ urlpatterns = [
     path('notifications/upcoming/36hrs/', views.UpcomingMeetsAll36.as_view(), name='notifications-all-upcoming-36hrs'),
     path('notifications/upcoming/24hrs/', views.UpcomingMeetsAll24.as_view(), name='notifications-all-upcoming-24hrs'),
 
+
+    path('pick-session/create/', views.FriendPickSessionCreate.as_view()),
+    path('pick-session/<uuid:id>/', views.FriendPickSessionDetail.as_view()),
+    path('pick/<uuid:session_id>/', views.friend_pick_page, name='friend-pick-page'),
 ]

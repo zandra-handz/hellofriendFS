@@ -1660,4 +1660,38 @@ class LocationDetail(generics.RetrieveUpdateDestroyAPIView):
     # grouped by helloes
     # this view at least will not include active categories
 
+
+
+
+# API: Create session (from your app)
+class FriendPickSessionCreate(generics.CreateAPIView):
+    serializer_class = serializers.FriendPickSessionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+# API: Check if they've pressed (poll from your app)
+class FriendPickSessionDetail(generics.RetrieveAPIView):
+    serializer_class = serializers.FriendPickSessionSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'id'
+
+    def get_queryset(self):
+        return models.FriendPickSession.objects.filter(user=self.request.user)
+
+
+# Web page for the friend (no auth)
+def friend_pick_page(request, session_id):
+    session = get_object_or_404(models.FriendPickSession, id=session_id)
     
+    if session.pressed_at:
+        return render(request, 'pick_done.html', {'session': session})
+    
+    if request.method == 'POST':
+        session.pressed_at = timezone.now()
+        session.save()
+        return render(request, 'pick_done.html', {'session': session})
+    
+    return render(request, 'let_friend_pick.html', {'session': session})
