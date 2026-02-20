@@ -3,13 +3,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ready</title>
+    <title>Ready?</title>
 
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg);
-            color: white;
+            color: #eee;
             min-height: 100vh;
             margin: 0;
             display: flex;
@@ -30,20 +30,17 @@
             padding: 24px 64px;
             font-size: 24px;
             cursor: pointer;
-            transition: opacity 0.2s ease;
         }
-
-        button:hover { opacity: 0.85; }
     </style>
 </head>
 
 <body
     style="
-        --bg: {{ pick.dark_color|default:'#1a1a2e' }};
-        --btn: {{ pick.light_color|default:'#36c63f' }};
+        --bg: {{ session.dark_color|default:'#1a1a2e' }};
+        --btn: {{ session.light_color|default:'#6c63ff' }};
     "
 >
-    <h1>Hey {{ pick.friend_name|default:"Friend" }}!</h1>
+    <h1>Hey {{ session.friend_name }}!</h1>
 
     <form method="post">
         {% csrf_token %}
