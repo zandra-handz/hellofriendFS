@@ -1414,3 +1414,27 @@ class ConsiderTheDrive(models.Model):
             return f"{self.name}"
 
 '''
+
+
+class FriendPickSession(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+    friend = models.ForeignKey(Friend, on_delete=models.CASCADE)
+    friend_name = models.CharField(max_length=64)
+    
+    pressed_at = models.DateTimeField(null=True, blank=True)
+    
+    created_on = models.DateTimeField(auto_now_add=True)
+    expires_on = models.DateTimeField(null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.expires_on:
+            self.expires_on = datetime.datetime.now() + datetime.timedelta(minutes=1)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_expired(self):
+        return datetime.datetime.now() > self.expires_on
+
+    def __str__(self):
+        return f"Pick session for {self.friend_name}"
