@@ -20,6 +20,7 @@ urlpatterns = [
     path('<int:friend_id>/settings/update/', views.FriendSuggestionSettingsDetail.as_view()),
     # path('<int:friend_id>/category-limit/', views.FriendSuggestionSettingsCategoryLimit.as_view()),
     path('<int:friend_id>/faves/', views.FriendFavesDetail.as_view()),
+    path('<int:friend_id>/faves/saved-toggle-on/', views.FriendFavesEnableManualTheme.as_view()),
     path('<int:friend_id>/faves/add/location/', views.FriendFavesLocationAdd.as_view()),
     path('<int:friend_id>/faves/remove/location/', views.FriendFavesLocationRemove.as_view()),
     path('<int:friend_id>/next-meet/', views.NextMeetView.as_view()),

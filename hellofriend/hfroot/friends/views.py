@@ -243,6 +243,28 @@ class FriendFavesDetail(generics.RetrieveUpdateAPIView):
 
         return response.Response(serializer.data)
 
+
+class FriendFavesEnableManualTheme(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, friend_id):
+        try:
+            faves = models.FriendFaves.objects.get(user=request.user, friend_id=friend_id)
+        except models.FriendFaves.DoesNotExist:
+            return response.Response({"error": "FriendFaves not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not faves.saved_color_dark or not faves.saved_color_light:
+            return response.Response({"error": "No saved colors to restore"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # restore saved into active
+        faves.dark_color = faves.saved_color_dark
+        faves.light_color = faves.saved_color_light
+        faves.use_friend_color_theme = True
+        faves.save()
+
+        serializer = serializers.FriendFavesSerializer(faves)
+        return response.Response(serializer.data)
+
     
 class FriendFavesLocationAdd(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.FriendFavesSerializer

@@ -554,6 +554,9 @@ class FriendFaves(models.Model):
     dark_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the dark theme")
     light_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the light theme")
     
+    saved_color_dark = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for saved dark theme")
+    saved_color_light = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for saved light theme")
+    
     font_color = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the primary font theme")
     font_color_secondary = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the secondary font theme")
     
@@ -602,27 +605,26 @@ class FriendFaves(models.Model):
 
     def save(self, *args, **kwargs):
         self.clean()
- 
         associated_friend = self.friend
-        
-        # app saves new colors as theme, whether resetting to default colors or updating
-        associated_friend.theme_color_dark = self.dark_color  # Update field from FriendFaves to Friend
-        associated_friend.theme_color_light = self.light_color  # Update another field from FriendFaves to Friend
-        associated_friend.theme_color_font = self.font_color 
-        associated_friend.theme_color_font_secondary = self.font_color_secondary
 
-        # if updating colors, overwrite saved colors/store new ones
+        if self.dark_color:
+            associated_friend.theme_color_dark = self.dark_color
+        if self.light_color:
+            associated_friend.theme_color_light = self.light_color
+        if self.font_color:
+            associated_friend.theme_color_font = self.font_color
+        if self.font_color_secondary:
+            associated_friend.theme_color_font_secondary = self.font_color_secondary
+
         if self.use_friend_color_theme == True:
-            associated_friend.saved_color_dark = self.dark_color 
-            associated_friend.saved_color_light = self.light_color  
-           
-        
-        # may store the saved colors in this fave model too at some point 
+            self.saved_color_dark = self.dark_color
+            self.saved_color_light = self.light_color
+            associated_friend.saved_color_dark = self.dark_color
+            associated_friend.saved_color_light = self.light_color
 
         associated_friend.save()
         super().save(*args, **kwargs)
-
-    '''
+        '''
     #addresses = models.JSONField(blank=True, null=True)
 
 
