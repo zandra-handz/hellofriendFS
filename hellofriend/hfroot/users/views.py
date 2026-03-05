@@ -4,7 +4,8 @@ from django.apps import apps
 from django.core.mail import send_mail
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Prefetch, Q
+from django.db import transaction
+from django.db.models import Count, Prefetch, Q, F
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404
@@ -14,6 +15,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.throttling import UserRateThrottle 
 
+ 
 
 from rest_framework.views import APIView 
 
@@ -258,7 +260,40 @@ class UserProfileDetail(generics.RetrieveUpdateAPIView):
         user_id = self.kwargs['user_id']
         return get_object_or_404(models.UserProfile, user__id=user_id)
 
+class AddPointsView(APIView):
+    permission_classes = [IsAuthenticated]
 
+    def post(self, request, *args, **kwargs):
+        serializer = serializers.AddPointsSerializer(data=request.data)
+        if not serializer.is_valid():
+            return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        amount = serializer.validated_data['amount']
+        reason = serializer.validated_data['reason']
+
+        with transaction.atomic():
+            models.PointsLedger.objects.create(
+                user=request.user,
+                amount=amount,
+                reason=reason,
+            )
+            models.UserProfile.objects.filter(user=request.user).update(
+                total_points=F('total_points') + amount
+            )
+
+        profile = models.UserProfile.objects.get(user=request.user)
+        return response.Response(
+            {'total_points': profile.total_points},
+            status=status.HTTP_200_OK
+        )
+
+
+class PointsLedgerView(generics.ListAPIView):
+    serializer_class = serializers.PointsLedgerSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return models.PointsLedger.objects.filter(user=self.request.user)
 
 
 class UserCategoriesView(generics.ListCreateAPIView):

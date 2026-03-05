@@ -324,12 +324,27 @@ class UserProfile(models.Model):
     first_name = models.CharField(_('first name'), max_length=30, blank=True, default='')
     last_name = models.CharField(_('last name'), max_length=30, blank=True, default='')
     date_of_birth = models.DateField(_('date of birth'), blank=True, null=True)
+    
     #profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
     gender = models.CharField(_('gender'), max_length=10, choices=[('NB', 'Non-Binary'), ('M', 'Male'), ('F', 'Female'), ('O', 'Other'), ('No answer', 'No answer')], blank=True, default='')
-
+    total_points = models.PositiveIntegerField(default=0)
     
     def __str__(self):
         return f"Profile for {self.user.username}"
+    
+
+
+class PointsLedger(models.Model):
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='points_ledger')
+    amount = models.IntegerField()
+    reason = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} +{self.amount} ({self.reason})"
 
 
 '''

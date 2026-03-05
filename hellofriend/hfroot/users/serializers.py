@@ -22,7 +22,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.UserProfile
-        fields = ['first_name', 'last_name', 'date_of_birth', 'gender']
+        fields = ['first_name', 'last_name', 'date_of_birth', 'gender', 'total_points']
 
 # class UserCategorySerializer(serializers.ModelSerializer):
 
@@ -333,6 +333,16 @@ class PasswordResetSerializer(serializers.Serializer):
         user.save()
 
 
+
+
+class PointsLedgerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.PointsLedger
+        fields = ['id', 'amount', 'reason', 'created_at']
+
+class AddPointsSerializer(serializers.Serializer):
+    amount = serializers.IntegerField(min_value=1)
+    reason = serializers.CharField(max_length=100)
 
 class UpdateSubscriptionSerializer(serializers.ModelSerializer):
     
