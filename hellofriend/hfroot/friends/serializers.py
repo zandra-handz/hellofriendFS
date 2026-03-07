@@ -46,7 +46,7 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
 
 class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
     capsule_count = serializers.SerializerMethodField()
-    # capsule_summary = serializers.SerializerMethodField()
+    capsule_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Friend
@@ -57,22 +57,23 @@ class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
     def _get_capsules_for_friend(self, obj):
         user_capsules = self._get_user_capsules()
         return [cap for cap in user_capsules if cap.friend_id == obj.id]
- 
+
+    # -------------------------------------------------------- 
     def get_capsule_count(self, obj):
         return len(self._get_capsules_for_friend(obj))
 
-    # def get_capsule_summary(self, obj):
-    #     capsules = self._get_capsules_for_friend(obj)
+    def get_capsule_summary(self, obj):
+        capsules = self._get_capsules_for_friend(obj)
 
-    #     summary = {}
-    #     for cap in capsules:
-    #         cat = cap.user_category.name if cap.user_category else "Uncategorized"
-    #         summary[cat] = summary.get(cat, 0) + 1
+        summary = {}
+        for cap in capsules:
+            cat = cap.user_category.name if cap.user_category else "Uncategorized"
+            summary[cat] = summary.get(cat, 0) + 1
 
-    #     return [
-    #         {"user_category_name": name, "count": count}
-    #         for name, count in summary.items()
-    #     ]
+        return [
+            {"user_category_name": name, "count": count}
+            for name, count in summary.items()
+        ]
 
 
 # class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):

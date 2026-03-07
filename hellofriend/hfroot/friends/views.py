@@ -550,17 +550,13 @@ class CombinedFriendsUpcomingView(APIView):
                 upcoming_friend=next_meet.friend
             )
  
-        # friends_qs = (
-        #     models.Friend.objects
-        #     .filter(user=user)
-        # )
-
         friends_qs = (
             models.Friend.objects
             .filter(user=user)
-            .select_related("next_meet", "suggestion_settings", "friendfaves")
         )
+
         
+ 
         user_capsules = list(
             models.ThoughtCapsulez.objects
             .filter(user=user)
@@ -577,7 +573,7 @@ class CombinedFriendsUpcomingView(APIView):
             "user": user.id,
             "friends": friends_data,
             "upcoming": upcoming_data,
-            # "capsule_summaries": friends_data,
+            "capsule_summaries": friends_data,
             "next": None
         })
  
