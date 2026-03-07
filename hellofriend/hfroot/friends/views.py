@@ -518,8 +518,6 @@ class UpcomingMeetsQuickView(generics.ListCreateAPIView):
 
  
 
-         
-         
 class CombinedFriendsUpcomingView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -549,28 +547,41 @@ class CombinedFriendsUpcomingView(APIView):
             users.models.UserSettings.objects.filter(user=user).update(
                 upcoming_friend=next_meet.friend
             )
- 
-        # friends_qs = (
-        #     models.Friend.objects
-        #     .filter(user=user)
-        # )
 
         friends_qs = (
             models.Friend.objects
             .filter(user=user)
-            .select_related("next_meet", "suggestion_settings", "friendfaves")
+            .select_related("next_meet", "suggestion_settings")
         )
-        
-        user_capsules = list(
+
+        capsule_counts = dict(
             models.ThoughtCapsulez.objects
             .filter(user=user)
-            .select_related("friend", "user_category")
+            .values('friend_id')
+            .annotate(count=Count('id'))
+            .values_list('friend_id', 'count')
         )
- 
+
+        capsule_summary_qs = (
+            models.ThoughtCapsulez.objects
+            .filter(user=user)
+            .values('friend_id', 'user_category__name')
+            .annotate(count=Count('id'))
+        )
+        summaries_by_friend = defaultdict(list)
+        for row in capsule_summary_qs:
+            summaries_by_friend[row['friend_id']].append({
+                'user_category_name': row['user_category__name'] or 'Uncategorized',
+                'count': row['count']
+            })
+
         friends_data = serializers.FriendAndCapsuleSummarySerializer(
             friends_qs,
             many=True,
-            context={"user_capsules": user_capsules}
+            context={
+                'capsule_counts': capsule_counts,
+                'capsule_summaries': dict(summaries_by_friend)
+            }
         ).data
 
         return response.Response({
@@ -579,7 +590,68 @@ class CombinedFriendsUpcomingView(APIView):
             "upcoming": upcoming_data,
             "capsule_summaries": friends_data,
             "next": None
-        })
+        })      
+         
+# class CombinedFriendsUpcomingView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, *args, **kwargs):
+#         user = request.user
+#         today = timezone.now().date()
+ 
+#         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
+#         if update_tracker.last_upcoming_update != today:
+#             expired_meets = models.NextMeet.objects.user_expired_dates(user)
+#             for meet in expired_meets:
+#                 meet.save()
+#             update_tracker.upcoming_updated()
+ 
+#         upcoming_qs = (
+#             models.NextMeet.objects
+#             .filter(user=user)
+#             .select_related("friend")
+#             .order_by("date")
+#         )
+#         upcoming_data = serializers.UpcomingMeetsLightSerializer(
+#             upcoming_qs, many=True
+#         ).data
+ 
+#         next_meet = upcoming_qs.first()
+#         if next_meet:
+#             users.models.UserSettings.objects.filter(user=user).update(
+#                 upcoming_friend=next_meet.friend
+#             )
+ 
+#         # friends_qs = (
+#         #     models.Friend.objects
+#         #     .filter(user=user)
+#         # )
+
+#         friends_qs = (
+#             models.Friend.objects
+#             .filter(user=user)
+#             .select_related("next_meet", "suggestion_settings", "friendfaves")
+#         )
+        
+#         user_capsules = list(
+#             models.ThoughtCapsulez.objects
+#             .filter(user=user)
+#             .select_related("friend", "user_category")
+#         )
+ 
+#         friends_data = serializers.FriendAndCapsuleSummarySerializer(
+#             friends_qs,
+#             many=True,
+#             context={"user_capsules": user_capsules}
+#         ).data
+
+#         return response.Response({
+#             "user": user.id,
+#             "friends": friends_data,
+#             "upcoming": upcoming_data,
+#             "capsule_summaries": friends_data,
+#             "next": None
+#         })
  
 
 class UpcomingMeetsAll48(generics.ListCreateAPIView):
