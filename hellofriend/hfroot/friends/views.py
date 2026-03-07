@@ -526,20 +526,14 @@ class CombinedFriendsUpcomingView(APIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         today = timezone.now().date()
-
-        # --------------------------------------------------
-        # HANDLE NEXT MEET EXPIRATION UPDATES
-        # --------------------------------------------------
+ 
         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
         if update_tracker.last_upcoming_update != today:
             expired_meets = models.NextMeet.objects.user_expired_dates(user)
             for meet in expired_meets:
                 meet.save()
             update_tracker.upcoming_updated()
-
-        # --------------------------------------------------
-        # UPCOMING MEETS QUERY
-        # --------------------------------------------------
+ 
         upcoming_qs = (
             models.NextMeet.objects
             .filter(user=user)
@@ -549,36 +543,30 @@ class CombinedFriendsUpcomingView(APIView):
         upcoming_data = serializers.UpcomingMeetsLightSerializer(
             upcoming_qs, many=True
         ).data
-
-        # --------------------------------------------------
-        # SAVE UPCOMING FRIEND TO USER SETTINGS
-        # --------------------------------------------------
+ 
         next_meet = upcoming_qs.first()
         if next_meet:
             users.models.UserSettings.objects.filter(user=user).update(
                 upcoming_friend=next_meet.friend
             )
+ 
+        # friends_qs = (
+        #     models.Friend.objects
+        #     .filter(user=user)
+        # )
 
-        # --------------------------------------------------
-        # FRIENDS QUERY
-        # --------------------------------------------------
         friends_qs = (
             models.Friend.objects
             .filter(user=user)
+            .select_related("next_meet", "suggestion_settings", "friendfaves")
         )
-
-        # --------------------------------------------------
-        # ONE QUERY: ALL CAPSULES FOR THE USER
-        # --------------------------------------------------
+        
         user_capsules = list(
             models.ThoughtCapsulez.objects
             .filter(user=user)
             .select_related("friend", "user_category")
         )
-
-        # --------------------------------------------------
-        # SERIALIZE FRIENDS USING THE NEW OPTIMIZED SERIALIZER
-        # --------------------------------------------------
+ 
         friends_data = serializers.FriendAndCapsuleSummarySerializer(
             friends_qs,
             many=True,
