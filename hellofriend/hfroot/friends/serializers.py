@@ -44,52 +44,36 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
 
 
 
-# class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
-#     capsule_count = serializers.SerializerMethodField()
-#     capsule_summary = serializers.SerializerMethodField()
-
-#     class Meta:
-#         model = models.Friend
-#         fields = '__all__' 
-#     def _get_user_capsules(self):
-#         return self.context.get("user_capsules", [])
- 
-#     def _get_capsules_for_friend(self, obj):
-#         user_capsules = self._get_user_capsules()
-#         return [cap for cap in user_capsules if cap.friend_id == obj.id]
- 
-#     def get_capsule_count(self, obj):
-#         return len(self._get_capsules_for_friend(obj))
-
-#     def get_capsule_summary(self, obj):
-#         capsules = self._get_capsules_for_friend(obj)
-
-#         summary = {}
-#         for cap in capsules:
-#             cat = cap.user_category.name if cap.user_category else "Uncategorized"
-#             summary[cat] = summary.get(cat, 0) + 1
-
-#         return [
-#             {"user_category_name": name, "count": count}
-#             for name, count in summary.items()
-#         ]
-
- 
-
-
 class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
     capsule_count = serializers.SerializerMethodField()
-    capsule_summary = serializers.SerializerMethodField()
+    # capsule_summary = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Friend
-        fields = '__all__'
-
+        fields = '__all__' 
+    def _get_user_capsules(self):
+        return self.context.get("user_capsules", [])
+ 
+    def _get_capsules_for_friend(self, obj):
+        user_capsules = self._get_user_capsules()
+        return [cap for cap in user_capsules if cap.friend_id == obj.id]
+ 
     def get_capsule_count(self, obj):
-        return self.context.get('capsule_counts', {}).get(obj.id, 0)
+        return len(self._get_capsules_for_friend(obj))
 
-    def get_capsule_summary(self, obj):
-        return self.context.get('capsule_summaries', {}).get(obj.id, [])
+    # def get_capsule_summary(self, obj):
+    #     capsules = self._get_capsules_for_friend(obj)
+
+    #     summary = {}
+    #     for cap in capsules:
+    #         cat = cap.user_category.name if cap.user_category else "Uncategorized"
+    #         summary[cat] = summary.get(cat, 0) + 1
+
+    #     return [
+    #         {"user_category_name": name, "count": count}
+    #         for name, count in summary.items()
+    #     ]
+
 
 # class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
 #     capsule_count = serializers.SerializerMethodField()
