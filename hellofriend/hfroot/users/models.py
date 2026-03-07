@@ -164,8 +164,11 @@ class BadRainbowzUser(AbstractUser):
 
 
 
+    
+
 class UserCategory(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='user_categories')
+    
     name = models.CharField(max_length=50)
     thought_capsules = models.ManyToManyField('friends.ThoughtCapsulez', related_name='user_categories', blank=True, null=True)
     
@@ -293,13 +296,43 @@ class UserAddress(models.Model):
         return f"User address: {self.address}, validated: {self.validated_address}"
 
 
+# decided against for now, adding to settings instead
+# class UserAutoSelectSettings(models.Model):
+#     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='user_friend_select_settings')
+    # pinned_friend = models.ForeignKey(
+    #     'friends.Friend', 
+    #     related_name='pinned_in_auto_select_settings', 
+    #     blank=True, 
+    #     null=True, 
+    #     on_delete=models.SET_NULL
+    # )
+    # upcoming_friend = models.ForeignKey(
+    #     'friends.Friend', 
+    #     related_name='upcoming_in_auto_select_settings', 
+    #     blank=True, 
+    #     null=True, 
+    #     on_delete=models.SET_NULL
+    # )
+#     created_on = models.DateTimeField(auto_now_add=True)
+#     updated_on = models.DateTimeField(auto_now=True)
+
+#     class Meta:
+#         verbose_name = "User auto settings"
+#         verbose_name_plural = "User auto settings"
+
+#     def __str__(self):
+#         return f"Auto select settings for {self.user.username}"
+    
 
 class UserSettings(models.Model):
     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='settings')
     receive_notifications = models.BooleanField(default=False)
     simplify_app_for_focus = models.BooleanField(default=False)
+
+    # going to deprecate, too hard to read/follow ###################
     lock_in_next = models.BooleanField(default=False) # a boolean to use to automatically select next friend when user logs in
     lock_in_custom_string = models.CharField(max_length=1000, null=True, blank=True) # did not want a connection to friends table, but can store id or name here and set/retrieve on front end to automatically select friend chosen by user on log in
+    #################################################################
 
     language_preference = models.CharField(max_length=10, choices=[('en', 'English'), ('es', 'Spanish')], blank=True)
     # Accessibility settings options for front end
@@ -309,6 +342,24 @@ class UserSettings(models.Model):
     manual_dark_mode = models.BooleanField(null=True, blank=True)
     expo_push_token = models.CharField(max_length=255, null=True, blank=True) 
     user_default_category = models.ForeignKey(UserCategory, null=True, blank=True, on_delete=models.SET_NULL)
+
+    pinned_friend = models.ForeignKey(
+        'friends.Friend', 
+        related_name='pinned_in_settings', 
+        blank=True, 
+        null=True, 
+        on_delete=models.SET_NULL
+    )
+    upcoming_friend = models.ForeignKey(
+        'friends.Friend', 
+        related_name='upcoming_in_settings', 
+        blank=True, 
+        null=True, 
+        on_delete=models.SET_NULL
+    )
+    use_auto_select = models.BooleanField(default=False)
+    created_on = models.DateTimeField(default=timezone.now) # timezone here because I need to backfill existing instances
+    updated_on = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "User settings"

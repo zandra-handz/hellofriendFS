@@ -1,4 +1,5 @@
 .env 
 d.sqlite3
+hellofriend/hfroot/db.sqlite3
 __pycache__/
 *.pyc

@@ -38,7 +38,7 @@ class UserCategorySerializer(serializers.ModelSerializer):
     class Meta:
         model = models.UserCategory
         fields = ['id', 'user', 'name', 'description', 'thought_capsules', 'images', 'is_active', 'max_active', 'is_in_top_five', 'is_deletable', 'created_on', 'updated_on']
-
+        read_only_fields = ['id', 'user', 'is_active', 'is_in_top_five', 'is_deletable', 'max_active', 'created_on', 'updated_on']
 
 class UserCategoriesFriendHistorySerializer(serializers.ModelSerializer):
     completed_capsules = serializers.SerializerMethodField()
@@ -184,7 +184,12 @@ class UserSettingsSerializer(serializers.ModelSerializer):
             'manual_dark_mode',
             'expo_push_token',
             'user_default_category',
+            'use_auto_select',
+            'pinned_friend',
+            'upcoming_friend',
+            'updated_on'
         ]
+        read_only_fields = ['id', 'user', 'updated_on', 'created_on']
 
     # class Meta:
     #     model = models.UserSettings
