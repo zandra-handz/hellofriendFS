@@ -2,25 +2,22 @@ from rest_framework import serializers
 from . import models
 import users.models
 import users.serializers
-
-
- 
-
-class FriendSerializer(serializers.ModelSerializer):
-
-    class Meta():
-        model = models.Friend
-        fields = '__all__'
-
-
-from rest_framework import serializers
+  
 from django.db.models import Count
-from . import models
+ 
 
 class FriendSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Friend
         fields = '__all__'
+        read_only_fields = [
+            'id',
+            'user',          # set server-side from request.user
+            'created_on',    # auto_now_add
+            'updated_on',    # auto_now
+            'next_meet',     # created in Friend.save()
+            'suggestion_settings',  # created in Friend.save()
+        ]
 
 
 class ThoughtCapsuleSerializer(serializers.ModelSerializer):
