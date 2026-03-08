@@ -212,9 +212,16 @@ class UserSettingsDetail(generics.RetrieveUpdateAPIView):
     # lookup_url_kwarg = 'user_id'
  
 
-    def get_object(self):
-        return self.request.user.settings   
+    # def get_object(self):
+    #     return self.request.user.settings   
     
+    def get_object(self):
+        return get_object_or_404(
+            models.UserSettings.objects
+                .select_related('pinned_friend', 'upcoming_friend'),
+            user=self.request.user
+        )
+        
 
     def update(self, request, *args, **kwargs):
         return super().update(request, *args, **kwargs)

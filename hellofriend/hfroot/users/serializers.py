@@ -160,8 +160,15 @@ class UserCategoriesHistoryCapsuleIdsSerializer(serializers.ModelSerializer):
 
         return [c.id for c in capsules]
 
-
 class UserSettingsSerializer(serializers.ModelSerializer): 
+    pinned_friend_name = serializers.SerializerMethodField()
+    upcoming_friend_name = serializers.SerializerMethodField()
+
+    def get_pinned_friend_name(self, obj):
+        return obj.pinned_friend.name if obj.pinned_friend else None
+
+    def get_upcoming_friend_name(self, obj):
+        return obj.upcoming_friend.name if obj.upcoming_friend else None
 
     def validate_user_default_category(self, value): 
         if value and value.user != self.context['request'].user:
@@ -186,11 +193,12 @@ class UserSettingsSerializer(serializers.ModelSerializer):
             'user_default_category',
             'use_auto_select',
             'pinned_friend',
+            'pinned_friend_name',
             'upcoming_friend',
+            'upcoming_friend_name',
             'updated_on'
         ]
-        read_only_fields = ['id', 'user', 'updated_on', 'created_on']
-
+        read_only_fields = ['id', 'user', 'updated_on', 'created_on', 'pinned_friend_name', 'upcoming_friend_name']
     # class Meta:
     #     model = models.UserSettings
     #     fields = [
