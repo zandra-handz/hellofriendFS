@@ -584,12 +584,12 @@ def send_email_to_user(request):
     try:
        
         # Send the email
-        # send_mail(
-        #     subject,
-        #     message,
-        #     settings.DEFAULT_FROM_EMAIL,  # Ensure this is set in your settings.py
-        #     [email_address],
-        # )
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,  # Ensure this is set in your settings.py
+            [email_address],
+        )
         return response.Response({'success': f'Email successfully sent'}, status=200) #to {email_address}
     except Exception as e:
         return response.Response({'error': f'Failed to send email: {str(e)}'}, status=500)
