@@ -1,7 +1,7 @@
 from . import models
 from . import serializers
 from django.apps import apps
-from django.core.mail import send_mail
+# from django.core.mail import send_mail
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -627,19 +627,44 @@ class RequestPasswordResetCodeView(APIView):
         try:
             user = models.BadRainbowzUser.objects.get(email=email)
         except models.BadRainbowzUser.DoesNotExist:
-            # Do not disclose if the email exists to prevent user enumeration
             return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
 
-        # Generate and save the reset code
         reset_code = user.generate_password_reset_code()
 
-        # Send the reset code via email
-        send_mail(
-            subject="Your Password Reset Code",
-            message=f"Your password reset code is: {reset_code}",
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[email],
-        )
+        resend.api_key = settings.RESEND_API_KEY
+        resend.Emails.send({
+            "from": "onboarding@resend.dev",
+            "to": [email],
+            "subject": "Your Password Reset Code",
+            "text": f"Your password reset code is: {reset_code}",
+        })
 
         return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
+
+
+# class RequestPasswordResetCodeView(APIView):
+#     permission_classes = [AllowAny]
+#     def post(self, request, *args, **kwargs):
+#         email = request.data.get('email')
+#         if not email:
+#             return response.Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+#         try:
+#             user = models.BadRainbowzUser.objects.get(email=email)
+#         except models.BadRainbowzUser.DoesNotExist:
+#             # Do not disclose if the email exists to prevent user enumeration
+#             return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
+
+#         # Generate and save the reset code
+#         reset_code = user.generate_password_reset_code()
+
+#         # Send the reset code via email
+#         send_mail(
+#             subject="Your Password Reset Code",
+#             message=f"Your password reset code is: {reset_code}",
+#             from_email=settings.DEFAULT_FROM_EMAIL,
+#             recipient_list=[email],
+#         )
+
+#         return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
    

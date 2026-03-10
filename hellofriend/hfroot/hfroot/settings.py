@@ -309,17 +309,17 @@ STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloce
 # EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 # DEFAULT_FROM_EMAIL = 'climatetwin@gmail.com'
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.resend.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'resend'  # literally 'resend'
-EMAIL_HOST_PASSWORD = os.getenv('RESEND_API_KEY')
-DEFAULT_FROM_EMAIL = 'onboarding@resend.dev' 
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.resend.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'resend'  # literally 'resend'
+# EMAIL_HOST_PASSWORD = os.getenv('RESEND_API_KEY')
+# DEFAULT_FROM_EMAIL = 'onboarding@resend.dev' 
 
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-ACCOUNT_AUTHENTICATION_METHOD = 'email'
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_UNIQUE_EMAIL = True
+# ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+# ACCOUNT_AUTHENTICATION_METHOD = 'email'
+# ACCOUNT_EMAIL_REQUIRED = True
+# ACCOUNT_UNIQUE_EMAIL = True
 
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
