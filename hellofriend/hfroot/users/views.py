@@ -560,39 +560,60 @@ class UserAddressDetail(generics.RetrieveUpdateAPIView, generics.DestroyAPIView)
         return models.UserAddress.objects.filter(user=user)
     
 
+import resend
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def send_email_to_user(request):
-    """
-    Send an email to the provided email address with a predefined subject and message.
-    """
     email_address = request.data.get('email')
     
-    
     if not email_address:
-        # print(request.data)
-        # print('no email')
-        # print(request.content_type)
-        # print(request.data)
-
         return response.Response({'error': 'Email address is required'}, status=400)
 
-    subject = 'Welcome to Our Service'  # Predefined subject
-    message = 'Thank you for joining us! We are excited to have you as part of our community.'  # Predefined message
-
     try:
-       
-        # Send the email
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,  # Ensure this is set in your settings.py
-            [email_address],
-        )
-        return response.Response({'success': f'Email successfully sent'}, status=200) #to {email_address}
+        resend.api_key = settings.RESEND_API_KEY
+        resend.Emails.send({
+            "from": "onboarding@resend.dev",
+            "to": [email_address],
+            "subject": "Welcome to Our Service",
+            "text": "Thank you for joining us! We are excited to have you as part of our community.",
+        })
+        return response.Response({'success': 'Email successfully sent'}, status=200)
     except Exception as e:
         return response.Response({'error': f'Failed to send email: {str(e)}'}, status=500)
+
+# @api_view(['POST'])
+# @permission_classes([AllowAny])
+# def send_email_to_user(request):
+#     """
+#     Send an email to the provided email address with a predefined subject and message.
+#     """
+#     email_address = request.data.get('email')
+    
+    
+#     if not email_address:
+#         # print(request.data)
+#         # print('no email')
+#         # print(request.content_type)
+#         # print(request.data)
+
+#         return response.Response({'error': 'Email address is required'}, status=400)
+
+#     subject = 'Welcome to Our Service'  # Predefined subject
+#     message = 'Thank you for joining us! We are excited to have you as part of our community.'  # Predefined message
+
+#     try:
+       
+#         # Send the email
+#         send_mail(
+#             subject,
+#             message,
+#             settings.DEFAULT_FROM_EMAIL,  # Ensure this is set in your settings.py
+#             [email_address],
+#         )
+#         return response.Response({'success': f'Email successfully sent'}, status=200) #to {email_address}
+#     except Exception as e:
+#         return response.Response({'error': f'Failed to send email: {str(e)}'}, status=500)
     
 
 
