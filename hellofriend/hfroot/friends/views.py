@@ -354,24 +354,43 @@ class NextMeetView(generics.ListAPIView):
         return models.NextMeet.objects.filter(user=user, friend_id=friend_id)
 
 
+# @api_view(['POST'])
+# @permission_classes([IsAuthenticated])
+# def remix_all_next_meets(request):
+#     user = request.user
+
+#     # Check if user is authenticated
+#     if not user.is_authenticated:
+#         return response.Response({"message": "User is not authenticated."}, status=status.HTTP_401_UNAUTHORIZED)
+
+#     next_meets = models.NextMeet.objects.filter(user=user)
+
+#     for next_meet in next_meets:
+#         next_meet.reset_date()
+#         next_meet.create_new_date_if_needed(manual_reset=True)
+#         next_meet.save()
+
+#     return response.Response({"message": "All next meets have been remixed successfully."})
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def remix_all_next_meets(request):
     user = request.user
 
-    # Check if user is authenticated
-    if not user.is_authenticated:
-        return response.Response({"message": "User is not authenticated."}, status=status.HTTP_401_UNAUTHORIZED)
-
     next_meets = models.NextMeet.objects.filter(user=user)
 
     for next_meet in next_meets:
         next_meet.reset_date()
-        next_meet.create_new_date_if_needed(manual_reset=True)
         next_meet.save()
 
-    return response.Response({"message": "All next meets have been remixed successfully."})
+    soonest = min(next_meets, key=lambda nm: nm.date, default=None)
+    if soonest:
+        users.models.UserSettings.objects.filter(user=user).update(
+            upcoming_friend=soonest.friend  # duplicating what the combined friends + upcoming view does but it just ensures consistency
+        )
 
+    return response.Response({"message": "All next meets have been remixed successfully."})
 
 class FriendDashboardView(generics.ListAPIView):
     serializer_class = serializers.FriendDashboardSerializer
