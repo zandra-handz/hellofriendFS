@@ -1180,6 +1180,31 @@ class ImagesByCategoryView(APIView):
 
         return response.Response(images_by_category, status=status.HTTP_200_OK)
 
+# class HelloCreate(generics.ListCreateAPIView):
+#     serializer_class = serializers.PastMeetSerializer
+#     permission_classes = [IsAuthenticated]
+
+#     def get_queryset(self):
+#         user = self.request.user
+#         friend_id = self.kwargs['friend_id'] 
+#         return models.PastMeet.objects.filter(user=user, friend_id=friend_id)
+
+#     def perform_create(self, serializer):
+#         user = self.request.user
+#         friend_id = self.kwargs['friend_id']
+#         serializer.save(user=user, friend_id=friend_id)
+
+#     def get_serializer_context(self):
+#         context = super().get_serializer_context()
+#         context['friend_id'] = self.kwargs['friend_id']
+#         return context
+
+#     def post(self, request, *args, **kwargs): 
+#         hello_response = super().post(request, *args, **kwargs) 
+#         # The instance is already created, so no need to save again
+#         return hello_response
+
+
 class HelloCreate(generics.ListCreateAPIView):
     serializer_class = serializers.PastMeetSerializer
     permission_classes = [IsAuthenticated]
@@ -1192,17 +1217,24 @@ class HelloCreate(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
-        serializer.save(user=user, friend_id=friend_id)
+        self.instance = serializer.save(user=user, friend_id=friend_id)
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context['friend_id'] = self.kwargs['friend_id']
         return context
 
-    def post(self, request, *args, **kwargs): 
-        hello_response = super().post(request, *args, **kwargs) 
-        # The instance is already created, so no need to save again
-        return hello_response
+    def post(self, request, *args, **kwargs):
+        hello_response = super().post(request, *args, **kwargs)
+        light_data = serializers.PastMeetLightSerializer(
+            self.instance,
+            context=self.get_serializer_context()
+        ).data
+
+        return response.Response({
+            'hello': hello_response.data,
+            'hello_light': light_data,
+        }, status=hello_response.status_code)
 
 class HelloDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.PastMeetSerializer
