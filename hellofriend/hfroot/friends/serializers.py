@@ -15,8 +15,8 @@ class FriendSerializer(serializers.ModelSerializer):
             'user',          # set server-side from request.user
             'created_on',    # auto_now_add
             'updated_on',    # auto_now
-            'next_meet',     # created in Friend.save()
-            'suggestion_settings',  # created in Friend.save()
+          #  'next_meet',     # created in Friend.save()
+          #  'suggestion_settings',  # created in Friend.save()
         ]
 
 
