@@ -72,7 +72,7 @@ class FriendCreateView(APIView):
         user = request.user
         data = request.data
         data['user'] = user.id
-        serializer = serializers.FriendSerializer(data=data)
+        serializer = serializers.FriendCreateSerializer(data=data)
         if serializer.is_valid(): 
             friend = serializer.save()
             

@@ -15,9 +15,23 @@ class FriendSerializer(serializers.ModelSerializer):
             'user',          # set server-side from request.user
             'created_on',    # auto_now_add
             'updated_on',    # auto_now
+            'next_meet',     # created in Friend.save()
+            'suggestion_settings',  # created in Friend.save()
+        ]
+
+class FriendCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Friend
+        fields = '__all__'
+        read_only_fields = [
+            'id',
+          #  'user',          # set server-side from request.user
+            'created_on',    # auto_now_add
+            'updated_on',    # auto_now
           #  'next_meet',     # created in Friend.save()
           #  'suggestion_settings',  # created in Friend.save()
         ]
+
 
 
 class ThoughtCapsuleSerializer(serializers.ModelSerializer):
