@@ -68,6 +68,7 @@ class Friend(models.Model):
     name = models.CharField(max_length=64, null=False, blank=False)
     first_name = models.CharField(max_length=64, null=True, blank=True)
     last_name = models.CharField(max_length=64, null=True, blank=True)
+    dashboard_last_viewed = models.DateTimeField(null=True, blank=True, default=None)
 
    
     created_on = models.DateTimeField(auto_now_add=True)

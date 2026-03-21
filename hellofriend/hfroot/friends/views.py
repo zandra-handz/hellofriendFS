@@ -392,32 +392,107 @@ def remix_all_next_meets(request):
 
     return response.Response({"message": "All next meets have been remixed successfully."})
 
+# class FriendDashboardView(generics.ListAPIView):
+#     serializer_class = serializers.FriendDashboardSerializer
+#     permission_classes = [IsAuthenticated]
+#     throttle_classes = [FivePerMinuteUserThrottle]
+#     lookup_url_kwarg = 'friend_id'
+
+#     # def get_queryset(self):
+#     #     user = self.request.user
+#     #     friend_id = self.kwargs['friend_id']
+#     #     return models.NextMeet.objects.filter(user=user, friend_id=friend_id)
+
+#     def get_queryset(self):
+#         user = self.request.user
+#         friend_id = self.kwargs['friend_id']
+#         return models.NextMeet.objects.filter(user=user, friend_id=friend_id).select_related(
+#             'friend',                             # FK to Friend
+#             'friend__friendfaves',                # OneToOneField to FriendFaves (where no related name is set, hence friendfaves instead of friend_faves)
+#             'friend_suggestion_settings',         # FK to FriendSuggestionSettings
+#             'previous',                           # FK to PastMeet
+#         )
+    
+#     # .prefetch_related(
+#     #         'friend__addresses',                  # Reverse FK: friend.addresses.all()
+#     #     )
+    
+
+# class FriendDashboardView(generics.ListAPIView):
+#     serializer_class = serializers.FriendDashboardSerializer
+#     permission_classes = [IsAuthenticated]
+#     throttle_classes = [FivePerMinuteUserThrottle]
+#     lookup_url_kwarg = 'friend_id'
+
+#     def get_queryset(self):
+#         user = self.request.user
+#         friend_id = self.kwargs['friend_id']
+#         return models.NextMeet.objects.filter(user=user, friend_id=friend_id).select_related(
+#             'friend',
+#             'friend__friendfaves',
+#             'friend_suggestion_settings',
+#             'previous',
+#         )
+
+#     def list(self, request, *args, **kwargs):
+#         response = super().list(request, *args, **kwargs)
+
+#         friend_id = self.kwargs['friend_id']
+#         friend = models.Friend.objects.get(user=request.user, id=friend_id)
+
+#         is_first_view = friend.dashboard_last_viewed is None
+
+#         # Always update last viewed
+#         friend.dashboard_last_viewed = timezone.now()
+#         friend.save(update_fields=['dashboard_last_viewed'])
+
+#         # Only clear new_friend if this is the first time AND it matches this friend
+#         if is_first_view:
+#             users.models.UserSettings.objects.filter(
+#                 user=request.user,
+#                 new_friend=friend
+#             ).update(new_friend=None)
+
+#         return response
+    
+
 class FriendDashboardView(generics.ListAPIView):
     serializer_class = serializers.FriendDashboardSerializer
     permission_classes = [IsAuthenticated]
     throttle_classes = [FivePerMinuteUserThrottle]
     lookup_url_kwarg = 'friend_id'
 
-    # def get_queryset(self):
-    #     user = self.request.user
-    #     friend_id = self.kwargs['friend_id']
-    #     return models.NextMeet.objects.filter(user=user, friend_id=friend_id)
-
     def get_queryset(self):
-        user = self.request.user
-        friend_id = self.kwargs['friend_id']
-        return models.NextMeet.objects.filter(user=user, friend_id=friend_id).select_related(
-            'friend',                             # FK to Friend
-            'friend__friendfaves',                # OneToOneField to FriendFaves (where no related name is set, hence friendfaves instead of friend_faves)
-            'friend_suggestion_settings',         # FK to FriendSuggestionSettings
-            'previous',                           # FK to PastMeet
-        )
-    
-    # .prefetch_related(
-    #         'friend__addresses',                  # Reverse FK: friend.addresses.all()
-    #     )
-    
+        if not hasattr(self, '_cached_queryset'):
+            user = self.request.user
+            friend_id = self.kwargs['friend_id']
+            self._cached_queryset = models.NextMeet.objects.filter(
+                user=user, friend_id=friend_id
+            ).select_related(
+                'friend',
+                'friend__friendfaves',
+                'friend_suggestion_settings',
+                'previous',
+            )
+        return self._cached_queryset
 
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+
+        friend = self.get_queryset().first().friend
+
+        is_first_view = friend.dashboard_last_viewed is None
+
+        friend.dashboard_last_viewed = timezone.now()
+        friend.save(update_fields=['dashboard_last_viewed'])
+
+        if is_first_view:
+            users.models.UserSettings.objects.filter(
+                user=request.user,
+                new_friend=friend
+            ).update(new_friend=None)
+
+        return response
 
 
 class NextMeetsAllView(generics.ListCreateAPIView):
