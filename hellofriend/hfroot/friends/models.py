@@ -161,8 +161,17 @@ class Friend(models.Model):
             self.suggestion_settings = suggestion_settings
             self.next_meet = next_meet
 
+
+
             # Save the updated Friend instance
             self.save()
+
+            # Update user settings with new friend
+            settings = self.user.settings
+            settings.new_friend = self
+            settings.save(update_fields=['new_friend'])
+
+
             
         else:
             super().save(*args, **kwargs)

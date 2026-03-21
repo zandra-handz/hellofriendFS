@@ -358,6 +358,16 @@ class UserSettings(models.Model):
         on_delete=models.SET_NULL
     )
     use_auto_select = models.BooleanField(default=False)
+
+    # front end controls, toggles on/off as needed. this does not interact with anything in the backend
+    new_friend = models.ForeignKey(
+        'friends.Friend', 
+        related_name='new_friend_in_settings', 
+        blank=True, 
+        null=True, 
+        on_delete=models.SET_NULL
+    )
+
     created_on = models.DateTimeField(default=timezone.now) # timezone here because I need to backfill existing instances
     updated_on = models.DateTimeField(auto_now=True)
 
