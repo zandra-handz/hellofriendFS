@@ -203,7 +203,7 @@ class UserSettingsSerializer(serializers.ModelSerializer):
             'upcoming_friend_name',
             'new_friend',
             'new_friend_name',
-            'ont_time'
+            'created_on',
             'updated_on'
         ]
         read_only_fields = ['id', 'user', 'updated_on', 'created_on', 'pinned_friend_name', 'upcoming_friend_name', 'new_friend_name']
