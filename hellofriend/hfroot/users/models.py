@@ -159,6 +159,7 @@ class BadRainbowzUser(AbstractUser):
         if created:
             UserProfile.objects.create(user=self)
             UserSettings.objects.create(user=self)
+            # UserGeckoSettings.objects.create(user=self)
             UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
             
 
@@ -377,11 +378,17 @@ class UserSettings(models.Model):
 
     def __str__(self):
         return f"Settings for {self.user.username}"
+    
 
+# class UserGeckoSettings(models.Model):
+#     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='profile')
+#     created_on = models.DateTimeField(default=timezone.now) # timezone here because I need to backfill existing instances
+#     updated_on = models.DateTimeField(auto_now=True)
 
 
 class UserProfile(models.Model):
     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='profile')
+    
     first_name = models.CharField(_('first name'), max_length=30, blank=True, default='')
     last_name = models.CharField(_('last name'), max_length=30, blank=True, default='')
     date_of_birth = models.DateField(_('date of birth'), blank=True, null=True)

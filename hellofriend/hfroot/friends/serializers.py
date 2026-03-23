@@ -397,6 +397,10 @@ class PastMeetSerializer(serializers.ModelSerializer):
                     'date', 'additional_notes', 'past_date_in_words','thought_capsules_shared', 'delete_all_unshared_capsules', 'created_on', 'updated_on']
 
 
+class GeckoDataSerializer(serializers.ModelSerializer):
+    class Meta():
+        model = models.GeckoData
+        fields = ['id', 'friend', 'total_steps', 'updated_on']
 
 class PastMeetLightSerializer(serializers.ModelSerializer):
 

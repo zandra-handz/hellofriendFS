@@ -91,7 +91,8 @@ class Friend(models.Model):
 
     next_meet = models.OneToOneField('friends.NextMeet', on_delete=models.CASCADE, null=True, blank=True, related_name='friend_next_meet')
     suggestion_settings = models.OneToOneField('friends.FriendSuggestionSettings', on_delete=models.CASCADE, null=True, blank=True, related_name='friend_friend_suggestion_settings')
-
+    gecko_data = models.OneToOneField('friends.GeckoData', on_delete=models.CASCADE, null=True, blank=True, related_name='friend_gecko_data')
+    
 
     class Meta:
         ordering = ('next_meet',)
@@ -131,6 +132,14 @@ class Friend(models.Model):
             )
             friend_faves.save()
 
+
+            gecko_data = GeckoData(
+                friend=self,
+                user=self.user,
+            )
+
+            gecko_data.save()
+
             # Create and save PastMeet
 
             past_meet = PastMeet(
@@ -161,6 +170,7 @@ class Friend(models.Model):
 
             self.suggestion_settings = suggestion_settings
             self.next_meet = next_meet
+            self.gecko_data = gecko_data
 
 
 
@@ -553,7 +563,15 @@ class NextMeet(models.Model):
     def __str__(self):
         return f"{self.date}"
 
+class GeckoData(models.Model):
+    friend = models.OneToOneField(Friend, on_delete=models.CASCADE)
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
 
+    total_steps = models.PositiveIntegerField(default=0)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+    
 class FriendFaves(models.Model):
 
     friend = models.OneToOneField(Friend, on_delete=models.CASCADE)
