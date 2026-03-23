@@ -526,7 +526,7 @@ class FriendDashboardView(generics.ListAPIView):
                 'geckodata',
                 'next_meet_friend',
                 'next_meet_friend__previous',
-                'suggestion_settings',      # not suggestion_settings_friend
+                'suggestion_settings',      
             )
         return self._cached_queryset
     

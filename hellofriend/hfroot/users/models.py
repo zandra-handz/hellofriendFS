@@ -159,7 +159,7 @@ class BadRainbowzUser(AbstractUser):
         if created:
             UserProfile.objects.create(user=self)
             UserSettings.objects.create(user=self)
-            # UserGeckoSettings.objects.create(user=self)
+            GeckoCombinedData.objects.create(user=self) 
             UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
             
 
@@ -379,13 +379,6 @@ class UserSettings(models.Model):
     def __str__(self):
         return f"Settings for {self.user.username}"
     
-
-# class UserGeckoSettings(models.Model):
-#     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='profile')
-#     created_on = models.DateTimeField(default=timezone.now) # timezone here because I need to backfill existing instances
-#     updated_on = models.DateTimeField(auto_now=True)
-
-
 class UserProfile(models.Model):
     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='profile')
     
@@ -401,6 +394,30 @@ class UserProfile(models.Model):
         return f"Profile for {self.user.username}"
     
 
+
+class GeckoCombinedData(models.Model):
+    user = models.OneToOneField('users.BadRainbowzUser', on_delete=models.CASCADE)
+    
+    total_steps = models.PositiveIntegerField(default=0)
+    total_distance = models.PositiveIntegerField(default=0)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+    
+
+
+class GeckoCombinedDaily(models.Model):
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+    date = models.DateField(default=timezone.localdate)
+
+    steps = models.PositiveIntegerField(default=0)
+    distance = models.PositiveIntegerField(default=0)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'date')
 
 class PointsLedger(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='points_ledger')

@@ -257,6 +257,13 @@ class UserSettingsDetail(generics.RetrieveUpdateAPIView):
 
 
 
+class GeckoCombinedDataDetail(generics.RetrieveAPIView):
+    serializer_class = serializers.UserGeckoCombinedSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return models.GeckoCombinedData.objects.get(user=self.request.user)
+
 
 class UserProfileDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.UserProfileSerializer

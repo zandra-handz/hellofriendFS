@@ -568,6 +568,7 @@ class GeckoData(models.Model):
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
 
     total_steps = models.PositiveIntegerField(default=0)
+    total_distance = models.PositiveIntegerField(default=0)
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
