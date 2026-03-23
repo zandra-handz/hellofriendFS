@@ -54,6 +54,10 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
         ]
 
 
+class GeckoDataSerializer(serializers.ModelSerializer):
+    class Meta():
+        model = models.GeckoData
+        fields = ['id', 'friend', 'total_steps', 'updated_on']
 
 class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
     capsule_count = serializers.SerializerMethodField()
@@ -258,32 +262,50 @@ class NextMeetSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class FriendDashboardSerializer(serializers.ModelSerializer):
-    suggestion_settings = FriendSuggestionSettingsSerializer(source='friend_suggestion_settings', read_only=True)
-    friend_faves = serializers.SerializerMethodField()
-    # friend_addresses = serializers.SerializerMethodField()
+# class FriendDashboardSerializer(serializers.ModelSerializer):
+#     suggestion_settings = FriendSuggestionSettingsSerializer(source='friend_suggestion_settings', read_only=True)
+#     friend_faves = serializers.SerializerMethodField()
+#     # friend_addresses = serializers.SerializerMethodField()
 
-    # friend_id = serializers.IntegerField(source='friend.id', read_only=True)
-    name = serializers.CharField(source='friend.name')
-    # first_name = serializers.CharField(source='friend.first_name')
-    # last_name = serializers.CharField(source='friend.last_name') 
-    first_meet_entered = serializers.DateField(source='friend.first_meet_entered')
+#     # friend_id = serializers.IntegerField(source='friend.id', read_only=True)
+#     name = serializers.CharField(source='friend.name')
+#     # first_name = serializers.CharField(source='friend.first_name')
+#     # last_name = serializers.CharField(source='friend.last_name') 
+#     first_meet_entered = serializers.DateField(source='friend.first_meet_entered')
  
-    class Meta:
-        model = models.NextMeet
-        fields = ['id', 'date', 'name', 'first_meet_entered', 'days_since', 'days_since_words', 
-                  'time_score', 'future_date_in_words', 
-                  'suggestion_settings', 'friend_faves']
+#     class Meta:
+#         model = models.NextMeet
+#         fields = ['id', 'date', 'name', 'first_meet_entered', 'days_since', 'days_since_words', 
+#                   'time_score', 'future_date_in_words', 
+#                   'suggestion_settings', 'friend_faves']
    
 
-    def get_friend_faves(self, obj):
-        friend = obj.friend
-        try:
-            friend_faves_instance = friend.friendfaves  # This is the correct reverse OneToOneField accessor
-            return FriendFavesSerializer(friend_faves_instance).data
-        except models.FriendFaves.DoesNotExist:
-            return None
+#     def get_friend_faves(self, obj):
+#         friend = obj.friend
+#         try:
+#             friend_faves_instance = friend.friendfaves  # This is the correct reverse OneToOneField accessor
+#             return FriendFavesSerializer(friend_faves_instance).data
+#         except models.FriendFaves.DoesNotExist:
+#             return None
  
+
+class FriendDashboardSerializer(serializers.ModelSerializer):
+    suggestion_settings = FriendSuggestionSettingsSerializer(source='suggestion_settings_friend', read_only=True)
+    friend_faves = FriendFavesSerializer(source='friendfaves', read_only=True)
+    gecko_data = GeckoDataSerializer(source='geckodata', read_only=True)
+    
+    # next meet fields promoted to top level
+    date = serializers.DateField(source='next_meet_friend.date', read_only=True)
+    days_since = serializers.IntegerField(source='next_meet_friend.days_since', read_only=True)
+    days_since_words = serializers.CharField(source='next_meet_friend.days_since_words', read_only=True)
+    time_score = serializers.IntegerField(source='next_meet_friend.time_score', read_only=True)
+    future_date_in_words = serializers.CharField(source='next_meet_friend.future_date_in_words', read_only=True)
+
+    class Meta:
+        model = models.Friend
+        fields = ['id', 'name', 'first_meet_entered', 'date', 'days_since', 
+                  'days_since_words', 'time_score', 'future_date_in_words',
+                  'suggestion_settings', 'friend_faves', 'gecko_data']
 
 class UpcomingMeetsSerializer(serializers.ModelSerializer):
 
@@ -397,10 +419,7 @@ class PastMeetSerializer(serializers.ModelSerializer):
                     'date', 'additional_notes', 'past_date_in_words','thought_capsules_shared', 'delete_all_unshared_capsules', 'created_on', 'updated_on']
 
 
-class GeckoDataSerializer(serializers.ModelSerializer):
-    class Meta():
-        model = models.GeckoData
-        fields = ['id', 'friend', 'total_steps', 'updated_on']
+
 
 class PastMeetLightSerializer(serializers.ModelSerializer):
 

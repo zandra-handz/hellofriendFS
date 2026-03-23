@@ -18,6 +18,8 @@ urlpatterns = [
     path('<int:friend_id>/dashboard/', views.FriendDashboardView.as_view()),
     path('<int:friend_id>/settings/', views.FriendSuggestionSettingsDetail.as_view()),
     path('<int:friend_id>/settings/update/', views.FriendSuggestionSettingsDetail.as_view()),
+    path('<int:friend_id>/geckodata/', views.FriendGeckoDataDetail.as_view()),
+    path('<int:friend_id>/geckodata/update/', views.FriendGeckoDataDetail.as_view()),
     # path('<int:friend_id>/category-limit/', views.FriendSuggestionSettingsCategoryLimit.as_view()),
     path('<int:friend_id>/faves/', views.FriendFavesDetail.as_view()),
     path('<int:friend_id>/faves/saved-toggle-on/', views.FriendFavesEnableManualTheme.as_view()),

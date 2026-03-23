@@ -192,6 +192,18 @@ class FriendProfile(generics.RetrieveUpdateAPIView, generics.DestroyAPIView):
         return models.Friend.objects.filter(user=user, id=friend_id)
 
 
+class FriendGeckoDataDetail(generics.RetrieveUpdateAPIView):
+    serializer_class = serializers.GeckoDataSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id']
+        return models.Friend.objects.filter(user=user, id=friend_id)
+
+
+
 class FriendSuggestionSettingsDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.FriendSuggestionSettingsSerializer
     permission_classes = [IsAuthenticated]
@@ -456,6 +468,47 @@ def remix_all_next_meets(request):
 #         return response
     
 
+# class FriendDashboardView(generics.ListAPIView):
+#     serializer_class = serializers.FriendDashboardSerializer
+#     permission_classes = [IsAuthenticated]
+#     throttle_classes = [FivePerMinuteUserThrottle]
+#     lookup_url_kwarg = 'friend_id'
+
+#     def get_queryset(self):
+#         if not hasattr(self, '_cached_queryset'):
+#             user = self.request.user
+#             friend_id = self.kwargs['friend_id']
+#             self._cached_queryset = models.NextMeet.objects.filter(
+#                 user=user, friend_id=friend_id
+#             ).select_related(
+#                 'friend',
+#                 'friend__friendfaves',
+#                 'friend_suggestion_settings',
+#                 'friend__geckodata',  
+#                 'previous',
+
+#             )
+#         return self._cached_queryset
+
+#     def list(self, request, *args, **kwargs):
+#         response = super().list(request, *args, **kwargs)
+
+#         friend = self.get_queryset().first().friend
+
+#         is_first_view = friend.dashboard_last_viewed is None
+
+#         friend.dashboard_last_viewed = timezone.now()
+#         friend.save(update_fields=['dashboard_last_viewed'])
+
+#         if is_first_view:
+#             users.models.UserSettings.objects.filter(
+#                 user=request.user,
+#                 new_friend=friend
+#             ).update(new_friend=None)
+
+#         return response
+
+
 class FriendDashboardView(generics.ListAPIView):
     serializer_class = serializers.FriendDashboardSerializer
     permission_classes = [IsAuthenticated]
@@ -466,33 +519,16 @@ class FriendDashboardView(generics.ListAPIView):
         if not hasattr(self, '_cached_queryset'):
             user = self.request.user
             friend_id = self.kwargs['friend_id']
-            self._cached_queryset = models.NextMeet.objects.filter(
-                user=user, friend_id=friend_id
+            self._cached_queryset = models.Friend.objects.filter(
+                user=user, id=friend_id
             ).select_related(
-                'friend',
-                'friend__friendfaves',
-                'friend_suggestion_settings',
-                'previous',
+                'friendfaves',
+                'geckodata',
+                'next_meet_friend',
+                'next_meet_friend__previous',
+                'suggestion_settings_friend',
             )
         return self._cached_queryset
-
-    def list(self, request, *args, **kwargs):
-        response = super().list(request, *args, **kwargs)
-
-        friend = self.get_queryset().first().friend
-
-        is_first_view = friend.dashboard_last_viewed is None
-
-        friend.dashboard_last_viewed = timezone.now()
-        friend.save(update_fields=['dashboard_last_viewed'])
-
-        if is_first_view:
-            users.models.UserSettings.objects.filter(
-                user=request.user,
-                new_friend=friend
-            ).update(new_friend=None)
-
-        return response
 
 
 class NextMeetsAllView(generics.ListCreateAPIView):
