@@ -290,7 +290,7 @@ class NextMeetSerializer(serializers.ModelSerializer):
  
 
 class FriendDashboardSerializer(serializers.ModelSerializer):
-    suggestion_settings = FriendSuggestionSettingsSerializer(source='suggestion_settings', read_only=True)
+    suggestion_settings = FriendSuggestionSettingsSerializer(read_only=True)
     friend_faves = FriendFavesSerializer(source='friendfaves', read_only=True)
     gecko_data = GeckoDataSerializer(source='geckodata', read_only=True)
     
