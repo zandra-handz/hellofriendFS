@@ -59,6 +59,14 @@ class GeckoDataSerializer(serializers.ModelSerializer):
         model = models.GeckoData
         fields = ['id', 'friend', 'total_steps', 'updated_on']
 
+
+
+class GeckoDataDailySerializer(serializers.ModelSerializer):
+    class Meta():
+        model = models.GeckoDataDaily
+        fields = ['id', 'friend', 'total_steps', 'updated_on']
+
+
 class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
     capsule_count = serializers.SerializerMethodField()
     capsule_summary = serializers.SerializerMethodField()

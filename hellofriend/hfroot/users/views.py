@@ -57,7 +57,8 @@ def get_current_user(request):
 
     # Use select_related and prefetch_related to optimize nested fetches
     user_qs = models.BadRainbowzUser.objects.filter(pk=request.user.pk).select_related(
-        'profile'
+        'profile',
+        'geckocombineddata'
         #,          # assuming OneToOneField to UserProfile
       #  'settings'
     )

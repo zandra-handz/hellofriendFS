@@ -572,6 +572,21 @@ class GeckoData(models.Model):
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
+
+
+class GeckoDataDaily(models.Model):
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+    friend = models.ForeignKey('friends.Friend', on_delete=models.CASCADE)
+    date = models.DateField(default=timezone.localdate)
+ 
+    steps = models.PositiveIntegerField(default=0)
+    distance = models.PositiveIntegerField(default=0)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('user', 'friend', 'date')
     
 class FriendFaves(models.Model):
 

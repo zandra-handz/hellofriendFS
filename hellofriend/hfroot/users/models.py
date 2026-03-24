@@ -409,7 +409,7 @@ class GeckoCombinedData(models.Model):
 class GeckoCombinedDaily(models.Model):
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     date = models.DateField(default=timezone.localdate)
-
+  
     steps = models.PositiveIntegerField(default=0)
     distance = models.PositiveIntegerField(default=0)
 
