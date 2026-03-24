@@ -205,7 +205,7 @@ class FriendGeckoDataDetail(generics.RetrieveAPIView):
         return models.Friend.objects.filter(user=user, id=friend_id)
 
 
-@api_view(['POST'])
+@api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def update_gecko_data(request, friend_id):
     user = request.user
