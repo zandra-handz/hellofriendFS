@@ -203,8 +203,8 @@ class FriendGeckoDataDetail(generics.RetrieveAPIView):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
         return models.Friend.objects.filter(user=user, id=friend_id)
-
-
+    
+    
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def update_gecko_data(request, friend_id):
@@ -213,31 +213,34 @@ def update_gecko_data(request, friend_id):
     delta_distance = request.data.get('distance', 0)
     today = timezone.now().date()
 
-    with transaction.atomic():
-        models.GeckoData.objects.filter(user=user, friend_id=friend_id).update(
-            total_steps=F('total_steps') + delta_steps,
-            total_distance=F('total_distance') + delta_distance,
-        )
+    try:
+        with transaction.atomic():
+            models.GeckoData.objects.filter(user=user, friend_id=friend_id).update(
+                total_steps=F('total_steps') + delta_steps,
+                total_distance=F('total_distance') + delta_distance,
+            )
 
-        obj, _ = models.GeckoDataDaily.objects.get_or_create(user=user, friend_id=friend_id, date=today)
-        models.GeckoDataDaily.objects.filter(id=obj.id).update(
-            steps=F('steps') + delta_steps,
-            distance=F('distance') + delta_distance,
-        )
+            obj, _ = models.GeckoDataDaily.objects.get_or_create(user=user, friend_id=friend_id, date=today)
+            models.GeckoDataDaily.objects.filter(id=obj.id).update(
+                steps=F('steps') + delta_steps,
+                distance=F('distance') + delta_distance,
+            )
 
-        users.models.GeckoCombinedData.objects.filter(user=user).update(
-            total_steps=F('total_steps') + delta_steps,
-            total_distance=F('total_distance') + delta_distance,
-        )
+            users.models.GeckoCombinedData.objects.filter(user=user).update(
+                total_steps=F('total_steps') + delta_steps,
+                total_distance=F('total_distance') + delta_distance,
+            )
 
-        obj, _ = users.models.GeckoCombinedDaily.objects.get_or_create(user=user, date=today)
-        users.models.GeckoCombinedDaily.objects.filter(id=obj.id).update(
-            steps=F('steps') + delta_steps,
-            distance=F('distance') + delta_distance,
-        )
+            obj, _ = users.models.GeckoCombinedDaily.objects.get_or_create(user=user, date=today)
+            users.models.GeckoCombinedDaily.objects.filter(id=obj.id).update(
+                steps=F('steps') + delta_steps,
+                distance=F('distance') + delta_distance,
+            )
+
+    except Exception as e:
+        return response.Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     return response.Response({"message": "Gecko data updated successfully."}, status=status.HTTP_200_OK)
-
 class FriendSuggestionSettingsDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.FriendSuggestionSettingsSerializer
     permission_classes = [IsAuthenticated]
