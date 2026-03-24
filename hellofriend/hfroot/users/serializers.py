@@ -256,9 +256,7 @@ class UserSettingsSerializer(serializers.ModelSerializer):
 
 class BadRainbowzUserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(required=False)
-    gecko_data = UserGeckoCombinedSerializer(required=False)
-    #settings = UserSettingsSerializer(required=False)
-    # user_categories = serializers.SerializerMethodField()
+    geckocombineddata = UserGeckoCombinedSerializer(required=False)
 
     class Meta:
         model = models.BadRainbowzUser
@@ -266,7 +264,7 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
             'user_categories',
             'id', 'created_on', 'is_banned_user', 'is_subscribed_user', 'subscription_expiration_date',
             'username', 'password', 'email', 'app_setup_complete', 'is_test_user', 'phone_number', 'addresses',
-            'profile', 'gecko_data' #,  'settings'
+            'profile', 'geckocombineddata',
         ]
         extra_kwargs = {"password": {"write_only": True}}
 
@@ -280,6 +278,7 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
 
 class CreateBadRainbowzUserSerializer(serializers.ModelSerializer):
     profile = UserProfileSerializer(required=False)
+    
     #settings = UserSettingsSerializer(required=False)
     # user_categories = serializers.SerializerMethodField()
 
@@ -288,7 +287,7 @@ class CreateBadRainbowzUserSerializer(serializers.ModelSerializer):
         fields = [ 
            
             'username', 'password', 'email', 'phone_number', 'addresses',
-            'profile' #,  'settings'
+            'profile', '' #,  'settings'
         ]
         extra_kwargs = {"password": {"write_only": True}}
 
