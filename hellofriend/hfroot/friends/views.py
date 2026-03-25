@@ -204,6 +204,26 @@ class FriendGeckoDataDetail(generics.RetrieveAPIView):
         friend_id = self.kwargs['friend_id']
         return models.Friend.objects.filter(user=user, id=friend_id)
     
+
+
+class FriendGeckoDataSessionsAll(generics.ListAPIView):
+    serializer_class = serializers.GeckoDataSessionSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+    pagination_class = MediumPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id']
+        return models.GeckoDataSession.objects.filter(user=user, friend_id=friend_id)
+
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("nopaginate") == "true":
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return response.Response(serializer.data)
+        
+        return super().list(request, *args, **kwargs)
     
 # @api_view(['PATCH'])
 # @permission_classes([IsAuthenticated])
