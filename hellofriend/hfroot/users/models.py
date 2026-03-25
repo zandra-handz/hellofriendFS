@@ -404,6 +404,9 @@ class GeckoCombinedData(models.Model):
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
+
+
+ 
     
 
 
@@ -419,6 +422,24 @@ class GeckoCombinedDaily(models.Model):
 
     class Meta:
         unique_together = ('user', 'date')
+        ordering = ['-date']
+
+
+
+class GeckoCombinedSession(models.Model):
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+    steps = models.PositiveIntegerField(default=0)
+    distance = models.PositiveIntegerField(default=0)
+    started_on = models.DateTimeField()
+    ended_on = models.DateTimeField()
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-started_on']
+
+    @property
+    def duration_seconds(self):
+        return int((self.ended_on - self.started_on).total_seconds())
 
 class PointsLedger(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='points_ledger')

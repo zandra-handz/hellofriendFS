@@ -205,12 +205,54 @@ class FriendGeckoDataDetail(generics.RetrieveAPIView):
         return models.Friend.objects.filter(user=user, id=friend_id)
     
     
+# @api_view(['PATCH'])
+# @permission_classes([IsAuthenticated])
+# def update_gecko_data(request, friend_id):
+#     user = request.user
+#     delta_steps = request.data.get('steps', 0)
+#     delta_distance = request.data.get('distance', 0)
+#     today = timezone.now().date()
+
+#     try:
+#         with transaction.atomic():
+#             models.GeckoData.objects.filter(user=user, friend_id=friend_id).update(
+#                 total_steps=F('total_steps') + delta_steps,
+#                 total_distance=F('total_distance') + delta_distance,
+#             )
+
+#             obj, _ = models.GeckoDataDaily.objects.get_or_create(user=user, friend_id=friend_id, date=today)
+#             models.GeckoDataDaily.objects.filter(id=obj.id).update(
+#                 steps=F('steps') + delta_steps,
+#                 distance=F('distance') + delta_distance,
+#             )
+
+#             users.models.GeckoCombinedData.objects.filter(user=user).update(
+#                 total_steps=F('total_steps') + delta_steps,
+#                 total_distance=F('total_distance') + delta_distance,
+#             )
+
+#             obj, _ = users.models.GeckoCombinedDaily.objects.get_or_create(user=user, date=today)
+#             users.models.GeckoCombinedDaily.objects.filter(id=obj.id).update(
+#                 steps=F('steps') + delta_steps,
+#                 distance=F('distance') + delta_distance,
+#             )
+
+#     except Exception as e:
+#         return response.Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#     gecko_data = models.GeckoData.objects.get(user=user, friend_id=friend_id)
+#     serializer = serializers.GeckoDataSerializer(gecko_data)
+#     return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def update_gecko_data(request, friend_id):
     user = request.user
     delta_steps = request.data.get('steps', 0)
     delta_distance = request.data.get('distance', 0)
+    new_started_on = request.data.get('started_on')
+    new_ended_on = request.data.get('ended_on')
     today = timezone.now().date()
 
     try:
@@ -236,6 +278,27 @@ def update_gecko_data(request, friend_id):
                 steps=F('steps') + delta_steps,
                 distance=F('distance') + delta_distance,
             )
+
+            if new_started_on and new_ended_on:
+                existing_session = users.models.GeckoCombinedSession.objects.filter(
+                    user=user,
+                    started_on__lte=new_started_on,
+                    ended_on__gte=new_started_on,
+                ).first()
+
+                if existing_session:
+                    existing_session.ended_on = new_ended_on
+                    existing_session.steps += delta_steps
+                    existing_session.distance += delta_distance
+                    existing_session.save()
+                else:
+                    users.models.GeckoCombinedSession.objects.create(
+                        user=user,
+                        started_on=new_started_on,
+                        ended_on=new_ended_on,
+                        steps=delta_steps,
+                        distance=delta_distance,
+                    )
 
     except Exception as e:
         return response.Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
