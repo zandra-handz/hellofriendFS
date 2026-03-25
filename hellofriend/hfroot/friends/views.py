@@ -240,7 +240,11 @@ def update_gecko_data(request, friend_id):
     except Exception as e:
         return response.Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    return response.Response({"message": "Gecko data updated successfully."}, status=status.HTTP_200_OK)
+    gecko_data = models.GeckoData.objects.get(user=user, friend_id=friend_id)
+    serializer = serializers.GeckoDataSerializer(gecko_data)
+    return response.Response(serializer.data, status=status.HTTP_200_OK)
+
+
 class FriendSuggestionSettingsDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.FriendSuggestionSettingsSerializer
     permission_classes = [IsAuthenticated]

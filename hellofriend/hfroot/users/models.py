@@ -400,6 +400,7 @@ class GeckoCombinedData(models.Model):
     
     total_steps = models.PositiveIntegerField(default=0)
     total_distance = models.PositiveIntegerField(default=0)
+    # energy level ?
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
