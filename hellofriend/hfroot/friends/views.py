@@ -280,20 +280,44 @@ def update_gecko_data(request, friend_id):
             )
 
             if new_started_on and new_ended_on:
-                existing_session = users.models.GeckoCombinedSession.objects.filter(
+                # update or create combined session (user level)
+                existing_combined_session = users.models.GeckoCombinedSession.objects.filter(
                     user=user,
                     started_on__lte=new_started_on,
                     ended_on__gte=new_started_on,
                 ).first()
 
-                if existing_session:
-                    existing_session.ended_on = new_ended_on
-                    existing_session.steps += delta_steps
-                    existing_session.distance += delta_distance
-                    existing_session.save()
+                if existing_combined_session:
+                    existing_combined_session.ended_on = new_ended_on
+                    existing_combined_session.steps += delta_steps
+                    existing_combined_session.distance += delta_distance
+                    existing_combined_session.save()
                 else:
                     users.models.GeckoCombinedSession.objects.create(
                         user=user,
+                        started_on=new_started_on,
+                        ended_on=new_ended_on,
+                        steps=delta_steps,
+                        distance=delta_distance,
+                    )
+
+                # update or create friend session (friend level)
+                existing_friend_session = models.GeckoDataSession.objects.filter(
+                    user=user,
+                    friend_id=friend_id,
+                    started_on__lte=new_started_on,
+                    ended_on__gte=new_started_on,
+                ).first()
+
+                if existing_friend_session:
+                    existing_friend_session.ended_on = new_ended_on
+                    existing_friend_session.steps += delta_steps
+                    existing_friend_session.distance += delta_distance
+                    existing_friend_session.save()
+                else:
+                    models.GeckoDataSession.objects.create(
+                        user=user,
+                        friend_id=friend_id,
                         started_on=new_started_on,
                         ended_on=new_ended_on,
                         steps=delta_steps,

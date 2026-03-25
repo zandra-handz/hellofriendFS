@@ -36,6 +36,11 @@ class UserGeckoCombinedSerializer(serializers.ModelSerializer):
 #         fields = ['id', 'user', 'name', 'description', 'thought_capsules', 'images', 'is_active', 'max_active', 'is_in_top_five', 'is_deletable', 'created_on', 'updated_on']
 
 
+class GeckoCombinedSessionSerializer(serializers.ModelSerializer):
+    class Meta():
+        model = models.GeckoCombinedSession
+        fields = ['started_on', 'ended_on', 'steps', 'duration']
+
 class UserCategorySerializer(serializers.ModelSerializer):
     thought_capsules = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     images = serializers.PrimaryKeyRelatedField(many=True, read_only=True)

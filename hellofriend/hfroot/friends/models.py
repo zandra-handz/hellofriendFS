@@ -587,6 +587,23 @@ class GeckoDataDaily(models.Model):
 
     class Meta:
         unique_together = ('user', 'friend', 'date')
+
+
+class GeckoDataSession(models.Model):
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+    friend = models.ForeignKey('Friend', on_delete=models.CASCADE)
+    steps = models.PositiveIntegerField(default=0)
+    distance = models.PositiveIntegerField(default=0)
+    started_on = models.DateTimeField()
+    ended_on = models.DateTimeField()
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-started_on']
+
+    @property
+    def duration_seconds(self):
+        return int((self.ended_on - self.started_on).total_seconds())
     
 class FriendFaves(models.Model):
 
