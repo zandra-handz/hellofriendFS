@@ -57,14 +57,14 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
 class GeckoDataSerializer(serializers.ModelSerializer):
     class Meta():
         model = models.GeckoData
-        fields = ['id', 'friend', 'total_steps', 'updated_on']
+        fields = ['user', 'id', 'friend', 'total_steps', 'total_distance', 'updated_on']
 
 
 
 class GeckoDataDailySerializer(serializers.ModelSerializer):
     class Meta():
         model = models.GeckoDataDaily
-        fields = ['id', 'friend', 'total_steps', 'updated_on']
+        fields = ['user', 'id', 'friend', 'total_steps', 'updated_on']
 
 
 class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
@@ -300,7 +300,8 @@ class NextMeetSerializer(serializers.ModelSerializer):
 class FriendDashboardSerializer(serializers.ModelSerializer):
     suggestion_settings = FriendSuggestionSettingsSerializer(read_only=True)
     friend_faves = FriendFavesSerializer(source='friendfaves', read_only=True)
-    gecko_data = GeckoDataSerializer(source='geckodata', read_only=True)
+    # gecko_data = GeckoDataSerializer(source='geckodata', read_only=True)
+    gecko_data = GeckoDataSerializer(source='geckodata', read_only=True, default=None)  # add default=None
     
     # next meet fields promoted to top level
     date = serializers.DateField(source='next_meet_friend.date', read_only=True)
