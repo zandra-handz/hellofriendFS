@@ -569,7 +569,7 @@ class GeckoData(models.Model):
 
     total_steps = models.PositiveIntegerField(default=0)
     total_distance = models.PositiveIntegerField(default=0)
-
+    total_duration = models.PositiveIntegerField(default=0)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -581,7 +581,7 @@ class GeckoDataDaily(models.Model):
  
     steps = models.PositiveIntegerField(default=0)
     distance = models.PositiveIntegerField(default=0)
-
+    duration = models.PositiveIntegerField(default=0)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 

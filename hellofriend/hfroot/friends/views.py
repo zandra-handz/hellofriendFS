@@ -264,6 +264,8 @@ class FriendGeckoDataSessionsAll(generics.ListAPIView):
 #     serializer = serializers.GeckoDataSerializer(gecko_data)
 #     return response.Response(serializer.data, status=status.HTTP_200_OK)
 
+from django.utils.dateparse import parse_datetime
+        
 
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
@@ -275,32 +277,43 @@ def update_gecko_data(request, friend_id):
     new_ended_on = request.data.get('ended_on')
     today = timezone.now().date()
 
+    delta_duration = 0
+    if new_started_on and new_ended_on:
+
+        start = parse_datetime(new_started_on)
+        end = parse_datetime(new_ended_on)
+        if start and end:
+            delta_duration = int((end - start).total_seconds())
+
     try:
         with transaction.atomic():
             models.GeckoData.objects.filter(user=user, friend_id=friend_id).update(
                 total_steps=F('total_steps') + delta_steps,
                 total_distance=F('total_distance') + delta_distance,
+                total_duration=F('total_duration') + delta_duration,
             )
 
             obj, _ = models.GeckoDataDaily.objects.get_or_create(user=user, friend_id=friend_id, date=today)
             models.GeckoDataDaily.objects.filter(id=obj.id).update(
                 steps=F('steps') + delta_steps,
                 distance=F('distance') + delta_distance,
+                duration=F('duration') + delta_duration,
             )
 
             users.models.GeckoCombinedData.objects.filter(user=user).update(
                 total_steps=F('total_steps') + delta_steps,
                 total_distance=F('total_distance') + delta_distance,
+                total_duration=F('total_duration') + delta_duration,
             )
 
             obj, _ = users.models.GeckoCombinedDaily.objects.get_or_create(user=user, date=today)
             users.models.GeckoCombinedDaily.objects.filter(id=obj.id).update(
                 steps=F('steps') + delta_steps,
                 distance=F('distance') + delta_distance,
+                duration=F('duration') + delta_duration,
             )
 
             if new_started_on and new_ended_on:
-                # update or create combined session (user level)
                 existing_combined_session = users.models.GeckoCombinedSession.objects.filter(
                     user=user,
                     started_on__lte=new_started_on,
@@ -321,7 +334,6 @@ def update_gecko_data(request, friend_id):
                         distance=delta_distance,
                     )
 
-                # update or create friend session (friend level)
                 existing_friend_session = models.GeckoDataSession.objects.filter(
                     user=user,
                     friend_id=friend_id,
@@ -350,8 +362,6 @@ def update_gecko_data(request, friend_id):
     gecko_data = models.GeckoData.objects.get(user=user, friend_id=friend_id)
     serializer = serializers.GeckoDataSerializer(gecko_data)
     return response.Response(serializer.data, status=status.HTTP_200_OK)
-
-
 class FriendSuggestionSettingsDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.FriendSuggestionSettingsSerializer
     permission_classes = [IsAuthenticated]

@@ -57,14 +57,14 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
 class GeckoDataSerializer(serializers.ModelSerializer):
     class Meta():
         model = models.GeckoData
-        fields = ['user', 'id', 'friend', 'total_steps', 'total_distance', 'updated_on']
+        fields = ['user', 'id', 'friend', 'total_steps', 'total_distance', 'total_duration', 'updated_on']
 
 
 
 class GeckoDataDailySerializer(serializers.ModelSerializer):
     class Meta():
         model = models.GeckoDataDaily
-        fields = ['user', 'id', 'friend', 'steps', 'distance', 'updated_on']
+        fields = ['user', 'id', 'friend', 'steps', 'distance', 'duration', 'updated_on']
 
 
 class GeckoDataSessionSerializer(serializers.ModelSerializer):

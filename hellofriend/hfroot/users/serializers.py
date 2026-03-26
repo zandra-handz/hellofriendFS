@@ -28,7 +28,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class UserGeckoCombinedSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.GeckoCombinedData
-        fields = ['total_steps', 'total_distance', 'updated_on']
+        fields = ['total_steps', 'total_distance', 'total_duration', 'updated_on']
 # class UserCategorySerializer(serializers.ModelSerializer):
 
 #     class Meta:
