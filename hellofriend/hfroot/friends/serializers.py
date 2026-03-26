@@ -70,7 +70,7 @@ class GeckoDataDailySerializer(serializers.ModelSerializer):
 class GeckoDataSessionSerializer(serializers.ModelSerializer):
     class Meta():
         model = models.GeckoDataSession
-        fields = ['user', 'id', 'friend', 'steps', 'distance', 'started_on', 'ended_on', 'updated_on']
+        fields = ['user', 'id', 'friend', 'steps', 'distance', 'started_on', 'ended_on']
 
 
 
