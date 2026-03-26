@@ -11,6 +11,15 @@ from django.db.models import Count, Min, Prefetch
 
 from django.db.models import F
 
+
+import requests
+from django.conf import settings 
+
+#fix eventually
+from rest_framework.response import Response
+ 
+
+
 from django.shortcuts import render, get_object_or_404
 from rest_framework import generics, response, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
@@ -2026,3 +2035,49 @@ def friend_pick_page(request, session_id):
         return render(request, 'pick_done.html', {'session': session})
     
     return render(request, 'let_friend_pick.html', {'session': session})
+
+
+
+ 
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def groq_chat(request):
+    model = request.data.get('model', 'llama-3.3-70b-versatile')
+    role = request.data.get('role')
+    prompt = request.data.get('prompt')
+
+    if not role or not prompt:
+        return response.Response(
+            {'error': 'Role and prompt are required.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        groq_response = requests.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            headers={
+                'Authorization': f'Bearer {settings.GROQ_API_KEY}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'model': model,
+                'messages': [
+                    {'role': 'system', 'content': role},
+                    {'role': 'user', 'content': prompt},
+                ],
+            },
+        )
+        groq_response.raise_for_status()
+        data = groq_response.json()
+        content = data['choices'][0]['message']['content']
+
+        return Response({'response': content}, status=status.HTTP_200_OK)
+
+    except requests.exceptions.RequestException as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_502_BAD_GATEWAY
+        )

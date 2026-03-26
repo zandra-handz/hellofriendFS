@@ -94,4 +94,6 @@ urlpatterns = [
     path('pick-session/create/', views.FriendPickSessionCreate.as_view()),
     path('pick-session/<uuid:id>/', views.FriendPickSessionDetail.as_view()),
     path('pick/<uuid:session_id>/', views.friend_pick_page, name='friend-pick-page'),
+
+    path('groq/', views.groq_chat, name='groq-chat'),
 ]
