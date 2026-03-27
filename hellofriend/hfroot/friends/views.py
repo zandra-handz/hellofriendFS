@@ -2112,7 +2112,7 @@ class GeckoReadMomentsOnly(generics.GenericAPIView):
                 status=status.HTTP_200_OK,
             )
 
-        serializer = serializers.ThoughtCapsuleSerializer(capsules, many=True)
+        serializer = serializers.ThoughtCapsuleGeckoReadSerializer(capsules, many=True)
 
         total_word_count = sum(
             len(c.capsule.split()) for c in capsules if c.capsule
