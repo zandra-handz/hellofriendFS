@@ -2055,6 +2055,7 @@ def groq_chat(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    print(f"GROQ KEY LOADED: {bool(settings.GROQ_API_KEY)}")
     try:
         groq_response = requests.post(
             'https://api.groq.com/openai/v1/chat/completions',
