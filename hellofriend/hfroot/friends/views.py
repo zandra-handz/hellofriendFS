@@ -1224,6 +1224,9 @@ class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
                 continue
 
         return response.Response({"updated": updated}, status=status.HTTP_200_OK)
+    
+
+
 
 # class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
 #     permission_classes = [IsAuthenticated]
@@ -2081,4 +2084,49 @@ def groq_chat(request):
         return Response(
             {'error': str(e)},
             status=status.HTTP_502_BAD_GATEWAY
+        )
+    
+
+
+class GeckoReadMomentsOnly(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, friend_id):
+        """
+        Expects data: {"ids": [uuid, uuid, ...]}
+        Returns full data for each found moment, ordered by created_on.
+        """
+        user = request.user
+        ids = request.data.get("ids", [])
+        unique_ids = list(set(ids))
+
+        capsules = models.ThoughtCapsulez.objects.filter(
+            user=user,
+            friend_id=friend_id,
+            id__in=unique_ids,
+        ).select_related("user_category").order_by("created_on")
+
+        if not capsules.exists():
+            return response.Response(
+                {"moments": [], "summary": None},
+                status=status.HTTP_200_OK,
+            )
+
+        serializer = serializers.ThoughtCapsuleSerializer(capsules, many=True)
+
+        total_word_count = sum(
+            len(c.capsule.split()) for c in capsules if c.capsule
+        )
+
+        summary = {
+            "total_moments": capsules.count(),
+            "total_word_count": total_word_count,
+            "earliest_created": capsules.first().created_on,
+            "latest_created": capsules.last().created_on,
+            "time_range_days": (capsules.last().created_on - capsules.first().created_on).days,
+        }
+
+        return response.Response(
+            {"moments": serializer.data, "summary": summary},
+            status=status.HTTP_200_OK,
         )
