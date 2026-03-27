@@ -212,7 +212,11 @@ class FriendGeckoDataDetail(generics.RetrieveAPIView):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
         return models.Friend.objects.filter(user=user, id=friend_id)
+
+
+
     
+
 
 
 class FriendGeckoDataSessionsAll(generics.ListAPIView):
@@ -233,6 +237,29 @@ class FriendGeckoDataSessionsAll(generics.ListAPIView):
             return response.Response(serializer.data)
         
         return super().list(request, *args, **kwargs)
+
+
+
+class FriendGeckoDataSessionsTimeRange(generics.ListAPIView):
+    serializer_class = serializers.GeckoDataSessionSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id']
+        minutes = self.request.query_params.get('minutes')
+
+        qs = models.GeckoDataSession.objects.filter(user=user, friend_id=friend_id)
+
+        if minutes:
+            try:
+                since = timezone.now() - datetime.timedelta(minutes=float(minutes))
+                qs = qs.filter(started_on__gte=since)
+            except (ValueError, TypeError):
+                pass
+
+        return qs
     
 # @api_view(['PATCH'])
 # @permission_classes([IsAuthenticated])
