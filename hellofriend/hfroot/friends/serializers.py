@@ -387,7 +387,7 @@ class ThoughtCapsuleGeckoReadSerializer(serializers.ModelSerializer):
     user_category_name = serializers.CharField(source='user_category.name', read_only=True)
     class Meta:
         model = models.ThoughtCapsulez
-        fields = [ 'user_category_name', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello', 'screen_x', 'screen_y',
+        fields = [ 'id', 'user_category_name', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello', 'screen_x', 'screen_y',
                   'easy_score', 'hard_score', 'quick_score', 'long_score', 'relevant_score', 'random_score', 'unique_score', 'generic_score']
     
     # may not need (?)
