@@ -41,6 +41,25 @@ class GeckoCombinedSessionSerializer(serializers.ModelSerializer):
         model = models.GeckoCombinedSession
         fields = ['started_on', 'ended_on', 'steps', 'duration']
 
+
+
+class GeckoConfigsSerializer(serializers.ModelSerializer): 
+    personality_type_label = serializers.CharField(source='get_personality_type_display', read_only=True)
+    memory_type_label = serializers.CharField(source='get_memory_type_display', read_only=True)
+    active_hours_type_label = serializers.CharField(source='get_active_hours_type_display', read_only=True)
+    story_type_label = serializers.CharField(source='get_story_type_display', read_only=True)
+
+    class Meta:
+        model = models.GeckoConfigs
+        fields = [
+            'personality_type', 'personality_type_label',
+            'memory_type', 'memory_type_label',
+            'active_hours_type', 'active_hours_type_label',
+            'story_type', 'story_type_label',
+            'created_on', 'updated_on',
+        ]
+        read_only_fields = ['created_on', 'updated_on']
+
 class UserCategorySerializer(serializers.ModelSerializer):
     thought_capsules = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
     images = serializers.PrimaryKeyRelatedField(many=True, read_only=True)

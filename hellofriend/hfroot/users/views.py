@@ -266,6 +266,25 @@ class GeckoCombinedDataDetail(generics.RetrieveAPIView):
         return models.GeckoCombinedData.objects.get(user=self.request.user)
 
 
+class GeckoConfigsView(generics.RetrieveUpdateAPIView):
+    serializer_class = serializers.GeckoConfigsSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        obj, created = models.GeckoConfigs.objects.get_or_create(user=self.request.user)
+        return obj
+    
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def gecko_config_choices(request):
+    return response.Response({
+        'personality_types': [{'value': v, 'label': l} for v, l in models.Personality.choices],
+        'memory_types': [{'value': v, 'label': l} for v, l in models.Memory.choices],
+        'active_hours_types': [{'value': v, 'label': l} for v, l in models.ActivityHours.choices],
+        'story_types': [{'value': v, 'label': l} for v, l in models.Story.choices],
+    })
+
 class UserProfileDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.UserProfileSerializer
     permission_classes = [IsAuthenticated]
