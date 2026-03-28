@@ -49,6 +49,8 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
     active_hours_type_label = serializers.CharField(source='get_active_hours_type_display', read_only=True)
     story_type_label = serializers.CharField(source='get_story_type_display', read_only=True)
 
+    available_choices = serializers.SerializerMethodField()
+
     class Meta:
         model = models.GeckoConfigs
         fields = [
@@ -56,9 +58,18 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
             'memory_type', 'memory_type_label',
             'active_hours_type', 'active_hours_type_label',
             'story_type', 'story_type_label',
+            'available_choices',
             'created_on', 'updated_on',
         ]
         read_only_fields = ['created_on', 'updated_on']
+
+    def get_available_choices(self, obj):
+        return {
+            'personality_types': [{'value': v, 'label': l} for v, l in models.Personality.choices],
+            'memory_types': [{'value': v, 'label': l} for v, l in models.Memory.choices],
+            'active_hours_types': [{'value': v, 'label': l} for v, l in models.ActivityHours.choices],
+            'story_types': [{'value': v, 'label': l} for v, l in models.Story.choices],
+        }
 
 class UserCategorySerializer(serializers.ModelSerializer):
     thought_capsules = serializers.PrimaryKeyRelatedField(many=True, read_only=True)
