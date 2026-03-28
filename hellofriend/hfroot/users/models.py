@@ -159,13 +159,11 @@ class BadRainbowzUser(AbstractUser):
         if created:
             UserProfile.objects.create(user=self)
             UserSettings.objects.create(user=self)
+            GeckoConfigs.objects.create(user=self)
             GeckoCombinedData.objects.create(user=self) 
             UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
             
 
-
-
-    
 
 class UserCategory(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='user_categories')
@@ -393,6 +391,44 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"Profile for {self.user.username}"
     
+
+class Memory(models.IntegerChoices):
+    AMNESIAC = 1, "Amnesiac",
+    REMEMBERSOME = 2, "Remember Some",
+    REMEMBERMANY = 3, "Remember Many"
+
+
+class Personality(models.IntegerChoices):
+    CURIOUS = 1, "Curious",
+    SCIENTIFIC = 2, "Scientific",
+    BRAVE = 3, "Brave"
+    
+
+class ActivityHours(models.IntegerChoices):
+    DAY = 1, "Day",
+    NIGHT = 2, "Night",
+    RANDOM = 3, "Random"
+
+
+class Story(models.IntegerChoices):
+    LEARNER = 1, "Learner", 
+    NOMMER = 2, "Nommer",
+    ESCAPER = 3, "Escaper"
+
+    
+
+    
+class GeckoConfigs(models.Model):
+    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='geckoconfigs')
+    personality_type = models.IntegerField(choices=Personality.choices, default=Personality.CURIOUS)
+    memory_type = models.IntegerField(choices=Memory.choices, default=Memory.AMNESIAC)
+    active_hours_type = models.IntegerField(choices=ActivityHours.choices, default=ActivityHours.DAY)
+    story_type = models.IntegerField(choices=Story.choices, default=Story.LEARNER)
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Gecko configuration for {self.user.username}"
 
 
 class GeckoCombinedData(models.Model):
