@@ -7,7 +7,11 @@ urlpatterns = [
     path('<int:user_id>/addresses/delete/', views.DeleteAddressView.as_view()),
     path('settings/', views.UserSettingsDetail.as_view()),
     path('settings/update/', views.UserSettingsDetail.as_view()),
-    path('geckodata/', views.GeckoCombinedDataDetail.as_view()),
+    path('gecko/totals/', views.GeckoCombinedDataDetail.as_view()),
+    path('gecko/sessions/', views.GeckoCombinedDataSessionsAll.as_view()), # paginated and non paginated options
+    path('gecko/sessions/range/', views.GeckoCombinedDataSessionsTimeRange.as_view()), # paginated and non paginated options
+    
+    
     path('<int:user_id>/profile/', views.UserProfileDetail.as_view()),
     path('<int:user_id>/profile/update/', views.UserProfileDetail.as_view()),
     path('<int:user_id>/subscription/update/', views.UpdateSubscriptionView.as_view()),

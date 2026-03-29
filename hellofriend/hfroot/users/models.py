@@ -466,11 +466,13 @@ class GeckoCombinedDaily(models.Model):
 
 class GeckoCombinedSession(models.Model):
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+    friend = models.ForeignKey('friends.Friend', on_delete=models.SET_NULL, null=True, blank=True)
     steps = models.PositiveIntegerField(default=0)
     distance = models.PositiveIntegerField(default=0)
     started_on = models.DateTimeField()
     ended_on = models.DateTimeField()
     created_on = models.DateTimeField(auto_now_add=True)
+ 
 
     class Meta:
         ordering = ['-started_on']

@@ -36,10 +36,10 @@ class UserGeckoCombinedSerializer(serializers.ModelSerializer):
 #         fields = ['id', 'user', 'name', 'description', 'thought_capsules', 'images', 'is_active', 'max_active', 'is_in_top_five', 'is_deletable', 'created_on', 'updated_on']
 
 
-class GeckoCombinedSessionSerializer(serializers.ModelSerializer):
+class GeckoCombinedDataSessionSerializer(serializers.ModelSerializer):
     class Meta():
         model = models.GeckoCombinedSession
-        fields = ['started_on', 'ended_on', 'steps', 'duration']
+        fields = ['id', 'friend', 'started_on', 'ended_on', 'steps', 'duration']
 
 
 

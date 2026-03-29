@@ -1,5 +1,6 @@
 from . import models
 from . import serializers
+import datetime
 from django.apps import apps
 # from django.core.mail import send_mail
 from django.contrib.auth import update_session_auth_hash
@@ -9,6 +10,7 @@ from django.db.models import Count, Prefetch, Q, F
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import generics, response, status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.pagination import PageNumberPagination
@@ -21,7 +23,12 @@ from rest_framework.views import APIView
 
 from django.conf import settings
 
+
 # Create your views here.
+
+
+class MediumPagination(PageNumberPagination):
+    page_size = 30
 
 
 class TenPerMinuteUserThrottle(UserRateThrottle):
@@ -264,6 +271,53 @@ class GeckoCombinedDataDetail(generics.RetrieveAPIView):
 
     def get_object(self):
         return models.GeckoCombinedData.objects.get(user=self.request.user)
+
+class GeckoCombinedDataSessionsAll(generics.ListAPIView):
+    
+
+    serializer_class = serializers.GeckoCombinedDataSessionSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = MediumPagination
+
+    def get_queryset(self):
+        user = self.request.user 
+        return models.GeckoCombinedSession.objects.filter(user=user)
+
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("nopaginate") == "true":
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return response.Response(serializer.data)
+        
+        return super().list(request, *args, **kwargs)
+
+
+
+class GeckoCombinedDataSessionsTimeRange(generics.ListAPIView):
+    serializer_class = serializers.GeckoCombinedDataSessionSerializer
+    permission_classes = [IsAuthenticated]
+ 
+
+    def get_queryset(self):
+        user = self.request.user 
+        minutes = self.request.query_params.get('minutes')
+
+        qs = models.GeckoCombinedDataSession.objects.filter(user=user)
+
+        if minutes:
+            try:
+                since = timezone.now() - datetime.timedelta(minutes=float(minutes))
+                qs = qs.filter(started_on__gte=since)
+            except (ValueError, TypeError):
+                pass
+
+        return qs
+    
+
+
+
+
+
 
 
 class GeckoConfigsView(generics.RetrieveUpdateAPIView):

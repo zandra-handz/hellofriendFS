@@ -261,44 +261,7 @@ class FriendGeckoDataSessionsTimeRange(generics.ListAPIView):
 
         return qs
     
-# @api_view(['PATCH'])
-# @permission_classes([IsAuthenticated])
-# def update_gecko_data(request, friend_id):
-#     user = request.user
-#     delta_steps = request.data.get('steps', 0)
-#     delta_distance = request.data.get('distance', 0)
-#     today = timezone.now().date()
-
-#     try:
-#         with transaction.atomic():
-#             models.GeckoData.objects.filter(user=user, friend_id=friend_id).update(
-#                 total_steps=F('total_steps') + delta_steps,
-#                 total_distance=F('total_distance') + delta_distance,
-#             )
-
-#             obj, _ = models.GeckoDataDaily.objects.get_or_create(user=user, friend_id=friend_id, date=today)
-#             models.GeckoDataDaily.objects.filter(id=obj.id).update(
-#                 steps=F('steps') + delta_steps,
-#                 distance=F('distance') + delta_distance,
-#             )
-
-#             users.models.GeckoCombinedData.objects.filter(user=user).update(
-#                 total_steps=F('total_steps') + delta_steps,
-#                 total_distance=F('total_distance') + delta_distance,
-#             )
-
-#             obj, _ = users.models.GeckoCombinedDaily.objects.get_or_create(user=user, date=today)
-#             users.models.GeckoCombinedDaily.objects.filter(id=obj.id).update(
-#                 steps=F('steps') + delta_steps,
-#                 distance=F('distance') + delta_distance,
-#             )
-
-#     except Exception as e:
-#         return response.Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-#     gecko_data = models.GeckoData.objects.get(user=user, friend_id=friend_id)
-#     serializer = serializers.GeckoDataSerializer(gecko_data)
-#     return response.Response(serializer.data, status=status.HTTP_200_OK)
+ 
 
 from django.utils.dateparse import parse_datetime
         
@@ -329,12 +292,13 @@ def update_gecko_data(request, friend_id):
                 total_duration=F('total_duration') + delta_duration,
             )
 
-            obj, _ = models.GeckoDataDaily.objects.get_or_create(user=user, friend_id=friend_id, date=today)
-            models.GeckoDataDaily.objects.filter(id=obj.id).update(
-                steps=F('steps') + delta_steps,
-                distance=F('distance') + delta_distance,
-                duration=F('duration') + delta_duration,
-            )
+            # REMOVED, using sessions instead
+            # obj, _ = models.GeckoDataDaily.objects.get_or_create(user=user, friend_id=friend_id, date=today)
+            # models.GeckoDataDaily.objects.filter(id=obj.id).update(
+            #     steps=F('steps') + delta_steps,
+            #     distance=F('distance') + delta_distance,
+            #     duration=F('duration') + delta_duration,
+            # )
 
             users.models.GeckoCombinedData.objects.filter(user=user).update(
                 total_steps=F('total_steps') + delta_steps,
@@ -342,16 +306,18 @@ def update_gecko_data(request, friend_id):
                 total_duration=F('total_duration') + delta_duration,
             )
 
-            obj, _ = users.models.GeckoCombinedDaily.objects.get_or_create(user=user, date=today)
-            users.models.GeckoCombinedDaily.objects.filter(id=obj.id).update(
-                steps=F('steps') + delta_steps,
-                distance=F('distance') + delta_distance,
-                duration=F('duration') + delta_duration,
-            )
+            # REMOVED, using sessions instead
+            # obj, _ = users.models.GeckoCombinedDaily.objects.get_or_create(user=user, date=today)
+            # users.models.GeckoCombinedDaily.objects.filter(id=obj.id).update(
+            #     steps=F('steps') + delta_steps,
+            #     distance=F('distance') + delta_distance,
+            #     duration=F('duration') + delta_duration,
+            # )
 
             if new_started_on and new_ended_on:
                 existing_combined_session = users.models.GeckoCombinedSession.objects.filter(
                     user=user,
+                    friend_id=friend_id,
                     started_on__lte=new_started_on,
                     ended_on__gte=new_started_on,
                 ).first()
@@ -364,6 +330,7 @@ def update_gecko_data(request, friend_id):
                 else:
                     users.models.GeckoCombinedSession.objects.create(
                         user=user,
+                        friend_id=friend_id,
                         started_on=new_started_on,
                         ended_on=new_ended_on,
                         steps=delta_steps,
@@ -735,8 +702,7 @@ class NextMeetsAllView(generics.ListCreateAPIView):
         user = self.request.user
         return models.NextMeet.objects.filter(user=user)
 
-
-# Limits to four here instead of in the front end
+ 
 
 import datetime
 from django.utils import timezone
