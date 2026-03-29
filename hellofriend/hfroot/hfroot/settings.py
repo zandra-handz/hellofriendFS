@@ -21,7 +21,8 @@ import sys
 load_dotenv()
 
 
-
+# sudo chmod 600 /etc/systemd/system/gunicorn.service
+# ls -l /etc/systemd/system/gunicorn.service
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 

@@ -302,7 +302,7 @@ class GeckoCombinedDataSessionsTimeRange(generics.ListAPIView):
         user = self.request.user 
         minutes = self.request.query_params.get('minutes')
 
-        qs = models.GeckoCombinedDataSession.objects.filter(user=user)
+        qs = models.GeckoCombinedSession.objects.filter(user=user)
 
         if minutes:
             try:
