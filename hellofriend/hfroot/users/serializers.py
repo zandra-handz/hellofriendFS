@@ -39,7 +39,7 @@ class UserGeckoCombinedSerializer(serializers.ModelSerializer):
 class GeckoCombinedDataSessionSerializer(serializers.ModelSerializer):
     class Meta():
         model = models.GeckoCombinedSession
-        fields = ['id', 'friend', 'started_on', 'ended_on', 'steps']
+        fields = ['id', 'friend', 'started_on', 'ended_on', 'steps', 'distance']
 
 
 

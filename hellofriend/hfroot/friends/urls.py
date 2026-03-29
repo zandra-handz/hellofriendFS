@@ -21,8 +21,8 @@ urlpatterns = [
     path('<int:friend_id>/gecko/data/', views.FriendGeckoDataDetail.as_view()),
 
     path('<int:friend_id>/gecko/data/update/', views.update_gecko_data, name='update-gecko-data'),
-    path('<int:friend_id>/gecko/sessions/', views.FriendGeckoDataSessionsAll.as_view()), # paginated and non paginated options
-    path('<int:friend_id>/gecko/sessions/range/', views.FriendGeckoDataSessionsTimeRange.as_view()), # paginated and non paginated options
+    path('<int:friend_id>/gecko/sessions/', views.FriendGeckoDataSessionsAll.as_view()), 
+    path('<int:friend_id>/gecko/sessions/range/', views.FriendGeckoDataSessionsTimeRange.as_view()), 
     
     
     path('<int:friend_id>/gecko/read/moments/', views.GeckoReadMomentsOnly.as_view()), # paginated and non paginated options
