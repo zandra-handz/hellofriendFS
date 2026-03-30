@@ -1,0 +1,321 @@
+================================================================
+  HELLOFRIEND — ISSUES TO FIX
+  (security/urgent at top, less urgent at bottom)
+================================================================
+
+--------------------------------------------------------------
+ [1] CRITICAL — DEFAULT_PERMISSIONS_CLASSES typo in settings
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: hfroot/settings.py, line 51
+
+The REST_FRAMEWORK setting key is misspelled:
+  'DEFAULT_PERMISSIONS_CLASSES'   ← wrong (Django silently ignores this)
+  'DEFAULT_PERMISSION_CLASSES'    ← correct
+
+Because of this typo, the default permission is AllowAny for every
+view that does not explicitly set permission_classes. Concrete example:
+FriendCreateView (friends/views.py line 80) has no permission_classes,
+so any anonymous user on the internet can POST to create friends.
+
+FIX: Rename the key from DEFAULT_PERMISSIONS_CLASSES to
+DEFAULT_PERMISSION_CLASSES in settings.py. Then audit every view in
+friends/views.py and users/views.py for missing permission_classes
+and add permission_classes = [IsAuthenticated] where needed.
+
+
+--------------------------------------------------------------
+ [2] CRITICAL — DEBUG = True in production settings
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: hfroot/settings.py, line 36
+
+DEBUG = True is set in the production settings file. When an error
+occurs, Django returns a full HTML page with the stack trace, all
+local variables, your full settings dict, and every SQL query that ran.
+This is a severe information disclosure vulnerability.
+
+FIX: Set DEBUG = False in settings.py. Use an environment variable:
+  DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
+Make sure your local dev environment sets DJANGO_DEBUG=True.
+
+
+--------------------------------------------------------------
+ [3] CRITICAL — Django Silk profiler is active in production
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: hfroot/settings.py, lines 84 and 104
+
+'silk' is in INSTALLED_APPS and 'silk.middleware.SilkyMiddleware'
+is in MIDDLEWARE. Silk is a development profiling tool. In production:
+  - It intercepts every request and writes full request/response bodies
+    and all SQL queries to your database
+  - /silk/ is accessible without authentication by default
+  - It significantly degrades performance and fills your DB
+
+FIX: Wrap silk in a DEBUG guard so it only runs locally:
+
+  INSTALLED_APPS = [
+      ...
+      # keep your other apps
+  ]
+  if DEBUG:
+      INSTALLED_APPS += ['silk']
+
+  MIDDLEWARE = [
+      ...
+      # keep your other middleware
+  ]
+  if DEBUG:
+      MIDDLEWARE += ['silk.middleware.SilkyMiddleware']
+
+
+--------------------------------------------------------------
+ [4] HIGH — CORS_ALLOW_ALL_ORIGINS + CORS_ALLOW_CREDENTIALS together
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: hfroot/settings.py, lines 246-247
+
+  CORS_ALLOW_ALL_ORIGINS = True
+  CORS_ALLOW_CREDENTIALS = True
+
+Combining these two means any website in the world can make
+credentialed (cookie/token) cross-origin requests on behalf of your
+logged-in users. This is a well-known CORS misconfiguration.
+
+FIX: Replace CORS_ALLOW_ALL_ORIGINS with an explicit allowlist:
+  CORS_ALLOWED_ORIGINS = [
+      'https://your-frontend-domain.com',
+  ]
+  CORS_ALLOW_CREDENTIALS = True
+
+
+--------------------------------------------------------------
+ [5] HIGH — SECRET_KEY silently falls back to a random value
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: hfroot/settings.py, line 93
+
+  SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', get_random_secret_key())
+
+If DJANGO_SECRET_KEY is missing from the environment, Django generates
+a fresh random key every time the server starts. This silently
+invalidates all existing JWT tokens and sessions — users get
+mysteriously logged out with no error in the logs.
+
+FIX: Raise an error if the key is missing instead of falling back:
+  SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
+  (using os.environ instead of os.getenv raises KeyError if missing,
+  which is a loud, obvious failure you can catch in deployment)
+
+
+--------------------------------------------------------------
+ [6] HIGH — Friend.save() creates 5+ objects without a transaction
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/models.py, lines 110-183
+
+When a Friend is created, save() creates FriendSuggestionSettings,
+FriendFaves, GeckoData, PastMeet, and NextMeet. None of this is inside
+a transaction.atomic() block. If any step fails, the database is left
+in a partially-created state (e.g. a Friend row with no NextMeet),
+which causes crashes on every future query for that friend.
+
+The same problem exists in BadRainbowzUser.save() which creates
+UserProfile, UserSettings, and GeckoConfigs without a transaction.
+
+FIX: Wrap the entire creation block in with transaction.atomic():
+  def save(self, *args, **kwargs):
+      if not self.pk:
+          with transaction.atomic():
+              super().save(*args, **kwargs)
+              suggestion_settings = FriendSuggestionSettings(...)
+              suggestion_settings.save()
+              ... (all other related object creation)
+      else:
+          super().save(*args, **kwargs)
+
+
+--------------------------------------------------------------
+ [7] HIGH — PastMeet.save() does complex multi-object work without a transaction
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/models.py, around line 1100+
+
+Saving a PastMeet ("Hello") creates CompletedThoughtCapsulez records,
+deletes ThoughtCapsulez records, and may create a Location — all
+outside of a transaction. The commented-out line:
+  # with transaction.atomic():
+at line 1125 shows this was noticed but never fixed.
+
+A failure partway through leaves some capsules deleted and others not,
+with no way to detect or recover from the inconsistency.
+
+FIX: Wrap the entire save() logic in with transaction.atomic().
+
+
+--------------------------------------------------------------
+ [8] MEDIUM — Password reset codes stored in plain text
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: users/models.py (password_reset_code field on BadRainbowzUser)
+
+The 6-digit password reset code is stored as a plain string in the DB.
+If your database is ever read by an attacker, all currently valid
+reset codes can be used immediately for account takeover.
+
+FIX: Store a hash of the code instead of the code itself. On
+validation, hash the submitted code and compare to the stored hash.
+Use Django's make_password / check_password or hashlib.sha256.
+
+
+--------------------------------------------------------------
+ [9] MEDIUM — ImagesByCategoryView has AllowAny (left over from testing)
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/views.py, lines 1435-1438
+
+  class ImagesByCategoryView(APIView):
+      # For testing
+      permission_classes = [AllowAny]
+
+This endpoint fetches images for request.user. With AllowAny, an
+unauthenticated request sets request.user to AnonymousUser and either
+returns empty results or crashes. The "For testing" comment confirms
+this was never meant to be in production.
+
+FIX: Change to permission_classes = [IsAuthenticated]
+     and remove the comment.
+
+
+--------------------------------------------------------------
+ [10] MEDIUM — Geocoding API calls inside model.save()
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+Files: friends/models.py — FriendAddress.save() (line ~261),
+       Location.save(), users/models.py — UserAddress.save()
+
+All three call utils.get_coordinates() (an external network request)
+directly inside save(). Problems:
+  - If the geocoding service is slow or down, the user's request hangs
+    or fails with an unhelpful server error
+  - No timeout or retry logic
+  - Incompatible with bulk_create() and update()
+
+FIX: Move geocoding to the serializer's validate() or create()/update()
+methods so it runs before the DB write, with proper error handling.
+For better UX, consider a background task (e.g. with Django Q or
+Celery) so the address saves immediately and coordinates fill in async.
+
+
+--------------------------------------------------------------
+ [11] MEDIUM — Friend.Meta.ordering sorts by NextMeet PK, not by date
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/models.py, line 98
+
+  class Meta:
+      ordering = ('next_meet',)
+
+Ordering by a ForeignKey orders by its integer primary key — the order
+in which NextMeet rows were created — not by their date field. Friends
+are not actually sorted by upcoming meet date, even though that is
+clearly the intent.
+
+FIX: Change to:
+  ordering = ('next_meet__date',)
+Note this adds a JOIN to every Friend query. You can add
+db_index=True on NextMeet.date if not already indexed to keep it fast.
+
+
+--------------------------------------------------------------
+ [12] MEDIUM — No DB indexes on GeckoDataSession and GeckoCombinedSession
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+Files: friends/models.py (GeckoDataSession ~line 592),
+       users/models.py (GeckoCombinedSession)
+
+Both models are queried by user, friend, and started_on (time range
+queries). Neither has any indexes defined, so every time-range query
+(views like GeckoDataSessionsTimeRange) does a full table scan. As
+sessions accumulate this will get progressively slower.
+
+FIX: Add indexes to both models:
+  class Meta:
+      ordering = ['-started_on']
+      indexes = [
+          models.Index(fields=['user', 'friend']),
+          models.Index(fields=['user', 'started_on']),
+      ]
+
+
+--------------------------------------------------------------
+ [13] MEDIUM — days_since / time_score can cause N+1 queries
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/models.py, lines 332-374
+
+NextMeet.days_since accesses self.previous.date (a FK traversal).
+NextMeet.time_score depends on days_since. Any serializer that includes
+time_score on a queryset of NextMeet objects will trigger one extra DB
+query per row if previous is not in select_related().
+
+FIX: Ensure every queryset that uses NextMeet includes:
+  .select_related('previous')
+Audit all views and serializers that serialize NextMeet objects and
+verify this is in place.
+
+
+--------------------------------------------------------------
+ [14] LOW — CorsMiddleware is in the wrong position in MIDDLEWARE
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: hfroot/settings.py, lines 95-104
+
+django-cors-headers requires CorsMiddleware to be placed BEFORE
+CommonMiddleware (and any other middleware that can generate responses).
+Currently it appears after CommonMiddleware, so CORS headers are
+missing from responses generated by CommonMiddleware (like redirects).
+
+FIX: Move 'corsheaders.middleware.CorsMiddleware' to be the first
+entry in the MIDDLEWARE list (above SecurityMiddleware is fine, but
+it must be above CommonMiddleware).
+
+
+--------------------------------------------------------------
+ [15] LOW — [IsAuthenticated, AllowAny] is contradictory
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/views.py, lines 1539 and 1557
+
+  permission_classes = [IsAuthenticated, AllowAny]
+
+AllowAny short-circuits all permission checks and makes IsAuthenticated
+irrelevant. The result is AllowAny. Listing both is misleading — it
+reads like the endpoint is protected when it is not.
+
+FIX: Decide what you actually want for these endpoints (HelloTypeChoices
+and LocationParkingTypeChoices). If they are public choice lists that
+don't expose user data, just use permission_classes = [AllowAny].
+If they should be protected, use permission_classes = [IsAuthenticated].
+
+
+================================================================
+  END OF LIST — 15 issues total
+  Critical: 3  |  High: 2  |  Medium: 6  |  Low: 2  |  Other High: 2
+================================================================

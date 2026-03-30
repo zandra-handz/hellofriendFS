@@ -81,8 +81,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'storages',
     'corsheaders',
-    'silk'
+    # 'silk'
 ]
+
+if DEBUG:
+    INSTALLED_APPS += ['silk']
 
 AUTH_USER_MODEL = 'users.BadRainbowzUser' 
 
@@ -101,8 +104,11 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    'silk.middleware.SilkyMiddleware',
+    # 'silk.middleware.SilkyMiddleware',
 ]
+
+if DEBUG:
+    MIDDLEWARE += ['silk.middleware.SilkyMiddleware']
 
 ROOT_URLCONF = 'hfroot.urls'
 
