@@ -603,11 +603,15 @@ class GeckoDataSession(models.Model):
 
     class Meta:
         ordering = ['-started_on']
+        indexes = [
+            models.Index(fields=['user', 'friend']),
+            models.Index(fields=['user', 'started_on']),
+        ]
 
     @property
     def duration_seconds(self):
         return int((self.ended_on - self.started_on).total_seconds())
-    
+
 class FriendFaves(models.Model):
 
     friend = models.OneToOneField(Friend, on_delete=models.CASCADE)

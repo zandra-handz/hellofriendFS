@@ -478,6 +478,10 @@ class GeckoCombinedSession(models.Model):
 
     class Meta:
         ordering = ['-started_on']
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['user', 'started_on']),
+        ]
 
     @property
     def duration_seconds(self):
