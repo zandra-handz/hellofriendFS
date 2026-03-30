@@ -39,10 +39,9 @@ urlpatterns = [
     path('users/token/refresh/', TokenRefreshView.as_view(), name='refresh_token'),
     path('api-auth/', include('rest_framework.urls')),
 
-    # profiling
-    path('silk/', include('silk.urls', namespace='silk')),
 ]
 
 
 if settings.DEBUG:
+    urlpatterns += [path('silk/', include('silk.urls', namespace='silk'))]
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
