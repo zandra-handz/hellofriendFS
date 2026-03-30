@@ -524,7 +524,7 @@ class NextMeetView(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
-        return models.NextMeet.objects.filter(user=user, friend_id=friend_id)
+        return models.NextMeet.objects.filter(user=user, friend_id=friend_id).select_related('previous')
 
 
 # @api_view(['POST'])
@@ -700,7 +700,7 @@ class NextMeetsAllView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        return models.NextMeet.objects.filter(user=user)
+        return models.NextMeet.objects.filter(user=user).select_related('previous')
 
  
 
@@ -806,12 +806,12 @@ class UpcomingMeetsQuickView(generics.ListCreateAPIView):
             update_tracker.upcoming_updated()
 
  
-        return models.NextMeet.objects.filter(user=user).select_related('friend')
+        return models.NextMeet.objects.filter(user=user).select_related('friend', 'previous')
 
- 
 
-         
-         
+
+
+
 class CombinedFriendsUpcomingView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -829,7 +829,7 @@ class CombinedFriendsUpcomingView(APIView):
         upcoming_qs = (
             models.NextMeet.objects
             .filter(user=user)
-            .select_related("friend")
+            .select_related("friend", "previous")
             .order_by("date")
         )
         upcoming_data = serializers.UpcomingMeetsLightSerializer(
@@ -878,8 +878,8 @@ class UpcomingMeetsAll48(generics.ListCreateAPIView):
         two_days_from_now = today + datetime.timedelta(days=2)
         
         # Get meetings for all users within the next 48 hours
-        queryset = models.NextMeet.objects.filter(date__range=[today, two_days_from_now])
-        
+        queryset = models.NextMeet.objects.filter(date__range=[today, two_days_from_now]).select_related('previous', 'user')
+
         return queryset
 
 
