@@ -1121,66 +1121,97 @@ class PastMeet(models.Model):
                 raise ValidationError("Updates are only allowed within 3 days of creation.")
 
         '''
-        # if not self.pk: 
+        # Claude take the wheel
+        with transaction.atomic():
+
+            if self.location:
+                self.location.friends.add(self.friend)
+
+                updated_location = self.location
+                updated_location.save()
+
+                self.location_name = self.location.title
+                self.typed_location = None
+
+            elif self.typed_location:
+
+                try:
+                    location = Location.objects.get(
+                        address=self.typed_location,
+                        user=self.user
+                    )
+
+                except Location.DoesNotExist:
+
+                    try:
+
+                        location = Location.objects.get(
+                            title=self.typed_location,
+                            user=self.user
+                        )
+
+                    except Location.DoesNotExist:
 
 
-           # with transaction.atomic():
+                        # Need to search by location_name too
+                        # Or I guess we could have the location view handle all/some of this
+                        if self.location_name:
 
-        if self.location:
-            self.location.friends.add(self.friend)
-            
-            updated_location = self.location
-            updated_location.save()
+                            try:
 
-            self.location_name = self.location.title
-            self.typed_location = None
+                                location = Location.objects.get(
+                                    title=self.location_name,
+                                    user=self.user
+                                )
 
-        elif self.typed_location:
+                            except Location.DoesNotExist:
 
-            try:
-                location = Location.objects.get(
-                    address=self.typed_location,
-                    user=self.user
-                )
+                                new_location = Location(
+                                    title=self.location_name,
+                                    address=self.typed_location,
+                                    user=self.user
+                                    )
 
-            except Location.DoesNotExist:
+                        else:
+
+                            new_location = Location(
+
+                                title=self.typed_location,
+                                user=self.user
+                                )
+
+                        if new_location:
+
+                            new_location.save()
+
+                            new_location.friends.add(self.friend)
+                            new_location.save()
+
+                            location = new_location
+
+                        else:
+                            self.location = None
+
+                    self.location = location
+
+            elif self.location_name:
 
                 try:
 
                     location = Location.objects.get(
-                        title=self.typed_location,
+                        title=self.location_name,
                         user=self.user
                     )
 
                 except Location.DoesNotExist:
 
 
-                    # Need to search by location_name too
-                    # Or I guess we could have the location view handle all/some of this
-                    if self.location_name:
-                        
-                        try:
+                    new_location = Location(
+                        title=self.location_name,
+                        user=self.user
+                    )
 
-                            location = Location.objects.get(
-                                title=self.location_name,
-                                user=self.user
-                            )
 
-                        except Location.DoesNotExist:
-
-                            new_location = Location(
-                                title=self.location_name,
-                                address=self.typed_location,
-                                user=self.user
-                                )
-
-                    else:
-
-                        new_location = Location(
-
-                            title=self.typed_location,
-                            user=self.user
-                            )
 
                     if new_location:
 
@@ -1194,140 +1225,107 @@ class PastMeet(models.Model):
                     else:
                         self.location = None
 
-                self.location = location
+            if self.friend.suggestion_settings:
 
-        elif self.location_name:
-
-            try:
-
-                location = Location.objects.get(
-                    title=self.location_name,
-                    user=self.user
-                )
-
-            except Location.DoesNotExist:
+                effort = self.friend.suggestion_settings.effort_required
+                priority = self.friend.suggestion_settings.priority_level
+                if effort:
+                    self.freeze_effort_required = effort
+                if priority:
+                    self.freeze_priority_level= priority
 
 
-                new_location = Location(
-                    title=self.location_name, 
-                    user=self.user
-                )
+            super().save(*args, **kwargs)
+
+            # if self.friend.next_meet:
+            #     try:
+            #         self.friend.next_meet.create_new_date_clean()
+            #         print('ran create_new_date_clean successfully')
+            #     except Exception as e:
+            #         print('could not execute create_new_date_clean')
+            #         self.friend.next_meet.reset_date_two_days()
+
+            #     self.friend.next_meet.save()
+
+            from users.models import UserCategory
+
+            if self.thought_capsules_shared:
+
+                today = datetime.datetime.today().date()
+
+                # processed_categories = set()  # Set to keep track of processed categories
+                for capsule_id, capsule_data in self.thought_capsules_shared.items():
+
+                    try:
+                        capsule_shared_with_friend = ThoughtCapsulez.objects.get(id=capsule_id)
+
+                        associated_category = capsule_shared_with_friend.user_category  # Already the UserCategory instance or None
+
+
+                        days_difference = (today - capsule_shared_with_friend.updated_on.date()).days
+
+
+                        time_score = int(days_difference) if days_difference is not None else 0
+
+
+                        completed_capsule = CompletedThoughtCapsulez.objects.create(
+                            original_id=str(capsule_shared_with_friend.id),
+                            friend=self.friend,
+                            user=self.user,
+                            hello=self,
+                            capsule=capsule_shared_with_friend.capsule,
+                            time_score=time_score,
+                            user_category=associated_category,
+                            user_category_original_name=associated_category.name if associated_category else None
+                        )
+
+
+                        if associated_category:
+                          #  doing this in the capsule modelF
+                          #  capsule_shared_with_friend.user_category.thought_capsules.remove(capsule_shared_with_friend)
+                            associated_category.completed_thought_capsules.add(completed_capsule)
+
+
+                        # if capsule_shared_with_friend.category:
+                        #     category = capsule_shared_with_friend.category
+                        #     if category not in processed_categories:
+                        #         category.times_used += 1
+                        #         category.save()
+                        #         processed_categories.add(category)
 
 
 
-                if new_location:
 
-                    new_location.save()
+                        capsule_shared_with_friend.delete()
 
-                    new_location.friends.add(self.friend)
-                    new_location.save()
+                        if self.delete_all_unshared_capsules:
+                            unshared = ThoughtCapsulez.objects.filter(friend=self.friend, user=self.user)
 
-                    location = new_location
+                            if unshared.exists():
+                                unshared.delete()
 
-                else:
-                    self.location = None
+                    except ThoughtCapsulez.DoesNotExist:
+                        pass
+                    except ThoughtCapsulez.DoesNotExist:
+                        pass
 
-        if self.friend.suggestion_settings:
+            else:
+                if self.delete_all_unshared_capsules:
+                    unshared = ThoughtCapsulez.objects.filter(friend=self.friend, user=self.user)
 
-            effort = self.friend.suggestion_settings.effort_required
-            priority = self.friend.suggestion_settings.priority_level
-            if effort:
-                self.freeze_effort_required = effort
-            if priority:
-                self.freeze_priority_level= priority
-
-        
-        super().save(*args, **kwargs)
-
-        # if self.friend.next_meet:
-        #     try: 
-        #         self.friend.next_meet.create_new_date_clean()
-        #         print('ran create_new_date_clean successfully')
-        #     except Exception as e:
-        #         print('could not execute create_new_date_clean')
-        #         self.friend.next_meet.reset_date_two_days()
-            
-        #     self.friend.next_meet.save()
-
-        from users.models import UserCategory 
-
-        if self.thought_capsules_shared:
-
-            today = datetime.datetime.today().date()
-
-            # processed_categories = set()  # Set to keep track of processed categories
-            for capsule_id, capsule_data in self.thought_capsules_shared.items():
-           
-                try: 
-                    capsule_shared_with_friend = ThoughtCapsulez.objects.get(id=capsule_id)
-
-                    associated_category = capsule_shared_with_friend.user_category  # Already the UserCategory instance or None
-                    
-             
-                    days_difference = (today - capsule_shared_with_friend.updated_on.date()).days
-                    
-
-                    time_score = int(days_difference) if days_difference is not None else 0
+                    if unshared.exists():
+                        unshared.delete()
 
 
-                    completed_capsule = CompletedThoughtCapsulez.objects.create(
-                        original_id=str(capsule_shared_with_friend.id),
-                        friend=self.friend,
-                        user=self.user,
-                        hello=self,
-                        capsule=capsule_shared_with_friend.capsule,
-                        time_score=time_score,
-                        user_category=associated_category,
-                        user_category_original_name=associated_category.name if associated_category else None
-                    )
+            if self.friend.next_meet:
+                try:
+                    self.friend.next_meet.create_new_date_clean()
+                    print('ran create_new_date_clean successfully')
+                except Exception as e:
+                    print('could not execute create_new_date_clean')
+                    self.friend.next_meet.reset_date_two_days()
 
- 
-                    if associated_category:
-                      #  doing this in the capsule modelF
-                      #  capsule_shared_with_friend.user_category.thought_capsules.remove(capsule_shared_with_friend)
-                        associated_category.completed_thought_capsules.add(completed_capsule)
-
-
-                    # if capsule_shared_with_friend.category:
-                    #     category = capsule_shared_with_friend.category
-                    #     if category not in processed_categories:
-                    #         category.times_used += 1 
-                    #         category.save() 
-                    #         processed_categories.add(category) 
-
-                    
-
-                    
-                    capsule_shared_with_friend.delete()
-
-                    if self.delete_all_unshared_capsules: 
-                        unshared = ThoughtCapsulez.objects.filter(friend=self.friend, user=self.user)
-                         
-                        if unshared.exists():
-                            unshared.delete()
-                
-                except ThoughtCapsulez.DoesNotExist:
-                    pass
-                except ThoughtCapsulez.DoesNotExist:
-                    pass
-
-        else:
-            if self.delete_all_unshared_capsules: 
-                unshared = ThoughtCapsulez.objects.filter(friend=self.friend, user=self.user)
-                 
-                if unshared.exists():
-                    unshared.delete()
-                
- 
-        if self.friend.next_meet:
-            try: 
-                self.friend.next_meet.create_new_date_clean()
-                print('ran create_new_date_clean successfully')
-            except Exception as e:
-                print('could not execute create_new_date_clean')
-                self.friend.next_meet.reset_date_two_days()
-            
-            self.friend.next_meet.save()
+                self.friend.next_meet.save()
 
 
     def __str__(self):

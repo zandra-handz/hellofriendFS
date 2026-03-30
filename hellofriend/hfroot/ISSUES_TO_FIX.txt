@@ -135,31 +135,22 @@ FIX: Raise an error if the key is missing instead of falling back:
 
 
 --------------------------------------------------------------
- [6] HIGH — Friend.save() creates 5+ objects without a transaction
+ [6] HIGH — Friend.save() / BadRainbowzUser.save() not atomic
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
-File: friends/models.py, lines 110-183
+Files: friends/models.py lines 110-183, users/models.py lines 154-164
 
-When a Friend is created, save() creates FriendSuggestionSettings,
-FriendFaves, GeckoData, PastMeet, and NextMeet. None of this is inside
-a transaction.atomic() block. If any step fails, the database is left
-in a partially-created state (e.g. a Friend row with no NextMeet),
-which causes crashes on every future query for that friend.
+Friend.save() creates FriendSuggestionSettings, FriendFaves, GeckoData,
+PastMeet, and NextMeet without a transaction. BadRainbowzUser.save()
+creates UserProfile, UserSettings, GeckoConfigs, GeckoCombinedData, and
+the Grab bag UserCategory without a transaction. Partial failures left
+orphaned rows that caused crashes on every future query.
 
-The same problem exists in BadRainbowzUser.save() which creates
-UserProfile, UserSettings, and GeckoConfigs without a transaction.
-
-FIX: Wrap the entire creation block in with transaction.atomic():
-  def save(self, *args, **kwargs):
-      if not self.pk:
-          with transaction.atomic():
-              super().save(*args, **kwargs)
-              suggestion_settings = FriendSuggestionSettings(...)
-              suggestion_settings.save()
-              ... (all other related object creation)
-      else:
-          super().save(*args, **kwargs)
+FIX APPLIED: Wrapped the if not self.pk: creation blocks in
+with transaction.atomic(): in both models. Note: super().save() stays
+OUTSIDE the atomic block because the parent row must exist in the DB
+before related rows can FK to it.
 
 
 --------------------------------------------------------------
@@ -167,18 +158,81 @@ FIX: Wrap the entire creation block in with transaction.atomic():
 --------------------------------------------------------------
 STATUS: [ ] not fixed
 
-File: friends/models.py, around line 1100+
+File: friends/models.py, around line 1107
 
 Saving a PastMeet ("Hello") creates CompletedThoughtCapsulez records,
-deletes ThoughtCapsulez records, and may create a Location — all
-outside of a transaction. The commented-out line:
-  # with transaction.atomic():
-at line 1125 shows this was noticed but never fixed.
+deletes ThoughtCapsulez records, may create a Location, and updates
+NextMeet — all outside of a transaction. The commented-out lines:
+  # if not self.pk:
+  #     with transaction.atomic():
+at lines 1124-1127 show this was noticed but never finished — both
+were commented out together while experimenting, not for a technical
+reason.
 
-A failure partway through leaves some capsules deleted and others not,
-with no way to detect or recover from the inconsistency.
+The save() has two phases with super().save() in the middle:
+  BEFORE super().save(): creates/looks up Location objects
+  AFTER super().save(): loops through capsules, creates
+    CompletedThoughtCapsulez, DELETES original ThoughtCapsulez,
+    then updates NextMeet
 
-FIX: Wrap the entire save() logic in with transaction.atomic().
+The dangerous part is the loop. If it creates a CompletedThoughtCapsulez
+and deletes the original on capsule 1, then crashes on capsule 2 —
+capsule 1 is permanently gone, capsule 2 still exists as unshared, and
+the PastMeet row is already committed. The user loses data silently.
+
+FIX: Wrap the entire save() body in with transaction.atomic(): starting
+at line 1129, covering all the way through the NextMeet.save() at
+line 1330. super().save() stays inside — the whole operation is one
+logical unit. Nested transaction.atomic() calls (e.g. from NextMeet.save()
+once that is fixed) are fine in Django/PostgreSQL — the inner one uses
+a savepoint automatically.
+
+
+--------------------------------------------------------------
+ [7b] MEDIUM — NextMeet.save() creates VoidedMeet without a transaction
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/models.py — create_new_date_if_needed() (~line 466),
+called from NextMeet.save() (~line 560)
+
+create_new_date_if_needed() creates a VoidedMeet record and then
+NextMeet.save() calls super().save(). If the NextMeet save fails after
+the VoidedMeet is already created, you get a phantom VoidedMeet record
+with no corresponding date change on the NextMeet.
+
+FIX: Wrap the body of create_new_date_if_needed() in
+with transaction.atomic(), or wrap the call site in NextMeet.save().
+
+
+--------------------------------------------------------------
+ [7c] MEDIUM — FriendFaves.save() updates two models without a transaction
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/models.py — FriendFaves.save() (~line 669)
+
+save() calls associated_friend.save() to sync color fields to the
+Friend model, then calls super().save() for FriendFaves itself. If
+the Friend saves but FriendFaves fails, the Friend's colors are updated
+but FriendFaves is stale — the two models are out of sync.
+
+FIX: Wrap the entire save() body in with transaction.atomic().
+
+
+--------------------------------------------------------------
+ [7d] MEDIUM — UserCategory.delete() reassigns capsules without a transaction
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: users/models.py — UserCategory.delete() (~line 228)
+
+delete() reassigns all ThoughtCapsulez to the Grab bag category, then
+deletes the category. If the delete fails after reassignment, capsules
+have been moved but the category still exists — leaving the data in an
+unintended state.
+
+FIX: Wrap the entire delete() body in with transaction.atomic().
 
 
 --------------------------------------------------------------
