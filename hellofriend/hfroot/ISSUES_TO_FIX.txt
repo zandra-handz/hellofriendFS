@@ -6,7 +6,7 @@
 --------------------------------------------------------------
  [1] CRITICAL — DEFAULT_PERMISSIONS_CLASSES typo in settings
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
 File: hfroot/settings.py, line 51
 
@@ -45,7 +45,7 @@ Make sure your local dev environment sets DJANGO_DEBUG=True.
 --------------------------------------------------------------
  [3] CRITICAL — Django Silk profiler is active in production
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
 File: hfroot/settings.py, lines 84 and 104
 
@@ -74,22 +74,29 @@ FIX: Wrap silk in a DEBUG guard so it only runs locally:
 
 
 --------------------------------------------------------------
- [4] HIGH — CORS_ALLOW_ALL_ORIGINS + CORS_ALLOW_CREDENTIALS together
+ [4] LOW (revised) — CORS_ALLOW_ALL_ORIGINS + CORS_ALLOW_CREDENTIALS together
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [ ] not fixed — low priority for current setup, revisit if web client added
 
 File: hfroot/settings.py, lines 246-247
 
   CORS_ALLOW_ALL_ORIGINS = True
   CORS_ALLOW_CREDENTIALS = True
 
-Combining these two means any website in the world can make
-credentialed (cookie/token) cross-origin requests on behalf of your
-logged-in users. This is a well-known CORS misconfiguration.
+NOTE: CORS is a browser-only security mechanism. Since the only client
+is a React Native mobile app, native HTTP clients completely bypass CORS
+enforcement — so this misconfiguration poses essentially no risk to the
+current setup. The concern below only applies if a browser-based client
+(web app, Expo Web, admin dashboard) is ever added.
 
-FIX: Replace CORS_ALLOW_ALL_ORIGINS with an explicit allowlist:
+Original concern: combining these two settings means any website in the
+world can make credentialed cross-origin requests on behalf of logged-in
+users who visit that site in a browser.
+
+FIX (if/when a web client is added): Replace CORS_ALLOW_ALL_ORIGINS
+with an explicit allowlist of your actual frontend origins:
   CORS_ALLOWED_ORIGINS = [
-      'https://your-frontend-domain.com',
+      'https://your-web-frontend-domain.com',
   ]
   CORS_ALLOW_CREDENTIALS = True
 
