@@ -559,8 +559,9 @@ class NextMeet(models.Model):
         most_recent_past_meet = PastMeet.objects.filter(friend=self.friend).order_by('-date').first()
         self.previous = most_recent_past_meet
         
-        self.create_new_date_if_needed() #does nothing if date not needed
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            self.create_new_date_if_needed() #does nothing if date not needed
+            super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.date}"
@@ -685,8 +686,9 @@ class FriendFaves(models.Model):
             associated_friend.saved_color_dark = self.dark_color
             associated_friend.saved_color_light = self.light_color
 
-        associated_friend.save()
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            associated_friend.save()
+            super().save(*args, **kwargs)
         '''
     #addresses = models.JSONField(blank=True, null=True)
 

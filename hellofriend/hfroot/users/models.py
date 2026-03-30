@@ -229,16 +229,17 @@ class UserCategory(models.Model):
         if not self.is_deletable:
             raise ValidationError("This category cannot be deleted.")
 
-        # Avoid circular import by fetching model dynamically
-        ThoughtCapsulez = apps.get_model('friends', 'ThoughtCapsulez')
+        with transaction.atomic():
+            # Avoid circular import by fetching model dynamically
+            ThoughtCapsulez = apps.get_model('friends', 'ThoughtCapsulez')
 
-        # Get or create the 'Grab bag' for this user
-        grab_bag, _ = UserCategory.get_or_create_grab_bag_category(self.user)
+            # Get or create the 'Grab bag' for this user
+            grab_bag, _ = UserCategory.get_or_create_grab_bag_category(self.user)
 
-        # Reassign all related thought capsules to the Grab bag
-        ThoughtCapsulez.objects.filter(user_category=self).update(user_category=grab_bag)
+            # Reassign all related thought capsules to the Grab bag
+            ThoughtCapsulez.objects.filter(user_category=self).update(user_category=grab_bag)
 
-        super().delete(*args, **kwargs)
+            super().delete(*args, **kwargs)
 
 
 
