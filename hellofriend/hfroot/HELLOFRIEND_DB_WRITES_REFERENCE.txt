@@ -1,0 +1,269 @@
+================================================================
+  DJANGO — WHERE DB WRITES HAPPEN
+  (most common / most important at top)
+================================================================
+
+A "DB write" is any operation that inserts, updates, or deletes
+a row in your database. Reads (.get(), .filter(), .all(), etc.)
+are never writes and never need transaction.atomic().
+
+----------------------------------------------------------------
+ TIER 1 — THE EVERYDAY ONES (you will use these constantly)
+----------------------------------------------------------------
+
+.save()
+  The most common write. Called on a model instance to INSERT
+  (if new) or UPDATE (if existing) a row.
+
+    friend = Friend(user=user, name='Alex')
+    friend.save()                              # INSERT
+
+    friend.name = 'Alexandra'
+    friend.save()                              # UPDATE
+
+    friend.save(update_fields=['name'])        # UPDATE one column only
+                                               # more efficient, use when
+                                               # you only changed one field
+
+
+.create()
+  Shortcut for instantiating + saving in one step. Equivalent to
+  MyModel(...).save() but returns the created object.
+
+    Friend.objects.create(user=user, name='Alex')
+
+
+.delete()
+  Deletes a row. Can be called on an instance or a queryset.
+
+    friend.delete()                            # deletes one row
+    Friend.objects.filter(user=user).delete()  # deletes many rows
+
+
+.update()
+  Updates columns directly on a queryset — does NOT call .save()
+  or any model save() overrides. Very fast for bulk changes.
+
+    Friend.objects.filter(user=user).update(name='Alex')
+
+  WARNING: because .update() skips model .save(), any logic you
+  have in a custom save() method will NOT run. Use with awareness.
+
+
+----------------------------------------------------------------
+ TIER 2 — ALSO VERY COMMON (used regularly)
+----------------------------------------------------------------
+
+.get_or_create()
+  Tries to get a row; if it doesn't exist, creates it.
+  Returns (instance, created) where created is True/False.
+  Always a potential write.
+
+    category, created = UserCategory.objects.get_or_create(
+        user=user,
+        name='Grab bag',
+        defaults={'is_deletable': False}
+    )
+
+
+.update_or_create()
+  Like get_or_create but also updates fields if the row exists.
+  Always a potential write.
+
+    obj, created = Friend.objects.update_or_create(
+        user=user, name='Alex',
+        defaults={'first_name': 'Alexandra'}
+    )
+
+
+M2M .add() and .remove()
+  Many-to-many relationships have their own junction table in the
+  DB. Adding or removing objects writes to that junction table.
+
+    category.thought_capsules.add(capsule)     # INSERT into junction
+    category.thought_capsules.remove(capsule)  # DELETE from junction
+    location.friends.add(friend)
+    location.friends.clear()                   # removes ALL from M2M
+
+
+.bulk_create()
+  Inserts multiple rows in a single SQL statement. Very efficient.
+  Does NOT call .save() or save() overrides on each instance.
+
+    Friend.objects.bulk_create([friend1, friend2, friend3])
+
+
+.bulk_update()
+  Updates specific fields on multiple instances in one SQL call.
+  Does NOT call .save() or save() overrides.
+
+    Friend.objects.bulk_update([friend1, friend2], fields=['name'])
+
+
+----------------------------------------------------------------
+ TIER 3 — LESS OBVIOUS BUT IMPORTANT TO KNOW
+----------------------------------------------------------------
+
+Model .save() overrides — HOW THEY WORK
+  Django lets you override save() directly on the model class.
+  The override lives on the MODEL, not in a view or serializer.
+  You never call the override explicitly — it runs automatically
+  whenever anything calls .save() on that model, from anywhere.
+
+  The pattern always looks like this on the model:
+
+    class Friend(models.Model):
+        ...
+        def save(self, *args, **kwargs):
+            # your custom logic here (runs before or after the save)
+            super().save(*args, **kwargs)  # this does the actual DB write
+
+  WHERE IT GETS TRIGGERED FROM:
+  The override fires regardless of where .save() is called from.
+  That means it runs when called from:
+    - a view:        friend.save()
+    - a serializer:  serializer.save() → internally calls model .save()
+    - another model: self.friend.save() inside a different model's save()
+    - the admin panel: automatically
+    - anywhere else that calls .save() on that model instance
+
+  You would NEVER rewrite the override in a view or serializer.
+  The override always lives on the model. The view/serializer just
+  calls .save() normally, and the override runs automatically.
+
+  In this project, Friend, FriendFaves, NextMeet, PastMeet,
+  BadRainbowzUser, UserCategory, and others all have save()
+  overrides that do significant extra work (creating related
+  objects, syncing fields, running algorithms). Any time you call
+  .save() on those models, all of that logic runs.
+
+  WOULD YOU EVER PUT WRITE LOGIC IN A SERIALIZER INSTEAD?
+  Yes, sometimes — if the write logic is specific to one API
+  endpoint and not a universal rule for the model. For example,
+  if only one particular view should create a related object on
+  save, you'd put that in the serializer's create() or update()
+  method rather than the model's save(). The model save() override
+  is for logic that should ALWAYS happen no matter who calls save().
+
+
+Model .delete() overrides
+  Same pattern as save() overrides — lives on the model, fires
+  automatically whenever .delete() is called from anywhere.
+  A custom delete() can trigger cascading writes (like reassigning
+  related objects) before the actual delete. In this project,
+  UserCategory.delete() reassigns ThoughtCapsulez to Grab bag
+  before deleting — that logic runs no matter where .delete() is
+  called from.
+
+
+Signals (post_save, pre_save, post_delete, pre_delete)
+  Django signals fire automatically when saves/deletes happen.
+  If a signal handler does a DB write, that write happens
+  invisibly every time the model is saved/deleted.
+  Your project does not currently use signals, but worth knowing
+  if you add them in the future.
+
+
+CASCADE deletes
+  When you delete a model that has FK relationships with
+  on_delete=CASCADE, Django automatically deletes all related
+  rows too. One .delete() call can write to many tables at once.
+  Example: deleting a Friend cascades to NextMeet, FriendFaves,
+  GeckoData, ThoughtCapsulez, PastMeet, etc.
+
+
+SET_NULL on delete
+  When you delete a model with FK relationships using
+  on_delete=SET_NULL, Django updates the FK column to NULL on
+  all related rows. That's a DB write across potentially many rows.
+
+
+F() expressions
+  F() lets you update a field relative to its current value
+  atomically in the DB (avoids race conditions). Used with
+  .update() or .save() — still a write either way.
+
+    GeckoData.objects.filter(id=id).update(
+        total_steps=F('total_steps') + delta_steps
+    )
+
+
+.annotate() with update
+  Annotations themselves are reads, but they are sometimes
+  used alongside .update() calls which are writes.
+
+
+----------------------------------------------------------------
+ TIER 4 — FRAMEWORK / BEHIND THE SCENES
+----------------------------------------------------------------
+
+Django admin
+  Every save or delete action in the /admin panel calls the
+  normal model .save() and .delete() methods, including your
+  custom overrides.
+
+
+Django REST Framework serializers
+  serializer.save() calls either .create() or .update() on the
+  serializer, which typically calls model .save() or
+  Model.objects.create(). So serializer.save() = DB write.
+
+    serializer.save()                 # calls create() or update()
+    serializer.save(user=request.user) # passes extra fields in
+
+
+DRF .perform_create() / .perform_update() / .perform_destroy()
+  These are the hooks in generic DRF views where the actual save
+  or delete happens. Overriding these is where you add extra
+  logic around writes in views.
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+Django sessions middleware
+  If you use session authentication, Django writes to the
+  session table on login/logout and when session data changes.
+  Handled automatically, but worth knowing it's happening.
+
+
+Django migrations (migrate command)
+  Running migrations writes to the database schema and to the
+  django_migrations table. Not relevant to runtime code but
+  worth knowing migrations = DB writes.
+
+
+Auto-generated M2M through tables
+  When you define a ManyToManyField, Django creates a hidden
+  junction table. .add(), .remove(), .set(), .clear() all
+  write to that table even though you never see it directly.
+
+    .set([obj1, obj2])   # replaces all M2M relations — writes
+    .clear()             # removes all M2M relations — writes
+
+
+----------------------------------------------------------------
+ QUICK REFERENCE — DOES THIS NEED transaction.atomic()?
+----------------------------------------------------------------
+
+Ask yourself: "If operation A succeeds but operation B fails,
+is my data in a broken or inconsistent state?"
+
+YES → wrap both in transaction.atomic()
+NO  → transaction.atomic() not needed
+
+Single operation?          → never needs transaction.atomic()
+Two+ writes that depend
+  on each other?           → use transaction.atomic()
+Read-only (.filter,
+  .get, .all, etc.)?       → never needs transaction.atomic()
+One write + one read?      → never needs transaction.atomic()
+
+Nested transaction.atomic() blocks are fine in Django with
+PostgreSQL — the inner block uses a savepoint automatically,
+so it can roll back independently without affecting the outer
+transaction.
+
+================================================================
+  END OF REFERENCE
+================================================================

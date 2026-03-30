@@ -1,0 +1,380 @@
+================================================================
+  DJANGO — EXHAUSTIVE REFERENCE: ALL PLACES A DB WRITE CAN HAPPEN
+  (general reference, not project-specific)
+================================================================
+
+A DB write is any operation that INSERT, UPDATE, or DELETEs rows
+in your database. Pure reads (.get(), .filter(), .all(), etc.)
+are never writes.
+
+================================================================
+  PART 1 — QUERYSET METHODS THAT WRITE
+================================================================
+
+These are called on Model.objects or a queryset and go directly
+to the database. They do NOT call model .save() or .delete()
+overrides unless noted.
+
+----------------------------------------------------------------
+INSERT
+----------------------------------------------------------------
+
+Model.objects.create(**kwargs)
+  Creates and saves a new row. Returns the created instance.
+  Equivalent to MyModel(**kwargs).save().
+  Does NOT call custom .save() overrides... actually it DOES —
+  create() internally calls .save(), so overrides run.
+
+    Friend.objects.create(user=user, name='Alex')
+
+
+Model.objects.bulk_create(objs, batch_size=None,
+                           ignore_conflicts=False,
+                           update_conflicts=False,
+                           update_fields=None,
+                           unique_fields=None)
+  Inserts many rows in one SQL statement. Very efficient.
+  Does NOT call .save() or any save() overrides on each instance.
+  Does NOT set auto-generated PKs by default in older Django
+  (Django 4.1+ returns PKs on PostgreSQL).
+
+    Friend.objects.bulk_create([friend1, friend2, friend3])
+
+
+Model.objects.get_or_create(defaults=None, **kwargs)
+  Tries to GET a row; creates it if not found.
+  Returns (instance, created_bool).
+  The create path calls .save() including overrides.
+
+    obj, created = MyModel.objects.get_or_create(name='foo')
+
+
+Model.objects.update_or_create(defaults=None,
+                                create_defaults=None, **kwargs)
+  Gets and updates if found; creates if not found.
+  Returns (instance, created_bool).
+  Calls .save() including overrides.
+
+    obj, created = MyModel.objects.update_or_create(
+        name='foo', defaults={'value': 42}
+    )
+
+
+----------------------------------------------------------------
+UPDATE
+----------------------------------------------------------------
+
+QuerySet.update(**kwargs)
+  Updates columns on all rows matching the queryset in one SQL
+  UPDATE statement. Very fast.
+  Does NOT call .save() or any save() overrides.
+  Does NOT trigger post_save signals.
+
+    MyModel.objects.filter(active=True).update(active=False)
+
+
+QuerySet.update_or_create(...)
+  See above — may also UPDATE.
+
+
+instance.save(update_fields=[...])
+  Saves only specific fields — generates a narrower SQL UPDATE.
+  DOES call save() overrides and triggers signals.
+
+    friend.name = 'Alex'
+    friend.save(update_fields=['name'])
+
+
+Model.objects.bulk_update(objs, fields, batch_size=None)
+  Updates specific fields on many instances in one SQL call.
+  Does NOT call .save() or save() overrides.
+
+    MyModel.objects.bulk_update([obj1, obj2], fields=['name'])
+
+
+F() expressions (used with .update() or .save())
+  Performs atomic in-DB arithmetic on a field without reading
+  the value into Python first. Avoids race conditions.
+  Still a write — just a safer one.
+
+    MyModel.objects.filter(id=id).update(count=F('count') + 1)
+
+
+----------------------------------------------------------------
+DELETE
+----------------------------------------------------------------
+
+QuerySet.delete()
+  Deletes all rows matching the queryset.
+  Django handles CASCADE, SET_NULL, SET_DEFAULT, PROTECT in Python
+  (not at the DB level by default), so this may delete/update rows
+  across many related tables.
+  Does NOT call per-instance .delete() overrides.
+
+    MyModel.objects.filter(active=False).delete()
+
+
+instance.delete()
+  Deletes one row. DOES call custom .delete() overrides.
+  Django handles on_delete behaviors for related models.
+
+    my_obj.delete()
+
+
+----------------------------------------------------------------
+MANY-TO-MANY OPERATIONS (write to junction table)
+----------------------------------------------------------------
+
+All of these write to the hidden M2M junction table:
+
+    obj.m2m_field.add(other_obj)          # INSERT into junction
+    obj.m2m_field.add(other1, other2)     # INSERT multiple
+    obj.m2m_field.remove(other_obj)       # DELETE from junction
+    obj.m2m_field.clear()                 # DELETE all from junction
+    obj.m2m_field.set([other1, other2])   # replaces all — DELETE + INSERT
+
+If you defined a custom through= model on the M2M, these
+operations write to that model's table instead.
+
+
+================================================================
+  PART 2 — MODEL INSTANCE METHODS THAT WRITE
+================================================================
+
+instance.save(*args, **kwargs)
+  The core write method. INSERT if no PK, UPDATE if PK exists.
+  Runs full_clean() if called explicitly (not automatically).
+  Triggers pre_save and post_save signals.
+  Runs any custom save() override on the model.
+
+
+instance.delete(*args, **kwargs)
+  Deletes the row. Triggers pre_delete and post_delete signals.
+  Runs any custom delete() override on the model.
+  Handles on_delete behaviors for related models.
+
+
+instance.full_clean()
+  Does NOT write by itself — but raises ValidationError before
+  a save if validation fails. Call this before save() if you
+  want validation enforced (Django admin does this automatically;
+  DRF serializers do it in their own way; plain .save() does NOT
+  call it automatically unless you do so in a custom save()).
+
+
+================================================================
+  PART 3 — DJANGO REST FRAMEWORK WRITES
+================================================================
+
+serializer.save(**kwargs)
+  Calls serializer.create() if no instance, serializer.update()
+  if instance provided. Both typically call model .save() or
+  Model.objects.create() internally.
+
+    serializer.save()
+    serializer.save(user=request.user)  # passes extra fields
+
+
+serializer.create(validated_data)
+  Override this in a serializer to customize how objects are
+  created. Typically ends in Model.objects.create(...).
+
+
+serializer.update(instance, validated_data)
+  Override this to customize how objects are updated. Typically
+  ends in instance.save().
+
+
+perform_create(serializer) — on generic views
+  The hook where creation actually happens in DRF generic views.
+  Default: serializer.save(). Override to add extra fields.
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+perform_update(serializer) — on generic views
+  Same as perform_create but for updates.
+
+
+perform_destroy(instance) — on generic views
+  Default: instance.delete(). Override to add pre-delete logic.
+
+
+================================================================
+  PART 4 — SIGNALS (invisible writes triggered automatically)
+================================================================
+
+Signals fire automatically when model events happen. If a signal
+handler does a DB write, that write happens every time the event
+fires — often invisibly.
+
+pre_save  — fires before .save()
+post_save — fires after .save() (has `created` boolean)
+pre_delete  — fires before .delete()
+post_delete — fires after .delete()
+m2m_changed — fires on M2M .add()/.remove()/.clear()/.set()
+
+Example of a write inside a signal:
+
+    @receiver(post_save, sender=User)
+    def create_profile(sender, instance, created, **kwargs):
+        if created:
+            Profile.objects.create(user=instance)  # ← DB write
+
+Always check your signals when tracing where writes come from.
+
+
+================================================================
+  PART 5 — DJANGO ADMIN WRITES
+================================================================
+
+The admin panel calls the standard model .save() and .delete()
+methods including all overrides and signals. Every save/delete
+action in /admin is a normal model write.
+
+Admin also supports:
+  ModelAdmin.save_model(request, obj, form, change)
+    Override to add logic around admin saves.
+
+  ModelAdmin.delete_model(request, obj)
+    Override to add logic around admin deletes.
+
+  ModelAdmin.save_related(request, form, formsets, change)
+    Called after save_model to save M2M and inline relations.
+
+  Admin actions (bulk actions on list view) — these call
+  queryset .update() or .delete() on selected rows.
+
+
+================================================================
+  PART 6 — DJANGO MIDDLEWARE / FRAMEWORK WRITES
+================================================================
+
+Session middleware
+  Writes to the session table (django_session or your custom
+  session backend) when session data is modified, on login,
+  and on logout.
+
+Auth middleware / login() / logout()
+  django.contrib.auth.login() updates last_login on the user.
+  django.contrib.auth.logout() deletes the session.
+
+Password hashers
+  user.set_password() hashes and sets the password field but
+  does NOT save — you must call user.save() separately.
+
+ContentTypes framework
+  On first access of a new model, Django may INSERT a row into
+  django_content_type automatically.
+
+Migrations (./manage.py migrate)
+  Writes schema changes to the DB and records them in the
+  django_migrations table. Runtime code doesn't call this,
+  but it's a write operation on the DB.
+
+
+================================================================
+  PART 7 — LESS COMMON BUT VALID WRITE PATHS
+================================================================
+
+Model._default_manager vs Model.objects
+  If you define a custom manager, Model.objects is replaced.
+  Custom managers can expose their own write methods.
+  Always check if a model has a custom manager.
+
+QuerySet.select_for_update()
+  Not a write itself, but locks selected rows for update inside
+  a transaction. Used before updating rows to prevent race
+  conditions. Must be inside transaction.atomic().
+
+    with transaction.atomic():
+        obj = MyModel.objects.select_for_update().get(pk=pk)
+        obj.value += 1
+        obj.save()
+
+Raw SQL via connection.cursor()
+  You can bypass the ORM entirely and write raw SQL. This is a
+  DB write and Django has no awareness of it for signals, etc.
+
+    from django.db import connection
+    with connection.cursor() as cursor:
+        cursor.execute("UPDATE myapp_friend SET name = %s", ['Alex'])
+
+Model._meta.get_fields() / deferred fields
+  Accessing a deferred field on a model instance that was loaded
+  with .defer() or .only() triggers an additional SELECT, not a
+  write. But saving a deferred instance can UPDATE all fields
+  unexpectedly — use update_fields= to be safe.
+
+TestCase / database transactions in tests
+  Django wraps each test in a transaction that is rolled back
+  after the test. TestCase.setUp() writes are rolled back.
+  If you need writes to persist across tests, use
+  TransactionTestCase instead.
+
+
+================================================================
+  PART 8 — TRANSACTION CONTROL
+================================================================
+
+transaction.atomic()
+  Wraps a block of code so all writes inside either ALL succeed
+  or ALL roll back if an exception is raised. Use whenever two
+  or more writes depend on each other.
+
+    with transaction.atomic():
+        obj1.save()
+        obj2.save()   # if this fails, obj1.save() is rolled back
+
+  Can be nested — inner blocks use savepoints on PostgreSQL.
+
+transaction.on_commit(func)
+  Registers a function to run AFTER the current transaction
+  commits successfully. Useful for triggering side effects
+  (emails, cache invalidation, background tasks) that should
+  only happen if the DB write actually committed.
+
+    with transaction.atomic():
+        obj.save()
+        transaction.on_commit(lambda: send_welcome_email(obj))
+
+transaction.savepoint() / savepoint_rollback() / savepoint_commit()
+  Lower-level manual savepoint control. Rarely needed directly
+  since nested transaction.atomic() handles this automatically.
+
+
+================================================================
+  QUICK REFERENCE CHEAT SHEET
+================================================================
+
+WRITES (need transaction.atomic() when combined):
+  .save()                    model method
+  .create()                  queryset method
+  .update()                  queryset method (skips save() override)
+  .delete()                  model method or queryset method
+  .bulk_create()             queryset method (skips save() override)
+  .bulk_update()             queryset method (skips save() override)
+  .get_or_create()           queryset method
+  .update_or_create()        queryset method
+  .add() / .remove()         M2M methods
+  .set() / .clear()          M2M methods
+  serializer.save()          DRF method
+  cursor.execute(INSERT/UPDATE/DELETE)   raw SQL
+
+NOT WRITES (never need transaction.atomic()):
+  .get()
+  .filter()
+  .all()
+  .first() / .last()
+  .exists()
+  .count()
+  .values() / .values_list()
+  .only() / .defer()
+  .select_related() / .prefetch_related()
+  .annotate() / .aggregate()
+  .order_by()
+
+================================================================
+  END OF REFERENCE
+================================================================

@@ -95,7 +95,7 @@ class Friend(models.Model):
     
 
     class Meta:
-        ordering = ('next_meet',)
+        ordering = ('next_meet__date',)
         unique_together = ('user', 'name')
 
     @property

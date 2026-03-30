@@ -1,0 +1,530 @@
+================================================================
+  DJANGO — HOW MODELS WORK: EXHAUSTIVE REFERENCE
+================================================================
+
+A Django model is a Python class that maps to a database table.
+Each instance of the model = one row. Each field on the class =
+one column. Django's ORM handles translating Python into SQL so
+you mostly never write SQL yourself.
+
+================================================================
+  PART 1 — ANATOMY OF A MODEL
+================================================================
+
+    from django.db import models
+
+    class MyModel(models.Model):           # always inherit models.Model
+
+        # --- FIELDS (become columns in the DB) ---
+        name = models.CharField(max_length=100)
+        created_on = models.DateTimeField(auto_now_add=True)
+
+        # --- META (table-level config, not a column) ---
+        class Meta:
+            ordering = ['-created_on']
+            unique_together = ('user', 'name')
+
+        # --- METHODS (Python only, not stored in DB) ---
+        def __str__(self):
+            return self.name
+
+        # --- PROPERTIES (computed, not stored in DB) ---
+        @property
+        def display_name(self):
+            return self.name.upper()
+
+        # --- OVERRIDES (hook into Django's built-in behavior) ---
+        def save(self, *args, **kwargs):
+            super().save(*args, **kwargs)
+
+        def delete(self, *args, **kwargs):
+            super().delete(*args, **kwargs)
+
+
+================================================================
+  PART 2 — ALL DEFAULT METHODS ON EVERY MODEL
+  (these exist on every model automatically via models.Model)
+================================================================
+
+You don't define these — Django gives them to you for free.
+You CAN override most of them.
+
+----------------------------------------------------------------
+ INSTANCE METHODS (called on an object: my_obj.method())
+----------------------------------------------------------------
+
+----------------------------------------------------------------
+ SIDENOTE — WHAT IS super()? WHAT IS AN OVERRIDE?
+----------------------------------------------------------------
+
+WHAT AN OVERRIDE ACTUALLY IS:
+When Django gives you a method like save() for free, it lives
+on the parent class (models.Model). If you define a method with
+the exact same name on your own model class, Python will call
+YOURS instead of the parent's. That's all an "override" is —
+defining a method with the same name.
+
+But "override" is a slightly misleading word for what you're
+usually doing. You're almost never trying to completely REPLACE
+save() — you're trying to INSERT EXTRA LOGIC around it. A better
+mental model is that you're WRAPPING Django's default behavior
+with your own logic before and/or after it.
+
+WHAT super() IS:
+super() is how you call the parent's version of the method from
+inside your override. It says "now run what the parent class
+would have done."
+
+In your models, super().save() is the line that actually does
+the INSERT or UPDATE in the database. Your code before/after it
+is the extra logic you're wrapping around it.
+
+    def save(self, *args, **kwargs):
+        do_something_before()            # your extra logic
+        super().save(*args, **kwargs)    # Django's actual DB write
+        do_something_after()             # more extra logic
+
+WHAT HAPPENS IF YOU DON'T CALL super():
+Your method runs and then... nothing. The DB write never happens.
+Python called your version of save() and your version never
+handed control to the parent, so the actual INSERT/UPDATE never
+occurred. This is a silent failure — no error, just no save.
+
+    def save(self, *args, **kwargs):
+        do_something()
+        # forgot super() — object appears to save but nothing
+        # was written to the database
+
+REQUIREMENTS FOR WRITING AN OVERRIDE:
+
+  1. THE NAME MUST MATCH EXACTLY.
+     To override save(), your method must be named save().
+     To override delete(), it must be named delete().
+     A typo means Django keeps using the parent's version and
+     yours is just an unused method that never gets called.
+
+  2. THE SIGNATURE SHOULD MATCH.
+     Always use def save(self, *args, **kwargs) — the *args and
+     **kwargs pass through any arguments the caller sent (like
+     update_fields=['name']). If you drop them, those arguments
+     get silently ignored, which can cause subtle bugs.
+
+  3. YOU ALMOST ALWAYS MUST CALL super().
+     For save() and delete() specifically — if you don't call
+     super(), no DB write happens. There are rare intentional
+     exceptions (blocking a delete entirely) but they are
+     uncommon. When in doubt, call super().
+
+  4. PASS *args AND **kwargs TO super().
+     Always write super().save(*args, **kwargs), not just
+     super().save(). This passes through any arguments from the
+     original caller so they reach Django's actual save().
+
+  5. WHERE YOU PLACE super() MATTERS.
+     Before super()  → your logic runs before the DB write
+     After super()   → your logic runs after the DB write
+     Both sides      → fine, you can do both
+
+     Common pattern: read self.pk before super() to check if
+     the object is being created for the first time:
+
+        def save(self, *args, **kwargs):
+            if not self.pk:               # True = new object
+                do_creation_only_logic()
+            super().save(*args, **kwargs)
+
+DOES super() SKIP OTHER OVERRIDES?
+No. super() calls the NEXT class in the inheritance chain, not
+necessarily the base class. For your models which all directly
+inherit from models.Model, super() goes straight to Django's
+save() — there's no middle layer. But if you ever have a model
+inheriting from another model that also has a save() override,
+super() calls that intermediate override first, which eventually
+calls its own super(), and so on up the chain until it reaches
+models.Model.save() at the top.
+
+----------------------------------------------------------------
+
+
+my_obj.save(*args, **kwargs)
+  Saves the instance to the DB. INSERT if new, UPDATE if exists.
+  CAN BE OVERRIDDEN. Most common override in Django.
+  Always call super().save(*args, **kwargs) inside your override
+  or the actual DB write will never happen.
+
+  Optional arg: update_fields=['field1', 'field2']
+    Only updates those specific columns — more efficient.
+    If you use this in a view, be aware your save() override
+    still runs but only those fields are written to DB.
+
+
+my_obj.delete(*args, **kwargs)
+  Deletes the instance from the DB.
+  CAN BE OVERRIDDEN. Call super().delete(*args, **kwargs) inside.
+  Handles on_delete behaviors for related models.
+  Returns (number_deleted, {model_label: count}) tuple.
+
+
+my_obj.full_clean(exclude=None, validate_unique=True)
+  Runs all validation on the instance:
+    1. field.clean() on each field (type/format validation)
+    2. model.clean() (your custom cross-field validation)
+    3. unique constraint checks
+  Does NOT save. Raises ValidationError if anything fails.
+  Django admin calls this automatically before saving.
+  Plain .save() does NOT call this — you must call it yourself
+  if you want validation enforced outside the admin.
+  CAN BE OVERRIDDEN (rarely needed).
+
+
+my_obj.clean()
+  Your custom validation logic. Called by full_clean().
+  Override this to add cross-field validation rules.
+  Raise ValidationError here if something is invalid.
+  Does NOT save anything.
+  CAN BE OVERRIDDEN. No need to call super().clean() unless
+  you are inheriting from an abstract model that has its own clean().
+
+    def clean(self):
+        if self.end_date < self.start_date:
+            raise ValidationError("End must be after start.")
+
+
+my_obj.clean_fields(exclude=None)
+  Validates each individual field's type and constraints.
+  Called by full_clean(). Rarely overridden directly.
+
+
+my_obj.validate_unique(exclude=None)
+  Checks unique and unique_together constraints.
+  Called by full_clean(). Rarely overridden directly.
+
+
+my_obj.validate_constraints(exclude=None)
+  Checks Meta.constraints (the newer constraints API).
+  Called by full_clean(). Rarely overridden directly.
+
+
+my_obj.refresh_from_db(using=None, fields=None)
+  Reloads the instance's field values from the database.
+  Useful when you know the DB may have been updated externally
+  and you want the latest values without re-querying manually.
+  NOT commonly overridden.
+
+    friend.refresh_from_db()           # reload all fields
+    friend.refresh_from_db(fields=['name'])  # reload one field
+
+
+my_obj.pk
+  Shortcut property for the primary key field, regardless of
+  what the PK field is actually named (id, uuid, etc.).
+  not self.pk means the object hasn't been saved yet (no PK).
+
+
+my_obj.__str__()
+  Returns a string representation of the instance.
+  Used in the admin panel, shell, and anywhere the object is
+  printed. Always override this — default is unhelpful.
+  CAN BE OVERRIDDEN (you should always override this).
+
+    def __str__(self):
+        return f"Friend: {self.name}"
+
+
+my_obj.__repr__()
+  Developer-facing representation. Less commonly overridden.
+  Default is something like <Friend: Friend object (1)>.
+
+
+my_obj.__eq__(other)
+  Django compares model instances by PK by default.
+  Two instances of the same model with the same PK are equal.
+  Rarely overridden.
+
+
+my_obj.__hash__()
+  Based on PK. Required for using instances in sets or as
+  dict keys. Rarely overridden.
+
+
+my_obj.serializable_value(field_name)
+  Returns the value of a field in a serializable format.
+  Used internally. Rarely called directly.
+
+
+my_obj.get_FOO_display()
+  Auto-generated for every field with choices=.
+  Returns the human-readable label for the current value.
+
+    # if type has choices, Django auto-generates:
+    my_obj.get_type_display()   # returns e.g. "In person"
+
+
+my_obj.get_next_by_FOO() / my_obj.get_previous_by_FOO()
+  Auto-generated for DateField and DateTimeField that are
+  not nullable. Returns the next/previous instance ordered
+  by that date field.
+  Rarely used but exists automatically.
+
+
+----------------------------------------------------------------
+ CLASS / MANAGER METHODS (called on the class: MyModel.method())
+----------------------------------------------------------------
+
+MyModel.objects
+  The default manager. Gives you access to all queryset methods.
+  (.filter(), .get(), .create(), .all(), .update(), .delete()...)
+  CAN BE REPLACED with a custom manager.
+  CAN HAVE EXTRA methods added via a custom manager.
+
+    class NextMeetManager(models.Manager):
+        def expired_dates(self):
+            return self.filter(date__lt=date.today())
+
+    class NextMeet(models.Model):
+        objects = NextMeetManager()
+        # now NextMeet.objects.expired_dates() works
+
+
+MyModel._default_manager
+  The manager Django uses internally (for admin, etc.).
+  Usually same as objects unless you've customized things.
+
+
+MyModel._meta
+  Contains metadata about the model — field list, table name,
+  ordering, etc. Used internally and for introspection.
+  Not meant to be overridden but useful for reading.
+
+    MyModel._meta.fields          # list of all fields
+    MyModel._meta.db_table        # the actual DB table name
+    MyModel._meta.app_label       # which app owns this model
+
+
+MyModel.check()
+  Django's system check framework. Validates model definition
+  for common mistakes when you run manage.py check.
+  Rarely overridden.
+
+
+================================================================
+  PART 3 — THE META CLASS
+================================================================
+
+class Meta lives inside your model and configures table-level
+behavior. None of these are columns — they're just settings.
+
+    class Meta:
+
+        # Default ordering for all querysets on this model
+        ordering = ['-created_on']          # newest first
+        ordering = ['name']                 # alphabetical
+        ordering = ['next_meet__date']      # by related field (JOIN)
+
+        # The actual DB table name (default: appname_modelname)
+        db_table = 'my_custom_table_name'
+
+        # Simple unique constraint on one or more fields
+        unique_together = ('user', 'name')           # old style
+        # or the newer style:
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'name'],
+                                    name='unique_user_name')
+        ]
+
+        # Database indexes for faster queries
+        indexes = [
+            models.Index(fields=['user', 'date']),
+            models.Index(fields=['friend', '-date']),  # DESC index
+        ]
+
+        # Human-readable names for the admin panel
+        verbose_name = 'thought capsule'
+        verbose_name_plural = 'thought capsules'
+
+        # Abstract model — not created as a table, used as a
+        # base class for other models to inherit from
+        abstract = True
+
+        # Which app this model belongs to (rarely needed manually)
+        app_label = 'friends'
+
+        # Permissions (for Django's auth system)
+        permissions = [('can_view_dashboard', 'Can view dashboard')]
+
+        # Default manager ordering for get_latest_by
+        get_latest_by = 'created_on'
+
+
+================================================================
+  PART 4 — PROPERTIES VS METHODS VS FIELDS
+================================================================
+
+FIELDS      — stored in the DB, become columns
+PROPERTIES  — computed in Python, never stored, read-only by default
+METHODS     — functions you call explicitly, can read or write
+
+    class NextMeet(models.Model):
+
+        date = models.DateField()         # FIELD — stored in DB
+
+        @property
+        def days_since(self):             # PROPERTY — computed,
+            ...                           # not stored, no ()needed
+                                          # access as obj.days_since
+
+        def create_new_date_clean(self):  # METHOD — must call explicitly
+            ...                           # obj.create_new_date_clean()
+
+Properties are great for computed values you want to feel like
+fields when reading them. They cannot be used in .filter() or
+.order_by() because they don't exist in the DB — only real
+fields can be queried at the DB level.
+
+If you need to filter/sort by a computed value, you need either
+a real field (stored), or a DB-level annotation using .annotate().
+
+
+================================================================
+  PART 5 — POSTGRES VS MYSQL: WHAT YOU NEED TO KNOW
+================================================================
+
+The short answer: Django's ORM handles most differences for you
+automatically. You rarely need to think about which DB you're on
+for day-to-day queries. But there are meaningful differences
+worth knowing.
+
+----------------------------------------------------------------
+ THINGS DJANGO HANDLES FOR YOU (you never think about these)
+----------------------------------------------------------------
+
+- SQL syntax differences (Django generates the right SQL per DB)
+- Data type mappings (CharField → VARCHAR, etc.)
+- Auto-increment PKs
+- Basic CRUD operations
+- Migrations (Django generates DB-appropriate migration SQL)
+- Transactions (transaction.atomic() works the same on both)
+
+
+----------------------------------------------------------------
+ THINGS THAT DIFFER BETWEEN POSTGRES AND MYSQL
+----------------------------------------------------------------
+
+Nested transactions / savepoints
+  PostgreSQL: fully supports savepoints, so nested
+    transaction.atomic() blocks work correctly — inner block
+    can roll back without affecting the outer block.
+  MySQL (InnoDB): also supports savepoints, so nested
+    transaction.atomic() works here too. But MySQL with
+    MyISAM engine does NOT support transactions at all.
+    You are using InnoDB if you set STRICT_TRANS_TABLES
+    (which your old MySQL config did), so this would have
+    been fine. PostgreSQL is still more reliable here.
+
+
+Case sensitivity in queries
+  PostgreSQL: case-sensitive by default.
+    'Alex' != 'alex' in a filter.
+    Use __iexact, __icontains for case-insensitive queries.
+  MySQL: case-insensitive by default for most string comparisons.
+    'Alex' == 'alex' in a filter.
+  This means code that worked on MySQL might return different
+  results on PostgreSQL if you are not using __iexact/__icontains.
+  YOUR APP: you switched from MySQL to PostgreSQL, so watch for
+  any string filters that may now behave differently.
+
+
+JSON fields
+  PostgreSQL: native JSONB type. Django's JSONField on PostgreSQL
+    is fast and supports querying inside the JSON:
+      MyModel.objects.filter(data__key='value')
+  MySQL: JSON support is decent from MySQL 5.7+ but slower and
+    less capable than PostgreSQL's JSONB.
+  YOUR APP: you use JSONField in several models (addresses,
+    thought_capsules_shared). These are more efficient on your
+    current PostgreSQL setup than they would have been on MySQL.
+
+
+Array fields / PostgreSQL-specific fields
+  PostgreSQL only: ArrayField, HStoreField, RangeFields, etc.
+  These are in django.contrib.postgres and do not exist on MySQL.
+  If you ever need to switch back to MySQL, any postgres-specific
+  fields would need to be replaced.
+  YOUR APP: you are not currently using these, so no concern.
+
+
+Full-text search
+  PostgreSQL: django.contrib.postgres.search provides powerful
+    full-text search (SearchVector, SearchQuery, SearchRank).
+  MySQL: basic full-text search exists but is less capable.
+  Django has a basic __search lookup but real full-text search
+  on PostgreSQL is much more powerful.
+
+
+Transactions and DDL
+  PostgreSQL: DDL statements (CREATE TABLE, ALTER TABLE, etc.)
+    are transactional — a failed migration can be rolled back.
+  MySQL: DDL statements are NOT transactional — a failed
+    migration may leave your schema partially changed with no
+    rollback. This makes PostgreSQL much safer for migrations.
+
+
+String / text length limits
+  PostgreSQL: TextField has no length limit at the DB level.
+    max_length on a TextField is only enforced by Django/forms,
+    not the DB itself.
+  MySQL: TEXT types have size limits (TEXT = 65KB, MEDIUMTEXT,
+    LONGTEXT). Django handles this in migrations but worth knowing.
+
+
+Unique constraints on nullable fields
+  PostgreSQL: multiple NULL values are allowed in a unique column
+    (NULL != NULL in SQL standard). So unique=True with null=True
+    allows many rows with NULL.
+  MySQL: behavior has varied across versions — older MySQL treated
+    NULL as equal in unique indexes, which caused issues.
+  YOUR APP: you have several nullable unique fields (e.g.
+    UserAddress unique_together with nullable address). These
+    behave correctly on PostgreSQL.
+
+
+Strict mode / data validation
+  PostgreSQL: always strict — will reject bad data (wrong types,
+    out-of-range values) at the DB level.
+  MySQL: depends on sql_mode. Without STRICT_TRANS_TABLES, MySQL
+    silently truncates strings, inserts 0 for bad integers, etc.
+    Your old MySQL config explicitly set STRICT_TRANS_TABLES
+    to avoid this. PostgreSQL never has this problem.
+
+
+Performance: indexes and query planner
+  PostgreSQL has a more sophisticated query planner and supports
+  more index types (partial indexes, expression indexes, GIN/GiST
+  for JSON/full-text). For a production app, PostgreSQL generally
+  outperforms MySQL on complex queries.
+  For simple CRUD at your app's scale, both are fine.
+
+
+----------------------------------------------------------------
+ PRACTICAL SUMMARY FOR YOUR APP
+----------------------------------------------------------------
+
+You are on PostgreSQL in production. The main things to be aware of:
+
+1. String comparisons are now case-sensitive. Any place you
+   filter by a user-entered string without __iexact or __icontains
+   may behave differently than it did on MySQL.
+
+2. Your JSONFields (thought_capsules_shared, addresses) are now
+   faster and more capable. You can query inside them if needed.
+
+3. Migrations are safer — a failed migration on PostgreSQL won't
+   leave your schema half-changed.
+
+4. For everything else — transactions, basic queries, model
+   methods, serializers, views — Django's ORM abstracts it all
+   and you do not need to think about which DB you're on.
+
+================================================================
+  END OF REFERENCE
+================================================================

@@ -28,7 +28,7 @@ and add permission_classes = [IsAuthenticated] where needed.
 --------------------------------------------------------------
  [2] CRITICAL — DEBUG = True in production settings
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
 File: hfroot/settings.py, line 36
 
@@ -156,7 +156,7 @@ before related rows can FK to it.
 --------------------------------------------------------------
  [7] HIGH — PastMeet.save() does complex multi-object work without a transaction
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
 File: friends/models.py, around line 1107
 
@@ -191,7 +191,7 @@ a savepoint automatically.
 --------------------------------------------------------------
  [7b] MEDIUM — NextMeet.save() creates VoidedMeet without a transaction
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
 File: friends/models.py — create_new_date_if_needed() (~line 466),
 called from NextMeet.save() (~line 560)
@@ -208,7 +208,7 @@ with transaction.atomic(), or wrap the call site in NextMeet.save().
 --------------------------------------------------------------
  [7c] MEDIUM — FriendFaves.save() updates two models without a transaction
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
 File: friends/models.py — FriendFaves.save() (~line 669)
 
@@ -223,7 +223,7 @@ FIX: Wrap the entire save() body in with transaction.atomic().
 --------------------------------------------------------------
  [7d] MEDIUM — UserCategory.delete() reassigns capsules without a transaction
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
 File: users/models.py — UserCategory.delete() (~line 228)
 
