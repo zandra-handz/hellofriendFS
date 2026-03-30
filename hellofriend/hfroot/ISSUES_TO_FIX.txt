@@ -72,6 +72,19 @@ FIX: Wrap silk in a DEBUG guard so it only runs locally:
   if DEBUG:
       MIDDLEWARE += ['silk.middleware.SilkyMiddleware']
 
+NOTE: Also required — the silk URL in urls.py must be guarded the same
+way, otherwise Django crashes on startup when silk is not in
+INSTALLED_APPS (its models can't register without it):
+
+  if settings.DEBUG:
+      urlpatterns += [path('silk/', include('silk.urls', namespace='silk'))]
+
+This was discovered when DEBUG was set to False and gunicorn threw:
+  RuntimeError: Model class silk.models.Request doesn't declare an
+  explicit app_label and isn't in an application in INSTALLED_APPS.
+
+Fix applied to hfroot/urls.py line 43.
+
 
 --------------------------------------------------------------
  [4] LOW (revised) — CORS_ALLOW_ALL_ORIGINS + CORS_ALLOW_CREDENTIALS together

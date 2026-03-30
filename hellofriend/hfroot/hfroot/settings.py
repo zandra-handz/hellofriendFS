@@ -249,8 +249,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # Typically would just allow a specific origin; change later to make more secure
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
+# CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_CREDENTIALS = True
+
+
+# No web client currently — to add one, replace with CORS_ALLOWED_ORIGINS = ['https://yourdomain.com']
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = []
 
 
 
