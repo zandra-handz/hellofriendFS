@@ -27,7 +27,7 @@ from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
-from django.db import models
+from django.db import models, transaction
 from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -157,12 +157,13 @@ class BadRainbowzUser(AbstractUser):
 
         # If the instance is being created, create UserProfile and UserSettings
         if created:
-            UserProfile.objects.create(user=self)
-            UserSettings.objects.create(user=self)
-            GeckoConfigs.objects.create(user=self)
-            GeckoCombinedData.objects.create(user=self) 
-            UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
-            
+            with transaction.atomic():
+                UserProfile.objects.create(user=self)
+                UserSettings.objects.create(user=self)
+                GeckoConfigs.objects.create(user=self)
+                GeckoCombinedData.objects.create(user=self) 
+                UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
+                
 
 
 class UserCategory(models.Model):

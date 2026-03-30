@@ -116,70 +116,72 @@ class Friend(models.Model):
             if existing_friends_count >= 20:
                 raise ValidationError("Cannot have more than 20 friends. Please delete one to add a new one. (Hint: Are there any you can keep in touch with regularly now without the app's assistance? :))")
             
-            super().save(*args, **kwargs)  # Save the Friend instance first
 
-            # Create and save FriendSuggestionSettings
-            suggestion_settings = FriendSuggestionSettings(
-                friend=self,
-                user=self.user,
-            )
-            suggestion_settings.save()
+            with transaction.atomic():
+                super().save(*args, **kwargs)  # Save the Friend instance first
 
-            # Create and save FriendFaves
-            friend_faves = FriendFaves(
-                friend=self,
-                user=self.user,
-            )
-            friend_faves.save()
+                # Create and save FriendSuggestionSettings
+                suggestion_settings = FriendSuggestionSettings(
+                    friend=self,
+                    user=self.user,
+                )
+                suggestion_settings.save()
+
+                # Create and save FriendFaves
+                friend_faves = FriendFaves(
+                    friend=self,
+                    user=self.user,
+                )
+                friend_faves.save()
 
 
-            gecko_data = GeckoData(
-                friend=self,
-                user=self.user,
-            )
+                gecko_data = GeckoData(
+                    friend=self,
+                    user=self.user,
+                )
 
-            gecko_data.save()
+                gecko_data.save()
 
-            # Create and save PastMeet
+                # Create and save PastMeet
 
-            past_meet = PastMeet(
-                friend=self,
-                user=self.user,
-                date=self.first_meet_entered,
-                # You might want to set other fields here
-            )
-            past_meet.save()
-           
-
-            # Create and save NextMeet
+                past_meet = PastMeet(
+                    friend=self,
+                    user=self.user,
+                    date=self.first_meet_entered,
+                    # You might want to set other fields here
+                )
+                past_meet.save()
             
-            next_meet = NextMeet(
-                friend=self,
-                friend_suggestion_settings=suggestion_settings,
-                user=self.user,
-            )
-            next_meet.save()
 
-            # To test
-            try:
-                next_meet.create_new_date_clean()
+                # Create and save NextMeet
+                
+                next_meet = NextMeet(
+                    friend=self,
+                    friend_suggestion_settings=suggestion_settings,
+                    user=self.user,
+                )
                 next_meet.save()
-            except Exception as e:
-                print("Error creating new date for friend") 
-            
 
-            self.suggestion_settings = suggestion_settings
-            self.next_meet = next_meet
-            self.gecko_data = gecko_data
+                # To test
+                try:
+                    next_meet.create_new_date_clean()
+                    next_meet.save()
+                except Exception as e:
+                    print("Error creating new date for friend") 
+                
+
+                self.suggestion_settings = suggestion_settings
+                self.next_meet = next_meet
+                self.gecko_data = gecko_data
 
 
 
-            # Save the updated Friend instance
-            self.save()
+                # Save the updated Friend instance
+                self.save()
 
-            # Update user settings with new friend
-            settings = self.user.settings
-            settings.new_friend = self
+                # Update user settings with new friend
+                settings = self.user.settings
+                settings.new_friend = self
             settings.save(update_fields=['new_friend'])
 
 
