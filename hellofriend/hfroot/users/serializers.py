@@ -360,7 +360,8 @@ class PasswordResetCodeValidationSerializer(serializers.Serializer):
         except models.BadRainbowzUser.DoesNotExist:
             raise serializers.ValidationError("Invalid email or reset code.")
  
-        if user.password_reset_code != reset_code:
+        from django.contrib.auth.hashers import check_password
+        if not user.password_reset_code or not check_password(reset_code, user.password_reset_code):
             raise serializers.ValidationError("Invalid reset code.")
         if not user.code_expires_at or user.code_expires_at < now():
             raise serializers.ValidationError("Reset code has expired.")
@@ -382,7 +383,8 @@ class PasswordResetSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid email or reset code.")
 
         # Check if the code is correct and not expired
-        if user.password_reset_code != reset_code:
+        from django.contrib.auth.hashers import check_password
+        if not user.password_reset_code or not check_password(reset_code, user.password_reset_code):
             raise serializers.ValidationError("Invalid reset code.")
         if not user.code_expires_at or user.code_expires_at < now():
             raise serializers.ValidationError("Reset code has expired.")

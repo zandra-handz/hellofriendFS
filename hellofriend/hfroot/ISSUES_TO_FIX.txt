@@ -89,7 +89,7 @@ Fix applied to hfroot/urls.py line 43.
 --------------------------------------------------------------
  [4] LOW (revised) — CORS_ALLOW_ALL_ORIGINS + CORS_ALLOW_CREDENTIALS together
 --------------------------------------------------------------
-STATUS: [ ] not fixed — low priority for current setup, revisit if web client added
+STATUS: [x] FIXED — set CORS_ALLOW_ALL_ORIGINS = False, CORS_ALLOWED_ORIGINS = []
 
 File: hfroot/settings.py, lines 246-247
 
@@ -295,7 +295,7 @@ Celery) so the address saves immediately and coordinates fill in async.
 --------------------------------------------------------------
  [11] MEDIUM — Friend.Meta.ordering sorts by NextMeet PK, not by date
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
 File: friends/models.py, line 98
 
@@ -316,7 +316,7 @@ db_index=True on NextMeet.date if not already indexed to keep it fast.
 --------------------------------------------------------------
  [12] MEDIUM — No DB indexes on GeckoDataSession and GeckoCombinedSession
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
 Files: friends/models.py (GeckoDataSession ~line 592),
        users/models.py (GeckoCombinedSession)
@@ -338,7 +338,7 @@ FIX: Add indexes to both models:
 --------------------------------------------------------------
  [13] MEDIUM — days_since / time_score can cause N+1 queries
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
 File: friends/models.py, lines 332-374
 

@@ -41,7 +41,7 @@ class BadRainbowzUser(AbstractUser):
     username = models.CharField(_('username'), unique=True, max_length=150)
     email = models.EmailField(_('email address'), unique=True)
 
-    password_reset_code = models.CharField(max_length=6, blank=True, null=True)
+    password_reset_code = models.CharField(max_length=128, blank=True, null=True)
     code_expires_at = models.DateTimeField(blank=True, null=True)
 
     addresses = models.JSONField(blank=True, null=True)
@@ -79,11 +79,12 @@ class BadRainbowzUser(AbstractUser):
 
     def generate_password_reset_code(self):
         import random
-        from datetime import timedelta  # You can still use timedelta for durations
-        
-        code = f"{random.randint(100000, 999999)}"  # 6-digit code
-        self.password_reset_code = code
-        self.code_expires_at = timezone.now() + timedelta(minutes=10)  # Use timezone.now()
+        from datetime import timedelta
+        from django.contrib.auth.hashers import make_password
+
+        code = f"{random.randint(100000, 999999)}"  # 6-digit code — raw code returned to send in email
+        self.password_reset_code = make_password(code)  # store hash, never the raw code
+        self.code_expires_at = timezone.now() + timedelta(minutes=10)
         self.save()
         return code
         
