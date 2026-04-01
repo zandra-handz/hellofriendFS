@@ -362,6 +362,7 @@ class UserSettings(models.Model):
     use_auto_select = models.BooleanField(default=False)
 
     # front end controls, toggles on/off as needed. this does not interact with anything in the backend
+    # setting this to null on the friend home screen on front end, in friend header component (as of 3/31/2026)
     new_friend = models.ForeignKey(
         'friends.Friend', 
         related_name='new_friend_in_settings', 

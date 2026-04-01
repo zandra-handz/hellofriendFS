@@ -238,7 +238,7 @@ FIX: Wrap the entire delete() body in with transaction.atomic().
 --------------------------------------------------------------
  [8] MEDIUM — Password reset codes stored in plain text
 --------------------------------------------------------------
-STATUS: [ ] not fixed
+STATUS: [x] FIXED
 
 File: users/models.py (password_reset_code field on BadRainbowzUser)
 

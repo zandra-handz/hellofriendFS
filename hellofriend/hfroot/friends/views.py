@@ -1290,10 +1290,42 @@ class ThoughtCapsulesUpdateMultiple(APIView):
                 errors.append({"error": f"Capsule with ID {capsule_id} does not exist or does not belong to the user."})
                 continue
             
+            # Only allow updates to safe, user-editable fields.
+            # Never let the client touch ownership, identity, or system fields.
+            ALLOWED_FIELDS = {
+                'capsule',
+                'typed_category',  # obsolete field
+                'user_category_id',
+                'pre_added_to_hello',
+                'screen_x',
+                'screen_y',
+                'stored_index',
+                'easy_score',
+                'hard_score',
+                'quick_score',
+                'long_score',
+                'relevant_score',
+                'random_score',
+                'unique_score',
+                'generic_score',
+            }
+
+            invalid_fields = set(fields_to_update.keys()) - ALLOWED_FIELDS
+            if invalid_fields:
+                errors.append({"error": f"Fields not allowed to be updated: {', '.join(invalid_fields)}"})
+                continue
+
             # Update the capsule with the provided fields
             for field, value in fields_to_update.items():
                 setattr(capsule, field, value)
-            
+
+            # Run Django-level validators (enforces MinValueValidator etc. on score fields)
+            try:
+                capsule.full_clean(exclude=['friend', 'user', 'typed_category'])
+            except Exception as e:
+                errors.append({"error": f"Validation error on capsule {capsule_id}: {e}"})
+                continue
+
             # Save the updated capsule
             capsule.save()
             updated_capsules.append(capsule)

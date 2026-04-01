@@ -1,0 +1,285 @@
+================================================================
+  HELLOFRIEND — SECURITY AUDIT
+  Generated: 2026-04-01
+  Audited: SQL injection, input validation, access control, IDOR
+  Scope: All Python files under hellofriend/hfroot/
+================================================================
+
+NOTE: Several security issues were previously identified and are
+tracked in ISSUES_TO_FIX.txt (15 issues, many already fixed).
+This document covers NEW findings not yet in that file.
+Items in ISSUES_TO_FIX.txt that are still open are cross-referenced
+at the bottom of this document.
+
+SQL INJECTION SUMMARY
+-----------------------------------------------------
+No raw SQL injection vulnerabilities found. The project uses the
+Django ORM (QuerySet API) throughout. No calls to .raw(), no
+cursor.execute() with string interpolation, and no use of .extra()
+with unsanitized input were found. The ORM parameterizes all
+queries automatically. This area is clean.
+
+
+================================================================
+  NEW ISSUES — sorted from most severe to least severe
+================================================================
+
+
+--------------------------------------------------------------
+ [A1] CRITICAL — IDOR: ThoughtCapsulesUpdateMultiple uses
+      unrestricted setattr() for mass field assignment
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/views.py — ThoughtCapsulesUpdateMultiple.patch()
+
+The view accepts a dict of field names and values from the client
+and sets them on ThoughtCapsulez objects using setattr() with no
+whitelist of allowed fields:
+
+  for field, value in fields_to_update.items():
+      setattr(capsule, field, value)   ← no field whitelist!
+      capsule.save()
+
+An attacker can:
+  - Set the 'user' field on a capsule to reassign ownership to
+    another user's account
+  - Bypass all business logic by directly setting internal fields
+  - Set non-existent fields, triggering AttributeError or silent
+    data corruption depending on Django's behavior
+  - Override protected fields like 'id', 'created_at', etc.
+
+FIX: Define an explicit whitelist of fields users are allowed to
+update and reject any key not in that list:
+
+  ALLOWED_FIELDS = {'title', 'body', 'category', ...}
+  for field, value in fields_to_update.items():
+      if field not in ALLOWED_FIELDS:
+          return Response({'error': f'Field {field} is not editable'},
+                          status=400)
+      setattr(capsule, field, value)
+
+Also ensure the queryset is filtered to request.user so capsules
+belonging to other users cannot be targeted.
+
+
+--------------------------------------------------------------
+ [A2] CRITICAL — IDOR: FriendAddressCreate does not verify
+      that the target friend belongs to the requesting user
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/views.py — FriendAddressCreate.perform_create()
+
+  def perform_create(self, serializer):
+      friend_id = self.kwargs['friend_id']
+      friend = get_object_or_404(models.Friend, pk=friend_id)  ← no user filter!
+      serializer.save(user=self.request.user, friend=friend)
+
+A logged-in user can POST to /friends/<any_friend_id>/addresses/
+with any friend_id they choose and add addresses to another user's
+friend. The only guard is get_object_or_404, which checks existence
+but not ownership.
+
+FIX: Filter the lookup by the authenticated user:
+
+  friend = get_object_or_404(models.Friend, pk=friend_id,
+                              user=self.request.user)
+
+
+--------------------------------------------------------------
+ [A3] CRITICAL — IDOR: LocationDetail queryset is unfiltered —
+      any authenticated user can read, edit, or delete any
+      location in the database
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/views.py — LocationDetail (RetrieveUpdateDestroyAPIView)
+
+  class LocationDetail(generics.RetrieveUpdateDestroyAPIView):
+      queryset = models.Location.objects.all()   ← exposes all rows!
+      serializer_class = serializers.LocationSerializer
+      permission_classes = [IsAuthenticated]
+
+Any authenticated user who knows (or guesses) a location's integer
+primary key can GET, PATCH, or DELETE it regardless of who created it.
+
+FIX: Override get_queryset() to scope by user:
+
+  def get_queryset(self):
+      return models.Location.objects.filter(user=self.request.user)
+
+
+--------------------------------------------------------------
+ [A4] CRITICAL — IDOR: FriendFavesLocationAdd and
+      FriendFavesLocationRemove do not verify location ownership
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/views.py — FriendFavesLocationAdd.patch() (~line 464)
+                          FriendFavesLocationRemove.patch() (~line 494)
+
+Both methods retrieve a Location by ID from the request body with
+no user filter:
+
+  location = models.Location.objects.get(id=location_id)   ← no user filter!
+  instance.locations.add(location)
+
+An attacker can link any location in the system to their friend's
+favorites, or remove locations from another user's friend's favorites.
+This also leaks the existence of locations that the user does not own.
+
+FIX: Add user filter to both lookups:
+
+  location = get_object_or_404(models.Location, id=location_id,
+                                user=self.request.user)
+
+
+--------------------------------------------------------------
+ [A5] HIGH — Groq chat endpoint: no rate limiting and no
+      validation of the 'role' parameter (prompt injection risk)
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/views.py — groq_chat() (~line 2041)
+
+The view accepts 'role' and 'prompt' fields directly from the
+client and passes them into the Groq API call without sanitization:
+
+  groq_response = requests.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      headers={'Authorization': f'Bearer {settings.GROQ_API_KEY}'},
+      json={
+          'model': model,
+          'messages': [
+              {'role': 'system', 'content': role},    ← client-controlled!
+              {'role': 'user', 'content': prompt},    ← client-controlled!
+          ],
+      },
+  )
+
+Issues:
+  1. The 'role' field is a system prompt. Allowing clients to set it
+     freely means they can override all application-level instructions
+     (prompt injection). For example, a client could instruct the model
+     to ignore content policies, impersonate the app, or exfiltrate
+     session data from prior turns.
+  2. No rate limiting. A single user can make unlimited API calls,
+     burning through the GROQ_API_KEY quota with no restriction.
+  3. The 'model' field is also client-controlled. A client can specify
+     any Groq model, including premium ones, without restriction.
+
+FIX:
+  1. Remove the 'role' parameter from client input entirely. Define
+     your system prompt server-side and never let clients override it.
+  2. Add a per-user rate limit (e.g. Django Ratelimit or a counter in
+     the cache) before calling the external API.
+  3. Whitelist the 'model' value against a fixed set of allowed model IDs.
+  4. Add a max length check on 'prompt' to prevent oversized payloads
+     from inflating API costs.
+
+
+--------------------------------------------------------------
+ [A6] MEDIUM — FriendAddressesValidated filters by wrong field
+      (id instead of friend_id) — always returns empty results
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/views.py — FriendAddressesValidated.get_queryset() (~line 162)
+
+  return models.FriendAddress.objects.filter(
+      user=user,
+      id=friend_id,            ← should be friend_id=friend_id
+      validated_address=True
+  )
+
+This filters by the address's own primary key (id) using the value
+from the URL parameter named friend_id, so the query is comparing
+the wrong column. The endpoint always returns an empty list unless
+a FriendAddress row happens to have the same pk as the friend_id.
+
+This is a logic bug, not a security issue, but it means the
+validated-address feature is silently broken.
+
+FIX: Change id=friend_id to friend__id=friend_id (or friend_id=friend_id
+if the FK column is stored as friend_id):
+
+  return models.FriendAddress.objects.filter(
+      user=user,
+      friend_id=friend_id,
+      validated_address=True
+  )
+
+
+--------------------------------------------------------------
+ [A7] LOW — LocationSerializer and multiple other serializers
+      use fields = '__all__', exposing internal fields
+--------------------------------------------------------------
+STATUS: [ ] not fixed
+
+File: friends/serializers.py
+
+The following serializers expose every model field including
+internal IDs, FK relationships, and system timestamps:
+
+  - LocationSerializer          (fields = '__all__')
+  - FriendSerializer            (fields = '__all__')
+  - FriendCreateSerializer      (fields = '__all__')
+  - FriendAndCapsuleSummarySerializer (fields = '__all__')
+  - FriendFavesSerializer       (fields = '__all__')
+  - FriendAddressSerializer     (fields = '__all__')
+  - NextMeetSerializer          (fields = '__all__')
+
+Over-exposure is lower risk in a private API but it:
+  - Leaks internal IDs useful for IDOR attacks (see A2–A4 above)
+  - Makes it easy to accidentally write-back read-only fields
+  - Exposes fields you may not want clients to see or set
+
+FIX: Replace fields = '__all__' with explicit field lists. Mark
+read-only fields that should not be writable (e.g., user, id,
+created_at) with read_only_fields in the Meta class.
+
+
+================================================================
+  OPEN ISSUES FROM ISSUES_TO_FIX.txt (not yet fixed)
+  These are cross-referenced here for completeness.
+================================================================
+
+  [5]  HIGH  — SECRET_KEY falls back to random value on restart
+               (settings.py line 93)
+
+  [9]  MEDIUM — ImagesByCategoryView has AllowAny
+               (views.py lines 1435-1438)
+
+  [10] MEDIUM — Geocoding API calls inside model.save()
+               (models.py FriendAddress.save(), Location.save(),
+                users/models.py UserAddress.save())
+
+  [14] LOW   — CorsMiddleware is in the wrong position in MIDDLEWARE
+               (settings.py lines 95-104)
+
+  [15] LOW   — [IsAuthenticated, AllowAny] is contradictory
+               (views.py lines 1539 and 1557)
+
+
+================================================================
+  SUMMARY
+================================================================
+
+  New issues (this document):
+    Critical : 4  (A1 mass assignment, A2–A4 IDOR)
+    High     : 1  (A5 Groq prompt injection + no rate limit)
+    Medium   : 1  (A6 wrong field filter — logic bug)
+    Low      : 1  (A7 over-exposed serializer fields)
+
+  Previously open (ISSUES_TO_FIX.txt):
+    High     : 1  (#5 SECRET_KEY fallback)
+    Medium   : 2  (#9 AllowAny, #10 geocoding in save())
+    Low      : 2  (#14 CORS order, #15 contradictory permissions)
+
+  TOTAL OUTSTANDING: 12 issues across both documents
+  SQL injection: NONE FOUND (ORM used throughout — clean)
+
+================================================================
+  END OF SECURITY AUDIT
+================================================================
