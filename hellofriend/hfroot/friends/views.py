@@ -169,7 +169,7 @@ class FriendAddressCreate(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         friend_id = self.kwargs['friend_id']
-        friend = get_object_or_404(models.Friend, pk=friend_id)
+        friend = get_object_or_404(models.Friend, pk=friend_id, user=self.request.user)
         serializer.save(user=self.request.user, friend=friend)
 
 
