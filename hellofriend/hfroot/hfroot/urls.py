@@ -28,6 +28,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('friends/', include('friends.urls')),
     path('users/', include('users.urls')),
+    path('geckoscripts/', include('geckoscripts.urls')),
     path('users/get-current/', users.views.get_current_user, name='get-current-user'),
     path('users/send-email/', users.views.send_email_to_user, name='send-email-to-user'),
     path('users/sign-up/', users.views.CreateUserView.as_view(), name='sign_up'),

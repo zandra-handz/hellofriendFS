@@ -411,10 +411,22 @@ class PointsLedgerView(generics.ListAPIView):
 class GeckoPointsLedgerView(generics.ListAPIView):
     serializer_class = serializers.GeckoPointsLedgerSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = MediumPagination
 
     def get_queryset(self):
         return models.GeckoPointsLedger.objects.filter(user=self.request.user)
 
+
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("nopaginate") == "true":
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return response.Response(serializer.data)
+        
+        return super().list(request, *args, **kwargs)
+
+     
+ 
 
 class UserCategoriesView(generics.ListCreateAPIView):
     serializer_class = serializers.UserCategorySerializer

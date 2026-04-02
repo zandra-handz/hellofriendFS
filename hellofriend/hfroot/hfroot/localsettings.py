@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'friends',
     'users',
+    'geckoscripts',
     'rest_framework',
     'storages',
     'corsheaders',
