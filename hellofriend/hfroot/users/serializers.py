@@ -28,7 +28,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 class UserGeckoCombinedSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.GeckoCombinedData
-        fields = ['total_steps', 'total_distance', 'total_duration', 'updated_on']
+        fields = ['total_steps', 'total_distance', 'total_duration', 'total_gecko_points', 'updated_on']
 # class UserCategorySerializer(serializers.ModelSerializer):
 
 #     class Meta:
@@ -397,13 +397,20 @@ class PasswordResetSerializer(serializers.Serializer):
         user.code_expires_at = None
         user.save()
 
-
+class GeckoPointsLedgerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.GeckoPointsLedger
+        fields = ['id', 'friend', 'amount', 'reason', 'updated_on', 'created_on']
 
 
 class PointsLedgerSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PointsLedger
         fields = ['id', 'amount', 'reason', 'created_at']
+
+class AddGeckoPointsSerializer(serializers.Serializer):
+    amount = serializers.IntegerField(min_value=1) 
+
 
 class AddPointsSerializer(serializers.Serializer):
     amount = serializers.IntegerField(min_value=1)

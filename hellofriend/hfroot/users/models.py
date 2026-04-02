@@ -446,31 +446,50 @@ class GeckoCombinedData(models.Model):
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
+    total_gecko_points = models.PositiveIntegerField(default=0)
+
+
+
+class GeckoPointsLedger(models.Model):
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='gecko_points_ledger')
+    friend = models.ForeignKey('friends.Friend', on_delete=models.SET_NULL, null=True, blank=True)
+    amount = models.IntegerField()
+    reason = models.CharField(max_length=100, blank=True)
+
+    updated_on = models.DateTimeField(auto_now=True)
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_on']
+
+    def __str__(self):
+        return f"{self.user.username} + {self.amount})"
 
  
     
 
 
-class GeckoCombinedDaily(models.Model):
-    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
-    date = models.DateField(default=timezone.localdate)
+# class GeckoCombinedDaily(models.Model):
+#     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+#     date = models.DateField(default=timezone.localdate)
   
-    steps = models.PositiveIntegerField(default=0)
-    distance = models.PositiveIntegerField(default=0)
-    duration = models.PositiveIntegerField(default=0)
+#     steps = models.PositiveIntegerField(default=0)
+#     distance = models.PositiveIntegerField(default=0)
+#     duration = models.PositiveIntegerField(default=0)
 
-    created_on = models.DateTimeField(auto_now_add=True)
-    updated_on = models.DateTimeField(auto_now=True)
+#     created_on = models.DateTimeField(auto_now_add=True)
+#     updated_on = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        unique_together = ('user', 'date')
-        ordering = ['-date']
+#     class Meta:
+#         unique_together = ('user', 'date')
+#         ordering = ['-date']
 
 
 
 class GeckoCombinedSession(models.Model):
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     friend = models.ForeignKey('friends.Friend', on_delete=models.SET_NULL, null=True, blank=True)
+    points_earned = models.PositiveBigIntegerField(default=0)
     steps = models.PositiveIntegerField(default=0)
     distance = models.PositiveIntegerField(default=0)
     started_on = models.DateTimeField()

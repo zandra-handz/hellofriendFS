@@ -407,6 +407,13 @@ class PointsLedgerView(generics.ListAPIView):
 
     def get_queryset(self):
         return models.PointsLedger.objects.filter(user=self.request.user)
+    
+class GeckoPointsLedgerView(generics.ListAPIView):
+    serializer_class = serializers.GeckoPointsLedgerSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return models.GeckoPointsLedger.objects.filter(user=self.request.user)
 
 
 class UserCategoriesView(generics.ListCreateAPIView):

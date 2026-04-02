@@ -573,23 +573,24 @@ class GeckoData(models.Model):
     total_steps = models.PositiveIntegerField(default=0)
     total_distance = models.PositiveIntegerField(default=0)
     total_duration = models.PositiveIntegerField(default=0)
+    total_points = models.PositiveIntegerField(default=0)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
 
-class GeckoDataDaily(models.Model):
-    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
-    friend = models.ForeignKey('friends.Friend', on_delete=models.CASCADE)
-    date = models.DateField(default=timezone.localdate)
+# class GeckoDataDaily(models.Model):
+#     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+#     friend = models.ForeignKey('friends.Friend', on_delete=models.CASCADE)
+#     date = models.DateField(default=timezone.localdate)
  
-    steps = models.PositiveIntegerField(default=0)
-    distance = models.PositiveIntegerField(default=0)
-    duration = models.PositiveIntegerField(default=0)
-    created_on = models.DateTimeField(auto_now_add=True)
-    updated_on = models.DateTimeField(auto_now=True)
+#     steps = models.PositiveIntegerField(default=0)
+#     distance = models.PositiveIntegerField(default=0)
+#     duration = models.PositiveIntegerField(default=0)
+#     created_on = models.DateTimeField(auto_now_add=True)
+#     updated_on = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        unique_together = ('user', 'friend', 'date')
+#     class Meta:
+#         unique_together = ('user', 'friend', 'date')
 
 
 class GeckoDataSession(models.Model):
@@ -599,6 +600,7 @@ class GeckoDataSession(models.Model):
     distance = models.PositiveIntegerField(default=0)
     started_on = models.DateTimeField()
     ended_on = models.DateTimeField()
+    points_earned = models.PositiveIntegerField(default=0)
     created_on = models.DateTimeField(auto_now_add=True)
 
     class Meta:

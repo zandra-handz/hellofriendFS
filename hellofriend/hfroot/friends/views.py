@@ -274,7 +274,8 @@ def update_gecko_data(request, friend_id):
     delta_distance = request.data.get('distance', 0)
     new_started_on = request.data.get('started_on')
     new_ended_on = request.data.get('ended_on')
-    today = timezone.now().date()
+    points_earned_list = request.data.get('points_earned', [])
+    total_points = sum(e['amount'] for e in points_earned_list) if points_earned_list else 0
 
     delta_duration = 0
     if new_started_on and new_ended_on:
@@ -286,33 +287,34 @@ def update_gecko_data(request, friend_id):
 
     try:
         with transaction.atomic():
-            models.GeckoData.objects.filter(user=user, friend_id=friend_id).update(
-                total_steps=F('total_steps') + delta_steps,
-                total_distance=F('total_distance') + delta_distance,
-                total_duration=F('total_duration') + delta_duration,
-            )
+            gecko_data_update = {
+                'total_steps': F('total_steps') + delta_steps,
+                'total_distance': F('total_distance') + delta_distance,
+                'total_duration': F('total_duration') + delta_duration,
+            }
+            if total_points:
+                gecko_data_update['total_points'] = F('total_points') + total_points
+            models.GeckoData.objects.filter(user=user, friend_id=friend_id).update(**gecko_data_update)
 
-            # REMOVED, using sessions instead
-            # obj, _ = models.GeckoDataDaily.objects.get_or_create(user=user, friend_id=friend_id, date=today)
-            # models.GeckoDataDaily.objects.filter(id=obj.id).update(
-            #     steps=F('steps') + delta_steps,
-            #     distance=F('distance') + delta_distance,
-            #     duration=F('duration') + delta_duration,
-            # )
+            combined_data_update = {
+                'total_steps': F('total_steps') + delta_steps,
+                'total_distance': F('total_distance') + delta_distance,
+                'total_duration': F('total_duration') + delta_duration,
+            }
+            if total_points:
+                combined_data_update['total_gecko_points'] = F('total_gecko_points') + total_points
+            users.models.GeckoCombinedData.objects.filter(user=user).update(**combined_data_update)
 
-            users.models.GeckoCombinedData.objects.filter(user=user).update(
-                total_steps=F('total_steps') + delta_steps,
-                total_distance=F('total_distance') + delta_distance,
-                total_duration=F('total_duration') + delta_duration,
-            )
-
-            # REMOVED, using sessions instead
-            # obj, _ = users.models.GeckoCombinedDaily.objects.get_or_create(user=user, date=today)
-            # users.models.GeckoCombinedDaily.objects.filter(id=obj.id).update(
-            #     steps=F('steps') + delta_steps,
-            #     distance=F('distance') + delta_distance,
-            #     duration=F('duration') + delta_duration,
-            # )
+            if points_earned_list:
+                users.models.GeckoPointsLedger.objects.bulk_create([
+                    users.models.GeckoPointsLedger(
+                        user=user,
+                        friend_id=friend_id,
+                        amount=e['amount'],
+                        reason=e.get('reason', ''),
+                    )
+                    for e in points_earned_list
+                ])
 
             if new_started_on and new_ended_on:
                 existing_combined_session = users.models.GeckoCombinedSession.objects.filter(
@@ -326,6 +328,7 @@ def update_gecko_data(request, friend_id):
                     existing_combined_session.ended_on = new_ended_on
                     existing_combined_session.steps += delta_steps
                     existing_combined_session.distance += delta_distance
+                    existing_combined_session.points_earned += total_points
                     existing_combined_session.save()
                 else:
                     users.models.GeckoCombinedSession.objects.create(
@@ -335,6 +338,7 @@ def update_gecko_data(request, friend_id):
                         ended_on=new_ended_on,
                         steps=delta_steps,
                         distance=delta_distance,
+                        points_earned=total_points,
                     )
 
                 existing_friend_session = models.GeckoDataSession.objects.filter(
@@ -348,6 +352,7 @@ def update_gecko_data(request, friend_id):
                     existing_friend_session.ended_on = new_ended_on
                     existing_friend_session.steps += delta_steps
                     existing_friend_session.distance += delta_distance
+                    existing_friend_session.points_earned += total_points
                     existing_friend_session.save()
                 else:
                     models.GeckoDataSession.objects.create(
@@ -357,6 +362,7 @@ def update_gecko_data(request, friend_id):
                         ended_on=new_ended_on,
                         steps=delta_steps,
                         distance=delta_distance,
+                        points_earned=total_points,
                     )
 
     except Exception as e:
