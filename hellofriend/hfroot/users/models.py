@@ -489,7 +489,7 @@ class GeckoPointsLedger(models.Model):
 class GeckoCombinedSession(models.Model):
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     friend = models.ForeignKey('friends.Friend', on_delete=models.SET_NULL, null=True, blank=True)
-    points_earned = models.PositiveBigIntegerField(default=0)
+    points_earned = models.PositiveIntegerField(default=0)
     steps = models.PositiveIntegerField(default=0)
     distance = models.PositiveIntegerField(default=0)
     started_on = models.DateTimeField()

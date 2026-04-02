@@ -274,8 +274,8 @@ def update_gecko_data(request, friend_id):
     delta_distance = request.data.get('distance', 0)
     new_started_on = request.data.get('started_on')
     new_ended_on = request.data.get('ended_on')
-    points_earned_list = request.data.get('points_earned', [])
-    total_points = sum(e['amount'] for e in points_earned_list) if points_earned_list else 0
+    points_earned_list = request.data.get('points_earned') or []
+    total_points = sum(e.get('amount', 0) or 0 for e in points_earned_list)
 
     delta_duration = 0
     if new_started_on and new_ended_on:
@@ -328,7 +328,7 @@ def update_gecko_data(request, friend_id):
                     existing_combined_session.ended_on = new_ended_on
                     existing_combined_session.steps += delta_steps
                     existing_combined_session.distance += delta_distance
-                    existing_combined_session.points_earned += total_points
+                    existing_combined_session.points_earned = (existing_combined_session.points_earned or 0) + total_points
                     existing_combined_session.save()
                 else:
                     users.models.GeckoCombinedSession.objects.create(
@@ -352,7 +352,7 @@ def update_gecko_data(request, friend_id):
                     existing_friend_session.ended_on = new_ended_on
                     existing_friend_session.steps += delta_steps
                     existing_friend_session.distance += delta_distance
-                    existing_friend_session.points_earned += total_points
+                    existing_friend_session.points_earned = (existing_friend_session.points_earned or 0) + total_points
                     existing_friend_session.save()
                 else:
                     models.GeckoDataSession.objects.create(
