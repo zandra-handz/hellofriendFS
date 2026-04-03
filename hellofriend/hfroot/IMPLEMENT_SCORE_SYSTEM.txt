@@ -1,0 +1,22 @@
+================================================================
+  HELLOFRIEND — SCORE SYSTEM IMPLEMENTATION NOTES
+================================================================
+
+
+================================================================
+  TO DO
+================================================================
+
+  [ ] Move point award amounts to the backend via a code system.
+      The front end submits a short event code (e.g. 1 = small
+      award, 2 = slightly larger, etc.) and the backend maps that
+      code to the actual point value. The front end should never
+      decide how many points an event is worth — only that an
+      event occurred and what type it was.
+
+      Do not build this out yet — design TBD.
+
+
+================================================================
+  END
+================================================================

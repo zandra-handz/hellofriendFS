@@ -817,23 +817,29 @@ class UpcomingMeetsQuickView(generics.ListCreateAPIView):
         return models.NextMeet.objects.filter(user=user).select_related('friend', 'previous')
 
 
-
-
-
 class CombinedFriendsUpcomingView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
         user = request.user
-        today = timezone.now().date()
- 
+
+        local_date_str = request.query_params.get("local_date")
+        if local_date_str:
+            try:
+                today = datetime.date.fromisoformat(local_date_str)
+            except ValueError:
+                today = timezone.now().date()
+        else:
+            today = timezone.now().date()
+
         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
         if update_tracker.last_upcoming_update != today:
             expired_meets = models.NextMeet.objects.user_expired_dates(user)
             for meet in expired_meets:
                 meet.save()
-            update_tracker.upcoming_updated()
- 
+            update_tracker.last_upcoming_update = today
+            update_tracker.save()
+
         upcoming_qs = (
             models.NextMeet.objects
             .filter(user=user)
@@ -843,26 +849,24 @@ class CombinedFriendsUpcomingView(APIView):
         upcoming_data = serializers.UpcomingMeetsLightSerializer(
             upcoming_qs, many=True
         ).data
- 
+
         next_meet = upcoming_qs.first()
         if next_meet:
             users.models.UserSettings.objects.filter(user=user).update(
                 upcoming_friend=next_meet.friend
             )
- 
+
         friends_qs = (
             models.Friend.objects
             .filter(user=user)
         )
 
-        
- 
         user_capsules = list(
             models.ThoughtCapsulez.objects
             .filter(user=user)
             .select_related("friend", "user_category")
         )
- 
+
         friends_data = serializers.FriendAndCapsuleSummarySerializer(
             friends_qs,
             many=True,
@@ -876,6 +880,64 @@ class CombinedFriendsUpcomingView(APIView):
             "capsule_summaries": friends_data,
             "next": None
         })
+
+
+# class CombinedFriendsUpcomingView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, *args, **kwargs):
+#         user = request.user
+#         today = timezone.now().date()
+ 
+#         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
+#         if update_tracker.last_upcoming_update != today:
+#             expired_meets = models.NextMeet.objects.user_expired_dates(user)
+#             for meet in expired_meets:
+#                 meet.save()
+#             update_tracker.upcoming_updated()
+ 
+#         upcoming_qs = (
+#             models.NextMeet.objects
+#             .filter(user=user)
+#             .select_related("friend", "previous")
+#             .order_by("date")
+#         )
+#         upcoming_data = serializers.UpcomingMeetsLightSerializer(
+#             upcoming_qs, many=True
+#         ).data
+ 
+#         next_meet = upcoming_qs.first()
+#         if next_meet:
+#             users.models.UserSettings.objects.filter(user=user).update(
+#                 upcoming_friend=next_meet.friend
+#             )
+ 
+#         friends_qs = (
+#             models.Friend.objects
+#             .filter(user=user)
+#         )
+
+        
+ 
+#         user_capsules = list(
+#             models.ThoughtCapsulez.objects
+#             .filter(user=user)
+#             .select_related("friend", "user_category")
+#         )
+ 
+#         friends_data = serializers.FriendAndCapsuleSummarySerializer(
+#             friends_qs,
+#             many=True,
+#             context={"user_capsules": user_capsules}
+#         ).data
+
+#         return response.Response({
+#             "user": user.id,
+#             "friends": friends_data,
+#             "upcoming": upcoming_data,
+#             "capsule_summaries": friends_data,
+#             "next": None
+#         })
  
 
 class UpcomingMeetsAll48(generics.ListCreateAPIView):
