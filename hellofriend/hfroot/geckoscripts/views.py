@@ -1,8 +1,10 @@
-from django.shortcuts import render
 from . import models
 from . import serializers
 
 import users.models
+
+from django.db import transaction
+from django.utils.dateparse import parse_datetime
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -62,3 +64,32 @@ def get_welcome_scripts(request):
         script['body'] = script['body'].format_map({'user_name': user_name})
 
     return Response(serialized, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def log_welcome_scripts(request):
+    user = request.user
+    entries = request.data.get('entries')
+    if not isinstance(entries, list):
+        return Response({'error': 'entries must be a list'}, status=status.HTTP_400_BAD_REQUEST)
+
+    records = []
+    for e in entries:
+        if not isinstance(e, dict):
+            continue
+        script_id = e.get('script_id')
+        shown_at = parse_datetime(str(e.get('shown_at', ''))) if e.get('shown_at') else None
+        if not script_id or not shown_at:
+            continue
+        records.append(models.WelcomeScriptLedger(
+            user=user,
+            script_id=script_id,
+            shown_at=shown_at,
+        ))
+
+    if records:
+        with transaction.atomic():
+            models.WelcomeScriptLedger.objects.bulk_create(records)
+
+    return Response({'created': len(records)}, status=status.HTTP_200_OK)

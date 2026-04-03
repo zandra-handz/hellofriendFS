@@ -1,5 +1,6 @@
 
 from django.db import models
+from django.contrib.auth import get_user_model
 
 # Create your models here.
 
@@ -44,6 +45,19 @@ class Welcome(models.Model):
             flags.append('inactive')
         suffix = f" [{', '.join(flags)}]" if flags else ''
         return f"{self.label}{suffix}"
+
+
+class WelcomeScriptLedger(models.Model):
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='welcome_script_ledger')
+    script = models.ForeignKey(Welcome, on_delete=models.SET_NULL, null=True, related_name='ledger_entries')
+    shown_at = models.DateTimeField()
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-shown_at']
+
+    def __str__(self):
+        return f"{self.user} — {self.script.label if self.script else 'deleted'} @ {self.shown_at}"
 
 
 
