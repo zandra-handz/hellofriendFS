@@ -47,6 +47,10 @@ class Welcome(models.Model):
         return f"{self.label}{suffix}"
 
 
+# NOTE: WelcomeScriptLedger is written by the front end only (via geckoscripts/ledger/).
+# Script selection and display logic lives entirely on the front end to keep it
+# fast and reactive. The front end batches entries and POSTs them in the background
+# — the backend never decides what gets shown or when.
 class WelcomeScriptLedger(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='welcome_script_ledger')
     script = models.ForeignKey(Welcome, on_delete=models.SET_NULL, null=True, related_name='ledger_entries')

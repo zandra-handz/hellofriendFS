@@ -9,7 +9,12 @@ from django.utils.dateparse import parse_datetime
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status, generics
+from rest_framework.pagination import PageNumberPagination
+
+
+class MediumPagination(PageNumberPagination):
+    page_size = 30
 
 
 @api_view(['GET'])
@@ -66,6 +71,10 @@ def get_welcome_scripts(request):
     return Response(serialized, status=status.HTTP_200_OK)
 
 
+# NOTE: This endpoint is called by the front end only, in the background.
+# Script selection and display is handled entirely client-side to keep it
+# fast and reactive. The front end batches shown entries and POSTs them here
+# when convenient (e.g. on screen blur or session end) — never in the hot path.
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def log_welcome_scripts(request):
@@ -93,3 +102,19 @@ def log_welcome_scripts(request):
             models.WelcomeScriptLedger.objects.bulk_create(records)
 
     return Response({'created': len(records)}, status=status.HTTP_200_OK)
+
+
+class WelcomeScriptLedgerView(generics.ListAPIView):
+    serializer_class = serializers.WelcomeScriptLedgerSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = MediumPagination
+
+    def get_queryset(self):
+        return models.WelcomeScriptLedger.objects.filter(user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get('nopaginate') == 'true':
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+        return super().list(request, *args, **kwargs)
