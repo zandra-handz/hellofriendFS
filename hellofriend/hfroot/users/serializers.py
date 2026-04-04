@@ -103,7 +103,6 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
             'active_hours_type',
             getattr(self.instance, 'active_hours_type', None),
         )
-        hours = attrs.get('active_hours')
 
         # local_hour: prefer payload, then view context, then server time
         local_hour = attrs.get('local_hour')
@@ -115,63 +114,72 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
         max_hours = getattr(self.instance, 'max_active_hours', None) \
             or models.GeckoConfigs._meta.get_field('max_active_hours').default
 
-        # Apply defaults when hours weren't sent AND either this is a create
-        # or the mode is changing to a new value.
-        if hours is None:
-            mode_changed = (
-                self.instance is not None
-                and 'active_hours_type' in attrs
-                and attrs['active_hours_type'] != self.instance.active_hours_type
-            )
-            if self.instance is None or mode_changed:
-                if mode == models.ActivityHours.DAY:
-                    hours = list(self.DEFAULT_DAY_HOURS)
-                elif mode == models.ActivityHours.NIGHT:
-                    hours = list(self.DEFAULT_NIGHT_HOURS)
-                elif mode == models.ActivityHours.RANDOM:
-                    hours = list(self.DEFAULT_RANDOM_HOURS)
-                if hours is not None:
-                    attrs['active_hours'] = hours
+        mode_changed = (
+            self.instance is not None
+            and 'active_hours_type' in attrs
+            and attrs['active_hours_type'] != self.instance.active_hours_type
+        )
+
+        if 'active_hours' in attrs:
+            # client explicitly sent hours — validate them
+            hours = attrs['active_hours']
+        elif self.instance is None:
+            # create without hours — use defaults for mode
+            hours = self._defaults_for_mode(mode)
+        elif mode_changed:
+            # mode is changing without new hours — try existing hours first,
+            # fall back to defaults if they conflict with the new mode
+            existing = list(self.instance.active_hours or [])
+            if existing and self._hours_error(existing, mode, max_hours) is None:
+                hours = existing
+            else:
+                hours = self._defaults_for_mode(mode)
+        else:
+            # nothing to do for active_hours
+            hours = None
 
         if hours is not None:
-            if len(hours) != len(set(hours)):
-                raise serializers.ValidationError(
-                    {'active_hours': 'Hours must be unique.'}
-                )
-            if len(hours) > max_hours:
-                raise serializers.ValidationError(
-                    {'active_hours': f'Cannot exceed {max_hours} active hours.'}
-                )
-
-            if mode in (models.ActivityHours.DAY, models.ActivityHours.NIGHT):
-                if self._has_multiple_windows(hours):
-                    raise serializers.ValidationError(
-                        {'active_hours': 'Day/Night modes require a single contiguous block.'}
-                    )
-                if hours:
-                    center = self._circular_center(hours)
-                    d_noon = self._circular_distance(center, 12)
-                    d_midnight = self._circular_distance(center, 0)
-                    if mode == models.ActivityHours.DAY and d_noon > d_midnight:
-                        raise serializers.ValidationError(
-                            {'active_hours': 'Day mode requires the block to be centered closer to noon than midnight.'}
-                        )
-                    if mode == models.ActivityHours.NIGHT and d_midnight > d_noon:
-                        raise serializers.ValidationError(
-                            {'active_hours': 'Night mode requires the block to be centered closer to midnight than noon.'}
-                        )
-            elif mode == models.ActivityHours.RANDOM:
-                pass  # any hours, multiple blocks allowed — only the max cap applies
-            else:
-                if self._has_multiple_windows(hours):
-                    raise serializers.ValidationError(
-                        {'active_hours': 'This mode requires a single contiguous block.'}
-                    )
-
+            error = self._hours_error(hours, mode, max_hours)
+            if error:
+                raise serializers.ValidationError({'active_hours': error})
             attrs['active_hours'] = sorted(set(hours))
 
         attrs.pop('local_hour', None)
         return attrs
+
+    def _defaults_for_mode(self, mode):
+        if mode == models.ActivityHours.DAY:
+            return list(self.DEFAULT_DAY_HOURS)
+        if mode == models.ActivityHours.NIGHT:
+            return list(self.DEFAULT_NIGHT_HOURS)
+        if mode == models.ActivityHours.RANDOM:
+            return list(self.DEFAULT_RANDOM_HOURS)
+        return []
+
+    def _hours_error(self, hours, mode, max_hours):
+        """Return an error string if hours are invalid for mode, else None."""
+        if len(hours) != len(set(hours)):
+            return 'Hours must be unique.'
+        if len(hours) > max_hours:
+            return f'Cannot exceed {max_hours} active hours.'
+
+        if mode in (models.ActivityHours.DAY, models.ActivityHours.NIGHT):
+            if self._has_multiple_windows(hours):
+                return 'Day/Night modes require a single contiguous block.'
+            if hours:
+                center = self._circular_center(hours)
+                d_noon = self._circular_distance(center, 12)
+                d_midnight = self._circular_distance(center, 0)
+                if mode == models.ActivityHours.DAY and d_noon > d_midnight:
+                    return 'Day mode requires the block to be centered closer to noon than midnight.'
+                if mode == models.ActivityHours.NIGHT and d_midnight > d_noon:
+                    return 'Night mode requires the block to be centered closer to midnight than noon.'
+        elif mode == models.ActivityHours.RANDOM:
+            return None
+        else:
+            if self._has_multiple_windows(hours):
+                return 'This mode requires a single contiguous block.'
+        return None
 
     # --- helpers ---
 
