@@ -1,3 +1,5 @@
+import math
+
 from . import models
 from rest_framework import serializers
 from django.core.exceptions import ValidationError
@@ -43,13 +45,25 @@ class GeckoCombinedDataSessionSerializer(serializers.ModelSerializer):
 
 
 
-class GeckoConfigsSerializer(serializers.ModelSerializer): 
+class GeckoConfigsSerializer(serializers.ModelSerializer):
     personality_type_label = serializers.CharField(source='get_personality_type_display', read_only=True)
     memory_type_label = serializers.CharField(source='get_memory_type_display', read_only=True)
     active_hours_type_label = serializers.CharField(source='get_active_hours_type_display', read_only=True)
     story_type_label = serializers.CharField(source='get_story_type_display', read_only=True)
 
+    active_hours = serializers.ListField(
+        child=serializers.IntegerField(min_value=0, max_value=23),
+        max_length=24,
+        allow_empty=True,
+        required=False,
+    )
+    # frontend sends user's current local hour (0-23) per request — no stored tz
+    local_hour = serializers.IntegerField(
+        min_value=0, max_value=23, write_only=True, required=False
+    )
+
     available_choices = serializers.SerializerMethodField()
+    thresholds = serializers.SerializerMethodField()
 
     class Meta:
         model = models.GeckoConfigs
@@ -57,8 +71,11 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
             'personality_type', 'personality_type_label',
             'memory_type', 'memory_type_label',
             'active_hours_type', 'active_hours_type_label',
+            'active_hours',
             'story_type', 'story_type_label',
             'available_choices',
+            'thresholds',
+            'local_hour',
             'created_on', 'updated_on',
         ]
         read_only_fields = ['created_on', 'updated_on']
@@ -70,6 +87,121 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
             'active_hours_types': [{'value': v, 'label': l} for v, l in models.ActivityHours.choices],
             'story_types': [{'value': v, 'label': l} for v, l in models.Story.choices],
         }
+
+    def get_thresholds(self, obj):
+        return {
+            'max_active_hours': obj.max_active_hours,
+        }
+
+    # Default hour sets per mode (all 12 hours, well under the 16 cap).
+    DEFAULT_DAY_HOURS = list(range(6, 18))                         # 6am–5pm, noon-centered
+    DEFAULT_NIGHT_HOURS = [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5]  # 6pm–5am, midnight-centered
+    DEFAULT_RANDOM_HOURS = list(range(0, 24, 2))                   # every other hour, evenly spread
+
+    def validate(self, attrs):
+        mode = attrs.get(
+            'active_hours_type',
+            getattr(self.instance, 'active_hours_type', None),
+        )
+        hours = attrs.get('active_hours')
+
+        # local_hour: prefer payload, then view context, then server time
+        local_hour = attrs.get('local_hour')
+        if local_hour is None:
+            local_hour = self.context.get('local_hour')
+        if local_hour is None:
+            local_hour = timezone.now().hour
+
+        max_hours = getattr(self.instance, 'max_active_hours', None) \
+            or models.GeckoConfigs._meta.get_field('max_active_hours').default
+
+        # Apply defaults when hours weren't sent AND either this is a create
+        # or the mode is changing to a new value.
+        if hours is None:
+            mode_changed = (
+                self.instance is not None
+                and 'active_hours_type' in attrs
+                and attrs['active_hours_type'] != self.instance.active_hours_type
+            )
+            if self.instance is None or mode_changed:
+                if mode == models.ActivityHours.DAY:
+                    hours = list(self.DEFAULT_DAY_HOURS)
+                elif mode == models.ActivityHours.NIGHT:
+                    hours = list(self.DEFAULT_NIGHT_HOURS)
+                elif mode == models.ActivityHours.RANDOM:
+                    hours = list(self.DEFAULT_RANDOM_HOURS)
+                if hours is not None:
+                    attrs['active_hours'] = hours
+
+        if hours is not None:
+            if len(hours) != len(set(hours)):
+                raise serializers.ValidationError(
+                    {'active_hours': 'Hours must be unique.'}
+                )
+            if len(hours) > max_hours:
+                raise serializers.ValidationError(
+                    {'active_hours': f'Cannot exceed {max_hours} active hours.'}
+                )
+
+            if mode in (models.ActivityHours.DAY, models.ActivityHours.NIGHT):
+                if self._has_multiple_windows(hours):
+                    raise serializers.ValidationError(
+                        {'active_hours': 'Day/Night modes require a single contiguous block.'}
+                    )
+                if hours:
+                    center = self._circular_center(hours)
+                    d_noon = self._circular_distance(center, 12)
+                    d_midnight = self._circular_distance(center, 0)
+                    if mode == models.ActivityHours.DAY and d_noon > d_midnight:
+                        raise serializers.ValidationError(
+                            {'active_hours': 'Day mode requires the block to be centered closer to noon than midnight.'}
+                        )
+                    if mode == models.ActivityHours.NIGHT and d_midnight > d_noon:
+                        raise serializers.ValidationError(
+                            {'active_hours': 'Night mode requires the block to be centered closer to midnight than noon.'}
+                        )
+            elif mode == models.ActivityHours.RANDOM:
+                pass  # any hours, multiple blocks allowed — only the max cap applies
+            else:
+                if self._has_multiple_windows(hours):
+                    raise serializers.ValidationError(
+                        {'active_hours': 'This mode requires a single contiguous block.'}
+                    )
+
+            attrs['active_hours'] = sorted(set(hours))
+
+        attrs.pop('local_hour', None)
+        return attrs
+
+    # --- helpers ---
+
+    @staticmethod
+    def _circular_center(hours):
+        """Circular mean of hours on a 24-hour clock (float in [0, 24))."""
+        angles = [h * (2 * math.pi / 24) for h in hours]
+        mean_sin = sum(math.sin(a) for a in angles) / len(angles)
+        mean_cos = sum(math.cos(a) for a in angles) / len(angles)
+        mean_angle = math.atan2(mean_sin, mean_cos)
+        if mean_angle < 0:
+            mean_angle += 2 * math.pi
+        return mean_angle * 24 / (2 * math.pi)
+
+    @staticmethod
+    def _circular_distance(a, b):
+        """Shortest distance between two points on a 24-hour clock."""
+        d = abs(a - b) % 24
+        return min(d, 24 - d)
+
+    @staticmethod
+    def _has_multiple_windows(hours):
+        if len(hours) <= 1:
+            return False
+        s = sorted(hours)
+        gaps = sum(
+            1 for i in range(len(s))
+            if (s[(i + 1) % len(s)] - s[i]) % 24 != 1
+        )
+        return gaps > 1
 
 class UserCategorySerializer(serializers.ModelSerializer):
     thought_capsules = serializers.PrimaryKeyRelatedField(many=True, read_only=True)

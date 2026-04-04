@@ -2182,7 +2182,9 @@ def groq_chat(request):
         )
     
 
+# need view for helloes/need to load gecko with (at least recent) past helloes info
 
+# ids that Gecko has read get passed in here, for some summary data
 class GeckoReadMomentsOnly(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
 

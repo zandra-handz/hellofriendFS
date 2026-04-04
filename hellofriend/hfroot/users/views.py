@@ -352,6 +352,22 @@ class GeckoConfigsView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         obj, created = models.GeckoConfigs.objects.get_or_create(user=self.request.user)
         return obj
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        local_hour_str = self.request.query_params.get("local_hour")
+        local_hour = None
+        if local_hour_str is not None:
+            try:
+                parsed = int(local_hour_str)
+                if 0 <= parsed <= 23:
+                    local_hour = parsed
+            except (TypeError, ValueError):
+                local_hour = None
+        if local_hour is None:
+            local_hour = timezone.now().hour
+        context["local_hour"] = local_hour
+        return context
     
 
 @api_view(['GET'])

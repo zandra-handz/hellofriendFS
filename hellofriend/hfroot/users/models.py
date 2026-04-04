@@ -1,7 +1,8 @@
 
 from django.apps import apps
 from django.core.exceptions import ValidationError
-
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
+# from django.contrib.postgres.fields import ArrayField
 from django.db import models
 # import friends.models could cause circular import because this file imports users. using 'friends.ThoughtCapsulez' and 'friends.Image' below instead
 
@@ -419,15 +420,36 @@ class Story(models.IntegerChoices):
     NOMMER = 2, "Nommer",
     ESCAPER = 3, "Escaper"
 
+
+
+class ActiveHours(models.Model):
+    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='activehours')
     
+
 
     
 class GeckoConfigs(models.Model):
     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='geckoconfigs')
+    
+    
+    
     personality_type = models.IntegerField(choices=Personality.choices, default=Personality.CURIOUS)
     memory_type = models.IntegerField(choices=Memory.choices, default=Memory.AMNESIAC)
     active_hours_type = models.IntegerField(choices=ActivityHours.choices, default=ActivityHours.DAY)
     story_type = models.IntegerField(choices=Story.choices, default=Story.LEARNER)
+
+
+    # I would prefer this. it only works with postgres so won't work in local
+    # active_hours = ArrayField(
+    #     models.SmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(23)]),
+    #     size=24,
+    #     default=list,
+    #     blank=True,
+    #     )
+
+    max_active_hours = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)], default=(16))
+
+    active_hours = models.JSONField(default=list, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
