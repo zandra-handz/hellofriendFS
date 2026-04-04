@@ -93,10 +93,8 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
             'max_active_hours': obj.max_active_hours,
         }
 
-    # Default hour sets per mode (all 12 hours, well under the 16 cap).
-    DEFAULT_DAY_HOURS = list(range(6, 18))                         # 6am–5pm, noon-centered
-    DEFAULT_NIGHT_HOURS = [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5]  # 6pm–5am, midnight-centered
-    DEFAULT_RANDOM_HOURS = list(range(0, 24, 2))                   # every other hour, evenly spread
+    # Defaults are computed dynamically from max_active_hours so they always
+    # fill the cap (see _defaults_for_mode).
 
     def validate(self, attrs):
         mode = attrs.get(
@@ -125,7 +123,7 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
             hours = attrs['active_hours']
         elif self.instance is None:
             # create without hours — use defaults for mode
-            hours = self._defaults_for_mode(mode)
+            hours = self._defaults_for_mode(mode, max_hours)
         elif mode_changed:
             # mode is changing without new hours — try existing hours first,
             # fall back to defaults if they conflict with the new mode
@@ -133,7 +131,7 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
             if existing and self._hours_error(existing, mode, max_hours) is None:
                 hours = existing
             else:
-                hours = self._defaults_for_mode(mode)
+                hours = self._defaults_for_mode(mode, max_hours)
         else:
             # nothing to do for active_hours
             hours = None
@@ -147,13 +145,23 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
         attrs.pop('local_hour', None)
         return attrs
 
-    def _defaults_for_mode(self, mode):
+    def _defaults_for_mode(self, mode, max_hours):
+        """Build default hour list sized to max_hours, centered appropriately."""
+        n = min(max(int(max_hours), 0), 24)
         if mode == models.ActivityHours.DAY:
-            return list(self.DEFAULT_DAY_HOURS)
+            # contiguous block of n hours centered on noon (12)
+            start = 12 - n // 2
+            return [(start + i) % 24 for i in range(n)]
         if mode == models.ActivityHours.NIGHT:
-            return list(self.DEFAULT_NIGHT_HOURS)
+            # contiguous block of n hours centered on midnight (0)
+            start = (0 - n // 2) % 24
+            return [(start + i) % 24 for i in range(n)]
         if mode == models.ActivityHours.RANDOM:
-            return list(self.DEFAULT_RANDOM_HOURS)
+            # n hours spread as evenly as possible across 24
+            if n == 0:
+                return []
+            step = 24 / n
+            return sorted({int(round(i * step)) % 24 for i in range(n)})
         return []
 
     def _hours_error(self, hours, mode, max_hours):
