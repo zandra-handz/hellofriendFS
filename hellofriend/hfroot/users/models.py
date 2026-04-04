@@ -421,9 +421,7 @@ class Story(models.IntegerChoices):
     ESCAPER = 3, "Escaper"
 
 
-
-class ActiveHours(models.Model):
-    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='activehours')
+ 
     
 
 
@@ -493,13 +491,55 @@ class GeckoConfigs(models.Model):
         return [(start + i) % 24 for i in range(n)]
 
     def save(self, *args, **kwargs):
-        if self.pk is None and not self.active_hours:
+        is_create = self.pk is None
+
+        if is_create and not self.active_hours:
             self.active_hours = self.build_default_active_hours()
+
+        old_active_hours_type = None
+        old_max_active_hours = None
+        old_active_hours = None
+
+        if not is_create:
+            old = GeckoConfigs.objects.get(pk=self.pk)
+            old_active_hours_type = old.active_hours_type
+            old_max_active_hours = old.max_active_hours
+            old_active_hours = old.active_hours
+
+        super().save(*args, **kwargs)
 
 
         
+class GeckoSleepChangeLog(models.Model):
+    user = models.ForeignKey(
+        'users.BadRainbowzUser',
+        on_delete=models.CASCADE,
+        related_name='gecko_sleep_change_logs',
+    )
 
+    active_hours_type = models.IntegerField(
+        choices=ActivityHours.choices,
+        default=ActivityHours.DAY,
+    )
 
+    max_active_hours = models.SmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(20)],
+        default=16,
+    )
+
+    active_hours = models.JSONField(default=list, blank=True)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_on']
+        indexes = [
+            models.Index(fields=['user', 'created_on']),
+        ]
+
+    def __str__(self):
+        return f"Sleep change for {self.user.username} on {self.created_on}"
+    
 class GeckoCombinedData(models.Model):
     user = models.OneToOneField('users.BadRainbowzUser', on_delete=models.CASCADE)
     
