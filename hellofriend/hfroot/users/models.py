@@ -455,6 +455,49 @@ class GeckoConfigs(models.Model):
 
     def __str__(self):
         return f"Gecko configuration for {self.user.username}"
+    
+    
+    def build_default_active_hours(self):
+        n = min(max(int(self.max_active_hours), 1), 24)
+
+        if self.active_hours_type == ActivityHours.DAY:
+            start = 12 - (n // 2)
+            return [(start + i) % 24 for i in range(n)]
+
+        if self.active_hours_type == ActivityHours.NIGHT:
+            start = (0 - (n // 2)) % 24
+            return [(start + i) % 24 for i in range(n)]
+
+        if self.active_hours_type == ActivityHours.RANDOM:
+            step = 24 / n
+            hours = []
+            seen = set()
+
+            for i in range(n):
+                hour = int(round(i * step)) % 24
+                if hour not in seen:
+                    seen.add(hour)
+                    hours.append(hour)
+
+            if len(hours) < n:
+                for hour in range(24):
+                    if hour not in seen:
+                        seen.add(hour)
+                        hours.append(hour)
+                    if len(hours) == n:
+                        break
+
+            return hours
+
+        start = 12 - (n // 2)
+        return [(start + i) % 24 for i in range(n)]
+
+    def save(self, *args, **kwargs):
+        if self.pk is None and not self.active_hours:
+            self.active_hours = self.build_default_active_hours()
+
+
+        
 
 
 class GeckoCombinedData(models.Model):

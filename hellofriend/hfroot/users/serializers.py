@@ -140,7 +140,7 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
             error = self._hours_error(hours, mode, max_hours)
             if error:
                 raise serializers.ValidationError({'active_hours': error})
-            # attrs['active_hours'] = sorted(set(hours))
+            # attrs['active_hours'] = sorted(set(hours)) CLAUDE GAVE ME THE GIFT OF A BUG BYEEE
             attrs['active_hours'] = list(dict.fromkeys(hours))
 
         attrs.pop('local_hour', None)
