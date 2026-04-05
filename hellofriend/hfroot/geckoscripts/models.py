@@ -64,6 +64,25 @@ class WelcomeScriptLedger(models.Model):
         return f"{self.user} — {self.script.label if self.script else 'deleted'} @ {self.shown_at}"
 
 
+class ScoreRule(models.Model):
+    code = models.CharField(max_length=64)
+    label = models.CharField(max_length=128, blank=True)
+    points = models.IntegerField(default=0)
+    version = models.PositiveIntegerField(default=1)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['code', 'version']
+        constraints = [
+            models.UniqueConstraint(fields=['code', 'version'], name='unique_scorerule_code_version'),
+        ]
+
+    def __str__(self):
+        return f"{self.code}: {self.points}"
+
+
 
 
 

@@ -1,0 +1,2 @@
+python manage.py create_score_rule --code GECKO_READ_ALL_NOTES --label "Gecko read all notes" --points 1
+python manage.py create_score_rule --code CATEGORY_MATCHES_PREVIOUS --label "Category matches previous" --points 2

@@ -43,6 +43,11 @@ class GeckoCombinedDataSessionSerializer(serializers.ModelSerializer):
         model = models.GeckoCombinedSession
         fields = ['id', 'friend', 'started_on', 'ended_on', 'steps', 'distance']
 
+class GeckoScoreStateSerializer(serializers.ModelSerializer):
+
+    class Meta():
+        model = models.GeckoScoreState
+        fields = ['user', 'base_multiplier', 'multiplier', 'expires_at', 'updated_on']
 
 
 class GeckoConfigsSerializer(serializers.ModelSerializer):

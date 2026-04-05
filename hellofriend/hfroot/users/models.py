@@ -459,6 +459,7 @@ class GeckoConfigs(models.Model):
 
     max_active_hours = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)], default=(16))
     max_score_multiplier = models.PositiveIntegerField(default=3)
+    max_streak_length_seconds = models.PositiveIntegerField(default=60)
 
     active_hours = models.JSONField(default=list, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)

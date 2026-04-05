@@ -17,15 +17,11 @@ class MediumPagination(PageNumberPagination):
     page_size = 30
 
 
-@api_view(['GET'])
-@permission_classes([IsAuthenticated])
-def get_welcome_scripts(request):
-    user = request.user
-
+def _build_welcome_scripts_for_user(user):
     try:
         config = users.models.GeckoConfigs.objects.get(user=user)
     except users.models.GeckoConfigs.DoesNotExist:
-        return Response([], status=status.HTTP_200_OK)
+        return []
 
     personality = config.personality_type
     memory = config.memory_type
@@ -68,7 +64,27 @@ def get_welcome_scripts(request):
     for script in serialized:
         script['body'] = script['body'].format_map({'user_name': user_name})
 
-    return Response(serialized, status=status.HTTP_200_OK)
+    return serialized
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_welcome_scripts(request):
+    return Response(_build_welcome_scripts_for_user(request.user), status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def load_gecko_game_static(request):
+    welcome_scripts = _build_welcome_scripts_for_user(request.user)
+    score_rules = serializers.ScoreRuleSerializer(
+        models.ScoreRule.objects.filter(version=1),
+        many=True,
+    ).data
+    return Response(
+        {'welcome_scripts': welcome_scripts, 'score_rules': score_rules},
+        status=status.HTTP_200_OK,
+    )
 
 
 # NOTE: This endpoint is called by the front end only, in the background.

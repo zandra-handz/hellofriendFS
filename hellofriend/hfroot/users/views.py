@@ -344,7 +344,63 @@ class GeckoCombinedDataSessionsTimeRange(generics.ListAPIView):
         return response.Response({'results': serializer.data, 'totals': totals})
 
 
+class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
+    serializer_class = serializers.GeckoScoreStateSerializer
+    permission_classes = [IsAuthenticated]
 
+    def get_object(self):
+        obj, _ = models.GeckoScoreState.objects.get_or_create(user=self.request.user)
+        return obj
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        # If a streak is currently active, lock updates and return current state
+        if instance.expires_at and instance.expires_at > timezone.now():
+            serializer = self.get_serializer(instance)
+            return response.Response(serializer.data)
+
+        # Pull caps from GeckoConfigs
+        config = models.GeckoConfigs.objects.filter(user=request.user).only(
+            'max_score_multiplier', 'max_streak_length_seconds'
+        ).first()
+        max_multiplier = config.max_score_multiplier if config else 1
+        max_streak_seconds = config.max_streak_length_seconds if config else 60
+
+        data = request.data.copy() if hasattr(request.data, 'copy') else dict(request.data)
+        if 'multiplier' in data:
+            try:
+                requested = int(data['multiplier'])
+            except (TypeError, ValueError):
+                return response.Response(
+                    {'multiplier': 'Must be an integer.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if requested > max_multiplier:
+                data['multiplier'] = max_multiplier
+
+        # Determine expires_at from passed-in expiration_length (seconds),
+        # capped at max_streak_length_seconds. Fall back to max if missing/invalid.
+        requested_length = data.pop('expiration_length', None)
+        length_seconds = max_streak_seconds
+        if requested_length is not None:
+            try:
+                parsed = int(requested_length)
+                if 0 < parsed <= max_streak_seconds:
+                    length_seconds = parsed
+            except (TypeError, ValueError):
+                pass
+        data['expires_at'] = timezone.now() + datetime.timedelta(seconds=length_seconds)
+
+        serializer = self.get_serializer(
+            instance, data=data, partial=kwargs.pop('partial', False)
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return response.Response(serializer.data)
+
+
+ 
 class GeckoConfigsView(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.GeckoConfigsSerializer
     permission_classes = [IsAuthenticated]

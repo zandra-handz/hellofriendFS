@@ -10,12 +10,26 @@ class WelcomeSerializer(serializers.ModelSerializer):
         model = models.Welcome
         fields = '__all__'
         read_only_fields = [
-            'id',
-            'user',
+            'id', 
             'created_on',
 
         ]
 
+
+class ScoreRuleSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = models.ScoreRule
+        fields = '__all__'
+        read_only_fields = [
+            'id',
+            'code',
+            'label',
+            'points',
+            'version',
+            'created_on',
+            'updated_on',
+        ]
 
 class WelcomeScriptLedgerSerializer(serializers.ModelSerializer):
     class Meta:
