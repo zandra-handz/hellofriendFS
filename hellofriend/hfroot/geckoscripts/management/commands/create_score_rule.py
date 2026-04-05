@@ -15,7 +15,7 @@ class Command(BaseCommand):
         parser.add_argument('--code', type=int, required=True, help='Integer code (unique per version, sent by front end)')
         parser.add_argument('--label', default='', help='Human-readable label')
         parser.add_argument('--points', type=int, required=True, help='Points awarded for this code')
-        parser.add_argument('--version', type=int, default=1, help='Rule version (default: 1)')
+        parser.add_argument('--rule-version', type=int, default=1, help='Rule version (default: 1)')
 
     def handle(self, *args, **options):
         try:
@@ -23,11 +23,11 @@ class Command(BaseCommand):
                 code=options['code'],
                 label=options['label'],
                 points=options['points'],
-                version=options['version'],
+                version=options['rule_version'],
             )
         except IntegrityError:
             raise CommandError(
-                f"ScoreRule with code='{options['code']}' and version={options['version']} already exists."
+                f"ScoreRule with code='{options['code']}' and version={options['rule_version']} already exists."
             )
 
         self.stdout.write(self.style.SUCCESS(
