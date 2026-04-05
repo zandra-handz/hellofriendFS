@@ -47,7 +47,8 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
 
     class Meta():
         model = models.GeckoScoreState
-        fields = ['user', 'base_multiplier', 'multiplier', 'expires_at', 'updated_on']
+        fields = ['user', 'multiplier', 'expires_at', 'updated_on']
+        read_only_fields = ['base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at']
 
 
 class GeckoConfigsSerializer(serializers.ModelSerializer):
@@ -83,7 +84,7 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
             'local_hour',
             'created_on', 'updated_on',
         ]
-        read_only_fields = ['created_on', 'updated_on']
+        read_only_fields = ['created_on', 'stamina', 'updated_on']
 
     def get_available_choices(self, obj):
         return {

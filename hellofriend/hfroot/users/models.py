@@ -428,6 +428,13 @@ class GeckoScoreState(models.Model):
     multiplier = models.PositiveIntegerField(default=1)
 
     expires_at = models.DateTimeField(default=timezone.now)
+
+
+    energy = models.FloatField(default=1.0)
+    surplus_energy = models.FloatField(default=0.0)
+    energy_updated_at = models.DateTimeField(default=timezone.now)
+
+
     
 
     created_on = models.DateTimeField(auto_now_add=True)
@@ -448,6 +455,9 @@ class GeckoConfigs(models.Model):
     active_hours_type = models.IntegerField(choices=ActivityHours.choices, default=ActivityHours.DAY)
     story_type = models.IntegerField(choices=Story.choices, default=Story.LEARNER)
 
+    stamina = models.FloatField(default=1.0)  # 0.5 = low stamina, 1.0 = normal, 2.0 = high
+
+
 
     # I would prefer this. it only works with postgres so won't work in local
     # active_hours = ArrayField(
@@ -459,7 +469,7 @@ class GeckoConfigs(models.Model):
 
     max_active_hours = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)], default=(16))
     max_score_multiplier = models.PositiveIntegerField(default=3)
-    max_streak_length_seconds = models.PositiveIntegerField(default=60)
+    max_streak_length_seconds = models.PositiveIntegerField(default=10)
 
     active_hours = models.JSONField(default=list, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
@@ -643,6 +653,7 @@ class GeckoCombinedSession(models.Model):
         indexes = [
             models.Index(fields=['user']),
             models.Index(fields=['user', 'started_on']),
+            models.Index(fields=['user', 'ended_on']),
         ]
 
     @property
