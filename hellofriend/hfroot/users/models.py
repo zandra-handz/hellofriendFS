@@ -558,14 +558,35 @@ class GeckoCombinedData(models.Model):
 class GeckoPointsLedger(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='gecko_points_ledger')
     friend = models.ForeignKey('friends.Friend', on_delete=models.SET_NULL, null=True, blank=True)
+    friend_session = models.ForeignKey(
+        'friends.GeckoDataSession',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='points_ledger_entries'
+    )
+    combined_session = models.ForeignKey(
+        'users.GeckoCombinedSession',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='points_ledger_entries'
+    )
+    
     amount = models.IntegerField()
     reason = models.CharField(max_length=100, blank=True)
 
+
+    timestamp_earned = models.DateTimeField(default=timezone.now)
+
     updated_on = models.DateTimeField(auto_now=True)
     created_on = models.DateTimeField(auto_now_add=True)
-
+ 
     class Meta:
         ordering = ['-created_on']
+
+
+    
 
     def __str__(self):
         return f"{self.user.username} + {self.amount})"

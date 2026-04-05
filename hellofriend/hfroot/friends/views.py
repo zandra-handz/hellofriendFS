@@ -307,16 +307,7 @@ def update_gecko_data(request, friend_id):
                 combined_data_update['total_gecko_points'] = F('total_gecko_points') + total_points
             users.models.GeckoCombinedData.objects.filter(user=user).update(**combined_data_update)
 
-            if points_earned_list:
-                users.models.GeckoPointsLedger.objects.bulk_create([
-                    users.models.GeckoPointsLedger(
-                        user=user,
-                        friend_id=friend_id,
-                        amount=e['amount'],
-                        reason=e.get('reason', ''),
-                    )
-                    for e in points_earned_list
-                ])
+
 
             if new_started_on and new_ended_on:
                 existing_combined_session = users.models.GeckoCombinedSession.objects.filter(
@@ -366,6 +357,20 @@ def update_gecko_data(request, friend_id):
                         distance=delta_distance,
                         points_earned=total_points,
                     )
+
+            if points_earned_list:
+                users.models.GeckoPointsLedger.objects.bulk_create([
+                    users.models.GeckoPointsLedger(
+                        user=user,
+                        friend_id=friend_id,
+                        friend_session=existing_friend_session,
+                        combined_session=existing_combined_session,
+                        amount=e.get('amount', 0),
+                        reason=e.get('reason', ''),
+                        **({"timestamp_earned": e.get("timestamp_earned")} if e.get("timestamp_earned") else {}),
+                    )
+                    for e in points_earned_list
+                ])
 
     except Exception as e:
         return response.Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
