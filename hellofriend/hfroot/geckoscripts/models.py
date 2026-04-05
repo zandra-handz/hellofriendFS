@@ -65,7 +65,7 @@ class WelcomeScriptLedger(models.Model):
 
 
 class ScoreRule(models.Model):
-    code = models.CharField(max_length=64)
+    code = models.PositiveIntegerField()
     label = models.CharField(max_length=128, blank=True)
     points = models.IntegerField(default=0)
     version = models.PositiveIntegerField(default=1)

@@ -12,7 +12,7 @@ class Command(BaseCommand):
     help = 'Create a ScoreRule'
 
     def add_arguments(self, parser):
-        parser.add_argument('--code', required=True, help='Unique code per version (sent by front end)')
+        parser.add_argument('--code', type=int, required=True, help='Integer code (unique per version, sent by front end)')
         parser.add_argument('--label', default='', help='Human-readable label')
         parser.add_argument('--points', type=int, required=True, help='Points awarded for this code')
         parser.add_argument('--version', type=int, default=1, help='Rule version (default: 1)')

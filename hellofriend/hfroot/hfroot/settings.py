@@ -20,9 +20,6 @@ import sys
 
 load_dotenv()
 
-
-# sudo chmod 600 /etc/systemd/system/gunicorn.service
-# ls -l /etc/systemd/system/gunicorn.service
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -30,13 +27,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
-
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = 'django-insecure-gr+auwn5!uveh)9_r63#3s$+9t+$(1acz0vi=6of!4(vqgx8+q'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-# ALLOWED_HOSTS = ['*']
-ALLOWED_HOSTS = ['badrainbowz.com', 'www.badrainbowz.com']
+ALLOWED_HOSTS = ['*']
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -48,24 +45,21 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer'
     ],
-    'DEFAULT_PERMISSION_CLASSES': [
+#     'DEFAULT_PARSER_CLASSES': [
+#     'rest_framework.parsers.JSONParser',
+# ]   ,
+    'DEFAULT_PERMISSIONS_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-    ],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '5/minute',
-    },
 }
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": datetime.timedelta(hours=1),
-    #"ACCESS_TOKEN_LIFETIME": datetime.timedelta(minutes=1),
-    
     "REFRESH_TOKEN_LIFETIME": datetime.timedelta(days=14),
 }
 
+
+ 
 
 # Application definition
 
@@ -76,18 +70,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # 'django.contrib.postgres', 
     'friends',
     'users',
     'geckoscripts',
     'rest_framework',
     'storages',
     'corsheaders',
-    # 'silk'
+    'silk'
 ]
-
-if DEBUG:
-    INSTALLED_APPS += ['silk']
 
 AUTH_USER_MODEL = 'users.BadRainbowzUser' 
 
@@ -106,11 +96,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
-    # 'silk.middleware.SilkyMiddleware',
+    'silk.middleware.SilkyMiddleware',
 ]
-
-if DEBUG:
-    MIDDLEWARE += ['silk.middleware.SilkyMiddleware']
 
 ROOT_URLCONF = 'hfroot.urls'
 
@@ -136,7 +123,7 @@ WSGI_APPLICATION = 'hfroot.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-''' 
+
 
 DATABASES = {
     'default': {
@@ -146,6 +133,7 @@ DATABASES = {
 }
  
 
+'''
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -173,24 +161,16 @@ DATABASES = {
     }
 }
   
-'''
 
-# to run in local/test, just switch to sqlite above (or copy-paste localsettings.py temporarily), already has admin and 2 friends
+
+# to run in local/test, just switch to sqlite above, already has admin and 2 friends
 # cd hellofriend, venv\Scripts\Activate, cd hfroot, run server
 # after changes, run makemigration and migrate
 # cd.. to hellofriendFs, push changes and migration file to git
 # in digital ocean server, go to top level (hellofriendFS) and git pull origin main
-# cd to hellofriend, source venv/bin/activate, cd to hfroot and run migrate (and collectstatic?)
+# cd to hellofriend, activate env, cd to hfroot and run migrate (and collectstatic?)
 # then restart gunicorn and nginx and verify status (don't need to restart socket)
 # (sudo systemctl restart nginx, sudo systemctl restart gunicorn  )
-
-
-
-# other:
-# nginx config on digital ocean: sudo nano /etc/nginx/sites-available/badrainbowz.com
-# verify nginx changes are okay: sudo nginx -t
-# To set env variables on backend/edit: nano ~/.bashrc, arrow down to bottom, export etc. CTRL + O, ENTER to save, CTRL x to exit
-#     then source ~/.bashrc to reload
 DATABASES = {
     'default': {
         "ENGINE": 'django.db.backends.postgresql',
@@ -202,6 +182,7 @@ DATABASES = {
     }
 } 
    
+'''
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
@@ -251,13 +232,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # Typically would just allow a specific origin; change later to make more secure
-# CORS_ALLOW_ALL_ORIGINS = True
-# CORS_ALLOW_CREDENTIALS = True
-
-
-# No web client currently — to add one, replace with CORS_ALLOWED_ORIGINS = ['https://yourdomain.com']
-CORS_ALLOW_ALL_ORIGINS = False
-CORS_ALLOWED_ORIGINS = []
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 
 
@@ -279,36 +255,48 @@ AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME')  # or the region where your
 # If you have a specific endpoint for your space
 AWS_S3_ENDPOINT_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com'
 
-STORAGES = {
-    # Media files
-    "default": {
-        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-        "OPTIONS": {
-            "access_key": AWS_ACCESS_KEY_ID,
-            "secret_key": AWS_SECRET_ACCESS_KEY,
-            "bucket_name": AWS_STORAGE_BUCKET_NAME,
-            "region_name": AWS_S3_REGION_NAME,
-            "endpoint_url": AWS_S3_ENDPOINT_URL,
-            "file_overwrite": False,
-            "default_acl": 'public-read',
-            "verify": True,
-        },
-    },
-    # Static files
-    "staticfiles": {
-        "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
-        "OPTIONS": {
-            "access_key": AWS_ACCESS_KEY_ID,
-            "secret_key": AWS_SECRET_ACCESS_KEY,
-            "bucket_name": AWS_STORAGE_BUCKET_NAME,
-            "region_name": AWS_S3_REGION_NAME,
-            "endpoint_url": AWS_S3_ENDPOINT_URL,
-            "default_acl": 'public-read',
-            "verify": True,
-           # "location": "static",  # optional folder prefix in your bucket
-        },
-    },
-}
+
+
+    # Local dev → just use filesystem
+DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+STATIC_URL = "/static/"
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+
+# STORAGES = {
+#     # Media files
+#     "default": {
+#         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
+#         "OPTIONS": {
+#             "access_key": AWS_ACCESS_KEY_ID,
+#             "secret_key": AWS_SECRET_ACCESS_KEY,
+#             "bucket_name": AWS_STORAGE_BUCKET_NAME,
+#             "region_name": AWS_S3_REGION_NAME,
+#             "endpoint_url": AWS_S3_ENDPOINT_URL,
+#             "file_overwrite": False,
+#             "default_acl": 'public-read',
+#             "verify": True,
+#         },
+#     },
+#     # Static files
+#     "staticfiles": {
+#         "BACKEND": "storages.backends.s3boto3.S3StaticStorage",
+#         "OPTIONS": {
+#             "access_key": AWS_ACCESS_KEY_ID,
+#             "secret_key": AWS_SECRET_ACCESS_KEY,
+#             "bucket_name": AWS_STORAGE_BUCKET_NAME,
+#             "region_name": AWS_S3_REGION_NAME,
+#             "endpoint_url": AWS_S3_ENDPOINT_URL,
+#             "default_acl": 'public-read',
+#             "verify": True,
+#            # "location": "static",  # optional folder prefix in your bucket
+#         },
+#     },
+# }
 
 # Media URL configuration
 MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/'
@@ -323,26 +311,14 @@ MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.digitalo
 STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloceanspaces.com/'
 
 
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.gmail.com'
-# EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = 'climatetwin@gmail.com'
-# EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-# DEFAULT_FROM_EMAIL = 'climatetwin@gmail.com'
-
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST = 'smtp.resend.com'
-# EMAIL_PORT = 587
-# EMAIL_USE_TLS = True
-# EMAIL_HOST_USER = 'resend'  # literally 'resend'
-# EMAIL_HOST_PASSWORD = os.getenv('RESEND_API_KEY')
-# DEFAULT_FROM_EMAIL = 'onboarding@resend.dev' 
-
-# ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
-# ACCOUNT_AUTHENTICATION_METHOD = 'email'
-# ACCOUNT_EMAIL_REQUIRED = True
-# ACCOUNT_UNIQUE_EMAIL = True
-
-RESEND_API_KEY = os.getenv('RESEND_API_KEY')
-GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'climatetwin@gmail.com'
+EMAIL_HOST_PASSWORD = 'kufx lamo jwem wkno'
+DEFAULT_FROM_EMAIL = 'climatetwin@gmail.com'
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_UNIQUE_EMAIL = True
