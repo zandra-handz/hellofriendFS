@@ -163,6 +163,7 @@ class BadRainbowzUser(AbstractUser):
                 UserProfile.objects.create(user=self)
                 UserSettings.objects.create(user=self)
                 GeckoConfigs.objects.create(user=self)
+                GeckoScoreState.objects.create(user=self)
                 GeckoCombinedData.objects.create(user=self) 
                 UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
                 
@@ -421,7 +422,18 @@ class Story(models.IntegerChoices):
     ESCAPER = 3, "Escaper"
 
 
- 
+class GeckoScoreState(models.Model):
+    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='geckoscorestate')
+    base_multiplier = models.PositiveIntegerField(default=1)
+    multiplier = models.PositiveIntegerField(default=1)
+
+    expires_at = models.DateTimeField(default=timezone.now)
+    
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+    
+
     
 
 
@@ -446,6 +458,7 @@ class GeckoConfigs(models.Model):
     #     )
 
     max_active_hours = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)], default=(16))
+    max_score_multiplier = models.PositiveIntegerField(default=3)
 
     active_hours = models.JSONField(default=list, blank=True)
     created_on = models.DateTimeField(auto_now_add=True)
