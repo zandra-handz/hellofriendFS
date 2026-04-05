@@ -2,6 +2,7 @@ import datetime
 from . import models
 import users.models
 import users.serializers
+import geckoscripts.models
 from . import serializers
 
 
@@ -277,7 +278,52 @@ def update_gecko_data(request, friend_id):
     points_earned_list = request.data.get('points_earned')
     if not isinstance(points_earned_list, list):
         points_earned_list = []
-    total_points = sum((e.get('amount') or 0) if isinstance(e, dict) else 0 for e in points_earned_list)
+
+    # Resolve FE-provided {code, label, timestamp_earned} entries against
+    # ScoreRule (version=1). If a code is unknown, or the label doesn't match
+    # the server-side rule, the entry is dropped — no points are saved for it.
+    #
+    # Multiplier per entry is decided by that entry's timestamp: if it falls
+    # before score_state.expires_at, the active multiplier applies; otherwise
+    # it falls back to base_multiplier (= 1).
+    from django.utils import timezone as _tz
+    rules_by_code = {
+        r.code: r for r in geckoscripts.models.ScoreRule.objects.filter(version=1)
+    }
+    score_state = users.models.GeckoScoreState.objects.filter(user=user).first()
+    active_multiplier = score_state.multiplier if score_state else 1
+    base_multiplier = score_state.base_multiplier if score_state else 1
+    streak_expires_at = score_state.expires_at if score_state else None
+
+    resolved_points = []
+    for e in points_earned_list:
+        if not isinstance(e, dict):
+            continue
+        code = e.get('code')
+        label = e.get('label')
+        rule = rules_by_code.get(code)
+        if rule is None or rule.label != label:
+            continue
+
+        ts_raw = e.get('timestamp_earned')
+        ts = parse_datetime(ts_raw) if ts_raw else None
+        if ts is None:
+            ts = _tz.now()
+
+        if streak_expires_at and ts < streak_expires_at:
+            applied_multiplier = active_multiplier
+        else:
+            applied_multiplier = base_multiplier
+
+        resolved_points.append({
+            'amount': rule.points * applied_multiplier,
+            'reason': rule.label,
+            'code': rule.code,
+            'multiplier': applied_multiplier,
+            'timestamp_earned': ts_raw,
+        })
+    points_earned_list = resolved_points
+    total_points = sum(e['amount'] for e in points_earned_list)
 
     delta_duration = 0
     if new_started_on and new_ended_on:
@@ -367,6 +413,8 @@ def update_gecko_data(request, friend_id):
                         combined_session=existing_combined_session,
                         amount=e.get('amount', 0),
                         reason=e.get('reason', ''),
+                        code=e.get('code'),
+                        multiplier=e.get('multiplier', 1),
                         **({"timestamp_earned": e.get("timestamp_earned")} if e.get("timestamp_earned") else {}),
                     )
                     for e in points_earned_list

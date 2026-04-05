@@ -589,7 +589,8 @@ class GeckoPointsLedger(models.Model):
     
     amount = models.IntegerField()
     reason = models.CharField(max_length=100, blank=True)
-
+    code = models.PositiveIntegerField(null=True, blank=True)
+    multiplier = models.PositiveIntegerField(default=1)
 
     timestamp_earned = models.DateTimeField(default=timezone.now)
 
