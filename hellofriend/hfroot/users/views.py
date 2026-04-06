@@ -397,7 +397,10 @@ class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return response.Response(serializer.data)
+        instance.recompute_energy()
+        instance.refresh_from_db()
+        return response.Response(self.get_serializer(instance).data)
+        # return response.Response(serializer.data)
 
 
  

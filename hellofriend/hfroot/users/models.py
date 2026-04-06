@@ -9,6 +9,7 @@ from django.db import models
 # Create your models here.
 from datetime import datetime
 from . import utils
+from . import constants
  
 
 
@@ -439,6 +440,83 @@ class GeckoScoreState(models.Model):
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
+
+    def recompute_energy(self):
+        now = timezone.now()
+        elapsed = (now - self.energy_updated_at).total_seconds()
+        if elapsed <= 0:
+            return
+
+        configs = getattr(self.user, 'geckoconfigs', None)
+        stamina = getattr(configs, 'stamina', 1.0) if configs else 1.0
+        max_active_hours = getattr(configs, 'max_active_hours', 16) if configs else 16
+        full_rest_hours = 24 - max_active_hours
+        recharge_per_second = 1.0 / (full_rest_hours * 3600)
+        streak_recharge_per_second = recharge_per_second * 0.5
+
+        sessions = self.user.geckocombinedsession_set.filter(
+            ended_on__gt=self.energy_updated_at
+        )
+        new_steps = sum(s.steps or 0 for s in sessions)
+        active_seconds = sum(
+            max(0, (s.ended_on - s.started_on).total_seconds())
+            for s in sessions
+            if s.started_on and s.ended_on
+        )
+        rest_seconds = max(0, elapsed - active_seconds)
+
+        streak_is_active = (
+            self.multiplier > self.base_multiplier
+            and self.expires_at > self.energy_updated_at
+        )
+
+        if streak_is_active and active_seconds > 0:
+            streak_end = min(self.expires_at, now)
+            streak_seconds = max(0, (streak_end - self.energy_updated_at).total_seconds())
+            streak_ratio = min(1.0, streak_seconds / elapsed)
+
+            streak_active_seconds = active_seconds * streak_ratio
+            streak_steps = new_steps * (streak_active_seconds / active_seconds)
+            normal_steps = new_steps - streak_steps
+
+            fatigue = (
+                (normal_steps * constants.STEP_FATIGUE_PER_STEP)
+                + (streak_steps * constants.STEP_FATIGUE_PER_STEP * constants.STREAK_FATIGUE_MULTIPLIER)
+            )
+            recharge = (
+                (rest_seconds * recharge_per_second)
+                + (streak_active_seconds * streak_recharge_per_second)
+            )
+        else:
+            fatigue = new_steps * constants.STEP_FATIGUE_PER_STEP
+            recharge = rest_seconds * recharge_per_second
+
+        effective_recharge = recharge * stamina
+        effective_fatigue = fatigue / stamina
+
+        net = effective_recharge - effective_fatigue
+
+        if net >= 0:
+            room_in_main = 1.0 - self.energy
+            if net <= room_in_main:
+                self.energy += net
+            else:
+                self.energy = 1.0
+                self.surplus_energy = min(
+                    constants.SURPLUS_CAP,
+                    self.surplus_energy + (net - room_in_main)
+                )
+        else:
+            drain = -net
+            if self.surplus_energy >= drain:
+                self.surplus_energy -= drain
+            else:
+                drain -= self.surplus_energy
+                self.surplus_energy = 0.0
+                self.energy = max(0.0, self.energy - drain)
+
+        self.energy_updated_at = now
+        self.save(update_fields=["energy", "surplus_energy", "energy_updated_at"])    
     
 
     
@@ -531,6 +609,8 @@ class GeckoConfigs(models.Model):
             old_active_hours = old.active_hours
 
         super().save(*args, **kwargs)
+        self.user.geckoscorestate.recompute_energy()
+
 
 
         
@@ -659,6 +739,10 @@ class GeckoCombinedSession(models.Model):
     @property
     def duration_seconds(self):
         return int((self.ended_on - self.started_on).total_seconds())
+    
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.user.geckoscorestate.recompute_energy()
 
 class PointsLedger(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='points_ledger')

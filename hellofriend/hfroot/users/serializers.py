@@ -5,6 +5,7 @@ from rest_framework import serializers
 from django.core.exceptions import ValidationError
 from django.utils.timezone import now
 from django.utils import timezone
+from . import constants
 
 
 
@@ -44,11 +45,42 @@ class GeckoCombinedDataSessionSerializer(serializers.ModelSerializer):
         fields = ['id', 'friend', 'started_on', 'ended_on', 'steps', 'distance']
 
 class GeckoScoreStateSerializer(serializers.ModelSerializer):
+    recharge_per_second = serializers.SerializerMethodField()
+    streak_recharge_per_second = serializers.SerializerMethodField()
+    step_fatigue_per_step = serializers.SerializerMethodField()
+    streak_fatigue_multiplier = serializers.SerializerMethodField()
+    surplus_cap = serializers.SerializerMethodField()
 
     class Meta():
         model = models.GeckoScoreState
-        fields = ['user', 'multiplier', 'expires_at', 'updated_on']
+        fields = [
+            'user', 'multiplier', 'expires_at', 'updated_on',
+            'base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at',
+            'recharge_per_second', 'streak_recharge_per_second',
+            'step_fatigue_per_step', 'streak_fatigue_multiplier', 'surplus_cap',
+        ]
         read_only_fields = ['base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at']
+
+    def _get_recharge_per_second(self, obj):
+        configs = getattr(obj.user, 'geckoconfigs', None)
+        max_active_hours = getattr(configs, 'max_active_hours', 16) if configs else 16
+        full_rest_hours = 24 - max_active_hours
+        return 1.0 / (full_rest_hours * 3600)
+
+    def get_recharge_per_second(self, obj):
+        return self._get_recharge_per_second(obj)
+
+    def get_streak_recharge_per_second(self, obj):
+        return self._get_recharge_per_second(obj) * 0.5
+
+    def get_step_fatigue_per_step(self, obj):
+        return constants.STEP_FATIGUE_PER_STEP
+
+    def get_streak_fatigue_multiplier(self, obj):
+        return constants.STREAK_FATIGUE_MULTIPLIER
+
+    def get_surplus_cap(self, obj):
+        return constants.SURPLUS_CAP
 
 
 class GeckoConfigsSerializer(serializers.ModelSerializer):
@@ -103,6 +135,21 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
     # fill the cap (see _defaults_for_mode).
 
     def validate(self, attrs):
+        # Block active_hours changes if gecko is not fully rested
+        changing_hours = (
+            'active_hours' in attrs
+            or ('active_hours_type' in attrs and self.instance is not None
+                and attrs['active_hours_type'] != self.instance.active_hours_type)
+        )
+        if changing_hours and self.instance is not None:
+            score_state = getattr(self.instance.user, 'geckoscorestate', None)
+            if score_state:
+                score_state.recompute_energy()
+                if score_state.energy < 1.0:
+                    raise serializers.ValidationError(
+                        {'active_hours': 'Gecko must be fully rested to change active hours.'}
+                    )
+
         mode = attrs.get(
             'active_hours_type',
             getattr(self.instance, 'active_hours_type', None),
