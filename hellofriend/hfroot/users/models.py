@@ -449,6 +449,24 @@ class GeckoScoreState(models.Model):
             return
 
         configs = getattr(self.user, 'geckoconfigs', None)
+        revival_seconds = getattr(configs, 'max_duration_till_revival', 60) if configs else 60
+
+        if self.energy <= 0.0 and self.surplus_energy <= 0.0:
+            if self.revives_at and now >= self.revives_at:
+                self.energy = 0.05
+                self.revives_at = None
+            elif not self.revives_at:
+                self.revives_at = now + timedelta(seconds=revival_seconds)
+            self.energy_updated_at = now
+            self.save(update_fields=["energy", "surplus_energy", "energy_updated_at", "revives_at"])
+            GeckoEnergyLog.objects.create(
+                user=self.user, energy=self.energy,
+                surplus_energy=self.surplus_energy, steps=0,
+                total_steps=getattr(getattr(self.user, 'geckocombineddata', None), 'total_steps', 0),
+                friend=None, recorded_at=now,
+            )
+            return
+
         stamina = getattr(configs, 'stamina', 1.0) if configs else 1.0
         max_active_hours = getattr(configs, 'max_active_hours', 16) if configs else 16
         full_rest_hours = 24 - max_active_hours
@@ -516,13 +534,8 @@ class GeckoScoreState(models.Model):
                 self.surplus_energy = 0.0
                 self.energy = max(0.0, self.energy - drain)
 
-        revival_seconds = getattr(configs, 'max_duration_till_revival', 60) if configs else 60
-
-        if self.energy <= 0.0:
-            if self.revives_at and now >= self.revives_at:
-                self.energy = 0.05
-                self.revives_at = None
-            elif not self.revives_at:
+        if self.energy <= 0.0 and self.surplus_energy <= 0.0:
+            if not self.revives_at:
                 self.revives_at = now + timedelta(seconds=revival_seconds)
         else:
             self.revives_at = None
@@ -531,9 +544,11 @@ class GeckoScoreState(models.Model):
         self.save(update_fields=["energy", "surplus_energy", "energy_updated_at", "revives_at"])
 
         latest_session = sessions.order_by('-ended_on').first()
+        combined_data = getattr(self.user, 'geckocombineddata', None)
         GeckoEnergyLog.objects.create(
             user=self.user, energy=self.energy,
             surplus_energy=self.surplus_energy, steps=new_steps,
+            total_steps=combined_data.total_steps if combined_data else 0,
             friend=latest_session.friend if latest_session else None,
             recorded_at=now,
         )
@@ -549,6 +564,7 @@ class GeckoEnergyLog(models.Model):
     energy = models.FloatField()
     surplus_energy = models.FloatField()
     steps = models.PositiveIntegerField(default=0)
+    total_steps = models.PositiveIntegerField(default=0)
     friend = models.ForeignKey('friends.Friend', on_delete=models.SET_NULL, null=True, blank=True)
     recorded_at = models.DateTimeField()
 

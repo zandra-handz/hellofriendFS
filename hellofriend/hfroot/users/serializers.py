@@ -690,4 +690,4 @@ class BadRainbowzUserAddressSerializer(serializers.ModelSerializer):
 class GeckoEnergyLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.GeckoEnergyLog
-        fields = ['id', 'energy', 'surplus_energy', 'steps', 'friend', 'recorded_at']
+        fields = ['id', 'energy', 'surplus_energy', 'steps', 'total_steps', 'friend', 'recorded_at']
