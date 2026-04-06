@@ -350,6 +350,7 @@ class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         obj, _ = models.GeckoScoreState.objects.get_or_create(user=self.request.user)
+        obj.recompute_energy()
         return obj
 
     def update(self, request, *args, **kwargs):
