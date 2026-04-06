@@ -421,8 +421,8 @@ def dev_reset_energy(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def dev_deplete_energy(request):
-    if not settings.DEBUG:
-        return response.Response(status=status.HTTP_404_NOT_FOUND)
+    if not request.user.is_superuser:
+        return response.Response(status=status.HTTP_403_FORBIDDEN)
     obj, _ = models.GeckoScoreState.objects.get_or_create(user=request.user)
     obj.energy = 0.0
     obj.surplus_energy = 0.0
