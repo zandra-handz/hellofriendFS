@@ -42,4 +42,8 @@ urlpatterns = [
     path('gecko/configs/choices/', views.gecko_config_choices, name='gecko-config-choices'),
     path('gecko/points/all/ledger/', views.GeckoPointsLedgerView.as_view()),
 
+    path('gecko/energy-log/', views.GeckoEnergyLogView.as_view(), name='gecko-energy-log'),
+    path('gecko/dev/reset-energy/', views.dev_reset_energy, name='dev-reset-energy'),
+    path('gecko/dev/deplete-energy/', views.dev_deplete_energy, name='dev-deplete-energy'),
+
 ]

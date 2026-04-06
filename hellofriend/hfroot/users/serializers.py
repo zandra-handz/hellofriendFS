@@ -56,10 +56,11 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
         fields = [
             'user', 'multiplier', 'expires_at', 'updated_on',
             'base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at',
+            'revives_at',
             'recharge_per_second', 'streak_recharge_per_second',
             'step_fatigue_per_step', 'streak_fatigue_multiplier', 'surplus_cap',
         ]
-        read_only_fields = ['base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at']
+        read_only_fields = ['base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at', 'revives_at']
 
     def _get_recharge_per_second(self, obj):
         configs = getattr(obj.user, 'geckoconfigs', None)
@@ -114,6 +115,7 @@ class GeckoConfigsSerializer(serializers.ModelSerializer):
             'available_choices',
             'thresholds',
             'local_hour',
+            'max_duration_till_revival',
             'created_on', 'updated_on',
         ]
         read_only_fields = ['created_on', 'stamina', 'updated_on']
@@ -683,3 +685,9 @@ class BadRainbowzUserAddressSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.BadRainbowzUser
         fields = ['addresses']
+
+
+class GeckoEnergyLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.GeckoEnergyLog
+        fields = ['id', 'energy', 'surplus_energy', 'steps', 'friend', 'recorded_at']

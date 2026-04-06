@@ -7,7 +7,7 @@ from django.db import models
 # import friends.models could cause circular import because this file imports users. using 'friends.ThoughtCapsulez' and 'friends.Image' below instead
 
 # Create your models here.
-from datetime import datetime
+from datetime import datetime, timedelta
 from . import utils
 from . import constants
  
@@ -434,9 +434,10 @@ class GeckoScoreState(models.Model):
     energy = models.FloatField(default=1.0)
     surplus_energy = models.FloatField(default=0.0)
     energy_updated_at = models.DateTimeField(default=timezone.now)
+    revives_at = models.DateTimeField(null=True, blank=True)
 
 
-    
+
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
@@ -515,14 +516,55 @@ class GeckoScoreState(models.Model):
                 self.surplus_energy = 0.0
                 self.energy = max(0.0, self.energy - drain)
 
+        revival_seconds = getattr(configs, 'max_duration_till_revival', 60) if configs else 60
+
+        if self.energy <= 0.0:
+            if self.revives_at and now >= self.revives_at:
+                self.energy = 0.05
+                self.revives_at = None
+            elif not self.revives_at:
+                self.revives_at = now + timedelta(seconds=revival_seconds)
+        else:
+            self.revives_at = None
+
         self.energy_updated_at = now
-        self.save(update_fields=["energy", "surplus_energy", "energy_updated_at"])    
-    
+        self.save(update_fields=["energy", "surplus_energy", "energy_updated_at", "revives_at"])
 
-    
+        latest_session = sessions.order_by('-ended_on').first()
+        GeckoEnergyLog.objects.create(
+            user=self.user, energy=self.energy,
+            surplus_energy=self.surplus_energy, steps=new_steps,
+            friend=latest_session.friend if latest_session else None,
+            recorded_at=now,
+        )
+        if now.hour == 0 and now.minute < 2:
+            GeckoEnergyLog.prune_old(self.user)
 
 
-    
+
+
+
+class GeckoEnergyLog(models.Model):
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='geckoenergylog_set')
+    energy = models.FloatField()
+    surplus_energy = models.FloatField()
+    steps = models.PositiveIntegerField(default=0)
+    friend = models.ForeignKey('friends.Friend', on_delete=models.SET_NULL, null=True, blank=True)
+    recorded_at = models.DateTimeField()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'recorded_at']),
+        ]
+
+    @classmethod
+    def prune_old(cls, user, cutoff_days=365):
+        cls.objects.filter(
+            user=user,
+            recorded_at__lt=timezone.now() - timedelta(days=cutoff_days),
+        ).delete()
+
+
 class GeckoConfigs(models.Model):
     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='geckoconfigs')
     
@@ -546,6 +588,7 @@ class GeckoConfigs(models.Model):
     #     )
 
     max_active_hours = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)], default=(16))
+    max_duration_till_revival = models.PositiveIntegerField(default=60)  # seconds at 0 energy before auto-revival
     max_score_multiplier = models.PositiveIntegerField(default=3)
     max_streak_length_seconds = models.PositiveIntegerField(default=10)
 

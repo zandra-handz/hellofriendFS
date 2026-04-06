@@ -404,7 +404,52 @@ class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
         # return response.Response(serializer.data)
 
 
- 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dev_reset_energy(request):
+    if not request.user.is_superuser:
+        return response.Response(status=status.HTTP_403_FORBIDDEN)
+    obj, _ = models.GeckoScoreState.objects.get_or_create(user=request.user)
+    obj.energy = 1.0
+    obj.surplus_energy = 0.0
+    obj.revives_at = None
+    obj.energy_updated_at = timezone.now()
+    obj.save(update_fields=['energy', 'surplus_energy', 'revives_at', 'energy_updated_at'])
+    return response.Response(serializers.GeckoScoreStateSerializer(obj).data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def dev_deplete_energy(request):
+    if not settings.DEBUG:
+        return response.Response(status=status.HTTP_404_NOT_FOUND)
+    obj, _ = models.GeckoScoreState.objects.get_or_create(user=request.user)
+    obj.energy = 0.0
+    obj.surplus_energy = 0.0
+    obj.revives_at = None
+    obj.energy_updated_at = timezone.now()
+    obj.save(update_fields=['energy', 'surplus_energy', 'revives_at', 'energy_updated_at'])
+    return response.Response(serializers.GeckoScoreStateSerializer(obj).data)
+
+
+class GeckoEnergyLogView(generics.ListAPIView):
+    serializer_class = serializers.GeckoEnergyLogSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = MediumPagination
+
+    def get_queryset(self):
+        return models.GeckoEnergyLog.objects.filter(
+            user=self.request.user
+        ).order_by('-recorded_at')
+
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("nopaginate") == "true":
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return response.Response(serializer.data)
+        return super().list(request, *args, **kwargs)
+
+
 class GeckoConfigsView(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.GeckoConfigsSerializer
     permission_classes = [IsAuthenticated]
