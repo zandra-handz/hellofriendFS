@@ -83,6 +83,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'storages',
     'corsheaders',
+    # 'channels',
     # 'silk'
 ]
 
@@ -131,6 +132,17 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'hfroot.wsgi.application'
+
+# ASGI_APPLICATION = 'hfroot.asgi.application'
+
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#         'CONFIG': {
+#             'hosts': [(os.getenv('REDIS_HOST', '127.0.0.1'), 6379)],
+#         },
+#     },
+# }
 
 
 # Database

@@ -1,0 +1,24 @@
+WebSocket Setup Changelog
+=========================
+All changes are commented-out code additions only. No existing code was removed or modified.
+
+1. requirements.txt (lines 34-37)
+   - Added commented-out dependencies: channels==4.2.0, channels-redis==4.2.1, uvicorn==0.34.0
+
+4. users/routing.py (NEW FILE)
+   - Created with commented-out WebSocket URL pattern for gecko-energy consumer
+
+6. Procfile
+   - Added commented-out gunicorn + uvicorn worker command for ASGI deployment
+
+5. users/consumers.py (NEW FILE)
+   - Created with commented-out GeckoEnergyConsumer (AsyncWebSocketConsumer)
+   - Handles connect, disconnect, receive (revive action), and energy_update push
+
+3. hfroot/asgi.py
+   - Added commented-out Channels ProtocolTypeRouter with WebSocket routing (after existing application line)
+
+2. hfroot/settings.py
+   - Added '# channels' to INSTALLED_APPS (after 'corsheaders', line 86)
+   - Added commented-out ASGI_APPLICATION and CHANNEL_LAYERS config (after WSGI_APPLICATION, lines 135-145)
+
