@@ -12,6 +12,11 @@ All changes are commented-out code additions only. No existing code was removed 
 
 12. users/routing.py — removed user_id from WebSocket URL pattern (user identity comes from JWT token now)
 
+13. users/consumers.py — rewrote consumer with get_score_state and update_score_state actions
+    - Sends initial state on connect
+    - get_score_state: recomputes energy, returns serialized GeckoScoreState
+    - update_score_state: mirrors PATCH view logic (streak locking, multiplier caps, expiration)
+
 DEPLOYMENT COMPLETED 2026-04-08:
 - Droplet: installed uvicorn[standard], channels, channels-redis via pip
 - Droplet: gunicorn ExecStart updated to use uvicorn workers + hfroot.asgi:application

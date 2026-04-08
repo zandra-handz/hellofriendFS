@@ -1,6 +1,8 @@
 import json
+import datetime
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from django.utils import timezone
 
 
 class GeckoEnergyConsumer(AsyncWebsocketConsumer):
@@ -19,20 +21,95 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         )
         await self.accept()
 
+        # Send initial state on connect
+        state = await self.get_score_state()
+        await self.send(text_data=json.dumps({
+            'action': 'score_state',
+            'data': state,
+        }))
+
     async def disconnect(self, close_code):
-        await self.channel_layer.group_discard(
-            self.room_group_name,
-            self.channel_name,
-        )
+        if hasattr(self, 'room_group_name'):
+            await self.channel_layer.group_discard(
+                self.room_group_name,
+                self.channel_name,
+            )
 
     async def receive(self, text_data):
         data = json.loads(text_data)
         action = data.get('action')
 
-        if action == 'revive':
-            # Handle revive action
-            pass
+        if action == 'get_score_state':
+            state = await self.get_score_state()
+            await self.send(text_data=json.dumps({
+                'action': 'score_state',
+                'data': state,
+            }))
+
+        elif action == 'update_score_state':
+            fields = data.get('data', {})
+            result = await self.update_score_state(fields)
+            await self.send(text_data=json.dumps({
+                'action': 'score_state',
+                'data': result,
+            }))
 
     async def energy_update(self, event):
         """Called when energy state changes — pushes to client."""
         await self.send(text_data=json.dumps(event['data']))
+
+    @database_sync_to_async
+    def get_score_state(self):
+        from users.models import GeckoScoreState
+        from users.serializers import GeckoScoreStateSerializer
+
+        obj, _ = GeckoScoreState.objects.get_or_create(user=self.user)
+        obj.recompute_energy()
+        return GeckoScoreStateSerializer(obj).data
+
+    @database_sync_to_async
+    def update_score_state(self, fields):
+        from users.models import GeckoScoreState, GeckoConfigs
+        from users.serializers import GeckoScoreStateSerializer
+
+        obj, _ = GeckoScoreState.objects.get_or_create(user=self.user)
+        obj.recompute_energy()
+
+        # If a streak is currently active, lock updates and return current state
+        if obj.expires_at and obj.expires_at > timezone.now():
+            return GeckoScoreStateSerializer(obj).data
+
+        # Pull caps from GeckoConfigs
+        config = GeckoConfigs.objects.filter(user=self.user).only(
+            'max_score_multiplier', 'max_streak_length_seconds'
+        ).first()
+        max_multiplier = config.max_score_multiplier if config else 1
+        max_streak_seconds = config.max_streak_length_seconds if config else 60
+
+        data = dict(fields)
+        if 'multiplier' in data:
+            try:
+                requested = int(data['multiplier'])
+            except (TypeError, ValueError):
+                return GeckoScoreStateSerializer(obj).data
+            if requested > max_multiplier:
+                data['multiplier'] = max_multiplier
+
+        # Determine expires_at from expiration_length (seconds)
+        requested_length = data.pop('expiration_length', None)
+        length_seconds = max_streak_seconds
+        if requested_length is not None:
+            try:
+                parsed = int(requested_length)
+                if 0 < parsed <= max_streak_seconds:
+                    length_seconds = parsed
+            except (TypeError, ValueError):
+                pass
+        data['expires_at'] = timezone.now() + datetime.timedelta(seconds=length_seconds)
+
+        serializer = GeckoScoreStateSerializer(obj, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        obj.recompute_energy()
+        obj.refresh_from_db()
+        return GeckoScoreStateSerializer(obj).data
