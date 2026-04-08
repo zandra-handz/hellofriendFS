@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'storages',
     'corsheaders',
+    'channels',
     'silk'
 ]
 
@@ -118,6 +119,14 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'hfroot.wsgi.application'
+
+ASGI_APPLICATION = 'hfroot.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
 
 
 # Database

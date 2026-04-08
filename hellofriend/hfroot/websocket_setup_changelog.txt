@@ -8,6 +8,10 @@ All changes are commented-out code additions only. No existing code was removed 
 4. users/routing.py (NEW FILE)
    - Created with commented-out WebSocket URL pattern for gecko-energy consumer
 
+7. hfroot/settings.py — uncommented 'channels' in INSTALLED_APPS, ASGI_APPLICATION, and CHANNEL_LAYERS (Redis)
+
+8. hfroot/localsettings.py — added 'channels' to INSTALLED_APPS, ASGI_APPLICATION, and CHANNEL_LAYERS (InMemory for local dev)
+
 6. Procfile
    - Added commented-out gunicorn + uvicorn worker command for ASGI deployment
 
