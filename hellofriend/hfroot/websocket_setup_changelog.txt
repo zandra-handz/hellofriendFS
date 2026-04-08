@@ -1,6 +1,24 @@
 WebSocket Setup Changelog
 =========================
 All changes are commented-out code additions only. No existing code was removed or modified.
+(Update: all code has since been uncommented and deployed to production.)
+
+9. users/middleware.py (NEW FILE)
+   - JWT auth middleware for WebSocket — reads token from query string, validates via simplejwt, sets scope['user']
+
+10. hfroot/asgi.py — replaced AuthMiddlewareStack with JWTAuthMiddleware
+
+11. users/consumers.py — reject anonymous users on connect, use authenticated user from scope instead of URL param
+
+12. users/routing.py — removed user_id from WebSocket URL pattern (user identity comes from JWT token now)
+
+DEPLOYMENT COMPLETED 2026-04-08:
+- Droplet: installed uvicorn[standard], channels, channels-redis via pip
+- Droplet: gunicorn ExecStart updated to use uvicorn workers + hfroot.asgi:application
+- Droplet: Redis server installed and running on 127.0.0.1:6379
+- Droplet: nginx config updated with /ws/ location block for WebSocket proxy
+- All code (asgi.py, consumers.py, routing.py, settings.py) uncommented and active
+- WebSocket connection verified on wss://badrainbowz.com/ws/gecko-energy/test/
 
 1. requirements.txt (lines 34-37)
    - Added commented-out dependencies: channels==4.2.0, channels-redis==4.2.1, uvicorn==0.34.0

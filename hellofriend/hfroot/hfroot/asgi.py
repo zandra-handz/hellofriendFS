@@ -17,12 +17,12 @@ application = get_asgi_application()
 
 # --- WebSocket routing (uncomment when ready) ---
 from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.auth import AuthMiddlewareStack
+from users.middleware import JWTAuthMiddleware
 import users.routing
 
 application = ProtocolTypeRouter({
     'http': get_asgi_application(),
-    'websocket': AuthMiddlewareStack(
+    'websocket': JWTAuthMiddleware(
         URLRouter(
             users.routing.websocket_urlpatterns
         )

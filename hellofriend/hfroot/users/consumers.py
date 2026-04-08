@@ -5,8 +5,13 @@ from channels.db import database_sync_to_async
 
 class GeckoEnergyConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.user_id = self.scope['url_route']['kwargs']['user_id']
-        self.room_group_name = f'gecko_energy_{self.user_id}'
+        user = self.scope['user']
+        if user.is_anonymous:
+            await self.close()
+            return
+
+        self.user = user
+        self.room_group_name = f'gecko_energy_{self.user.id}'
 
         await self.channel_layer.group_add(
             self.room_group_name,
