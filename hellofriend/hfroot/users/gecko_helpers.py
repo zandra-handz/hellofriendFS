@@ -10,10 +10,15 @@ from users import models as users_models
 
 def process_gecko_data(user, friend_id, steps=0, distance=0,
                        started_on=None, ended_on=None,
-                       points_earned_list=None):
+                       points_earned_list=None,
+                       points_pre_resolved=False):
     """
     Core logic for recording gecko activity data (steps, distance, duration,
     points) against both per-friend and combined records.
+
+    If points_pre_resolved=True, skips ScoreRule lookup and uses
+    points_earned_list as-is (expects dicts with 'amount', 'reason',
+    'code', 'multiplier', 'timestamp_earned').
 
     Returns the updated GeckoData instance for the given friend.
     """
@@ -22,45 +27,47 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
     if not isinstance(points_earned_list, list):
         points_earned_list = []
 
-    # Resolve points against ScoreRule (version=1)
-    rules_by_code = {
-        r.code: r for r in geckoscripts.models.ScoreRule.objects.filter(version=1)
-    }
-    score_state = users_models.GeckoScoreState.objects.filter(user=user).first()
-    active_multiplier = score_state.multiplier if score_state else 1
-    base_multiplier = score_state.base_multiplier if score_state else 1
-    streak_expires_at = score_state.expires_at if score_state else None
+    if not points_pre_resolved:
+        # Resolve points against ScoreRule (version=1)
+        rules_by_code = {
+            r.code: r for r in geckoscripts.models.ScoreRule.objects.filter(version=1)
+        }
+        score_state = users_models.GeckoScoreState.objects.filter(user=user).first()
+        active_multiplier = score_state.multiplier if score_state else 1
+        base_multiplier = score_state.base_multiplier if score_state else 1
+        streak_expires_at = score_state.expires_at if score_state else None
 
-    resolved_points = []
-    for e in points_earned_list:
-        if not isinstance(e, dict):
-            continue
-        code = e.get('code')
-        label = e.get('label')
-        rule = rules_by_code.get(code)
-        if rule is None or rule.label != label:
-            continue
+        resolved_points = []
+        for e in points_earned_list:
+            if not isinstance(e, dict):
+                continue
+            code = e.get('code')
+            label = e.get('label')
+            rule = rules_by_code.get(code)
+            if rule is None or rule.label != label:
+                continue
 
-        ts_raw = e.get('timestamp_earned')
-        ts = parse_datetime(ts_raw) if ts_raw else None
-        if ts is None:
-            ts = _tz.now()
+            ts_raw = e.get('timestamp_earned')
+            ts = parse_datetime(ts_raw) if ts_raw else None
+            if ts is None:
+                ts = _tz.now()
 
-        if streak_expires_at and ts < streak_expires_at:
-            applied_multiplier = active_multiplier
-        else:
-            applied_multiplier = base_multiplier
+            if streak_expires_at and ts < streak_expires_at:
+                applied_multiplier = active_multiplier
+            else:
+                applied_multiplier = base_multiplier
 
-        resolved_points.append({
-            'amount': rule.points * applied_multiplier,
-            'reason': rule.label,
-            'code': rule.code,
-            'multiplier': applied_multiplier,
-            'timestamp_earned': ts_raw,
-        })
+            resolved_points.append({
+                'amount': rule.points * applied_multiplier,
+                'reason': rule.label,
+                'code': rule.code,
+                'multiplier': applied_multiplier,
+                'timestamp_earned': ts_raw,
+            })
 
-    points_earned_list = resolved_points
-    total_points = sum(e['amount'] for e in points_earned_list)
+        points_earned_list = resolved_points
+
+    total_points = sum(e.get('amount', 0) for e in points_earned_list)
 
     delta_duration = 0
     if started_on and ended_on:
