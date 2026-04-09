@@ -270,160 +270,21 @@ from django.utils.dateparse import parse_datetime
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def update_gecko_data(request, friend_id):
-    user = request.user
-    delta_steps = int(request.data.get('steps') or 0)
-    delta_distance = int(request.data.get('distance') or 0)
-    new_started_on = request.data.get('started_on')
-    new_ended_on = request.data.get('ended_on')
-    points_earned_list = request.data.get('points_earned')
-    if not isinstance(points_earned_list, list):
-        points_earned_list = []
-
-    # Resolve FE-provided {code, label, timestamp_earned} entries against
-    # ScoreRule (version=1). If a code is unknown, or the label doesn't match
-    # the server-side rule, the entry is dropped — no points are saved for it.
-    #
-    # Multiplier per entry is decided by that entry's timestamp: if it falls
-    # before score_state.expires_at, the active multiplier applies; otherwise
-    # it falls back to base_multiplier (= 1).
-    from django.utils import timezone as _tz
-    rules_by_code = {
-        r.code: r for r in geckoscripts.models.ScoreRule.objects.filter(version=1)
-    }
-    score_state = users.models.GeckoScoreState.objects.filter(user=user).first()
-    active_multiplier = score_state.multiplier if score_state else 1
-    base_multiplier = score_state.base_multiplier if score_state else 1
-    streak_expires_at = score_state.expires_at if score_state else None
-
-    resolved_points = []
-    for e in points_earned_list:
-        if not isinstance(e, dict):
-            continue
-        code = e.get('code')
-        label = e.get('label')
-        rule = rules_by_code.get(code)
-        if rule is None or rule.label != label:
-            continue
-
-        ts_raw = e.get('timestamp_earned')
-        ts = parse_datetime(ts_raw) if ts_raw else None
-        if ts is None:
-            ts = _tz.now()
-
-        if streak_expires_at and ts < streak_expires_at:
-            applied_multiplier = active_multiplier
-        else:
-            applied_multiplier = base_multiplier
-
-        resolved_points.append({
-            'amount': rule.points * applied_multiplier,
-            'reason': rule.label,
-            'code': rule.code,
-            'multiplier': applied_multiplier,
-            'timestamp_earned': ts_raw,
-        })
-    points_earned_list = resolved_points
-    total_points = sum(e['amount'] for e in points_earned_list)
-
-    delta_duration = 0
-    if new_started_on and new_ended_on:
-
-        start = parse_datetime(new_started_on)
-        end = parse_datetime(new_ended_on)
-        if start and end:
-            delta_duration = int((end - start).total_seconds())
+    from users.gecko_helpers import process_gecko_data
 
     try:
-        with transaction.atomic():
-            gecko_data_update = {
-                'total_steps': F('total_steps') + delta_steps,
-                'total_distance': F('total_distance') + delta_distance,
-                'total_duration': F('total_duration') + delta_duration,
-            }
-            if total_points:
-                gecko_data_update['total_points'] = F('total_points') + total_points
-            models.GeckoData.objects.filter(user=user, friend_id=friend_id).update(**gecko_data_update)
-
-            combined_data_update = {
-                'total_steps': F('total_steps') + delta_steps,
-                'total_distance': F('total_distance') + delta_distance,
-                'total_duration': F('total_duration') + delta_duration,
-            }
-            if total_points:
-                combined_data_update['total_gecko_points'] = F('total_gecko_points') + total_points
-            users.models.GeckoCombinedData.objects.filter(user=user).update(**combined_data_update)
-
-
-
-            if new_started_on and new_ended_on:
-                existing_combined_session = users.models.GeckoCombinedSession.objects.filter(
-                    user=user,
-                    friend_id=friend_id,
-                    started_on__lte=new_started_on,
-                    ended_on__gte=new_started_on,
-                ).first()
-
-                if existing_combined_session:
-                    existing_combined_session.ended_on = new_ended_on
-                    existing_combined_session.steps += delta_steps
-                    existing_combined_session.distance += delta_distance
-                    existing_combined_session.points_earned = (existing_combined_session.points_earned or 0) + total_points
-                    existing_combined_session.save()
-                else:
-                    users.models.GeckoCombinedSession.objects.create(
-                        user=user,
-                        friend_id=friend_id,
-                        started_on=new_started_on,
-                        ended_on=new_ended_on,
-                        steps=delta_steps,
-                        distance=delta_distance,
-                        points_earned=total_points,
-                    )
-
-                existing_friend_session = models.GeckoDataSession.objects.filter(
-                    user=user,
-                    friend_id=friend_id,
-                    started_on__lte=new_started_on,
-                    ended_on__gte=new_started_on,
-                ).first()
-
-                if existing_friend_session:
-                    existing_friend_session.ended_on = new_ended_on
-                    existing_friend_session.steps += delta_steps
-                    existing_friend_session.distance += delta_distance
-                    existing_friend_session.points_earned = (existing_friend_session.points_earned or 0) + total_points
-                    existing_friend_session.save()
-                else:
-                    models.GeckoDataSession.objects.create(
-                        user=user,
-                        friend_id=friend_id,
-                        started_on=new_started_on,
-                        ended_on=new_ended_on,
-                        steps=delta_steps,
-                        distance=delta_distance,
-                        points_earned=total_points,
-                    )
-
-            if points_earned_list:
-                users.models.GeckoPointsLedger.objects.bulk_create([
-                    users.models.GeckoPointsLedger(
-                        user=user,
-                        friend_id=friend_id,
-                        friend_session=existing_friend_session,
-                        combined_session=existing_combined_session,
-                        amount=e.get('amount', 0),
-                        reason=e.get('reason', ''),
-                        code=e.get('code'),
-                        multiplier=e.get('multiplier', 1),
-                        **({"timestamp_earned": e.get("timestamp_earned")} if e.get("timestamp_earned") else {}),
-                    )
-                    for e in points_earned_list
-                ])
-
+        gecko_data = process_gecko_data(
+            user=request.user,
+            friend_id=friend_id,
+            steps=request.data.get('steps'),
+            distance=request.data.get('distance'),
+            started_on=request.data.get('started_on'),
+            ended_on=request.data.get('ended_on'),
+            points_earned_list=request.data.get('points_earned'),
+        )
     except Exception as e:
         return response.Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    gecko_data = models.GeckoData.objects.get(user=user, friend_id=friend_id)
     serializer = serializers.GeckoDataSerializer(gecko_data)
     return response.Response(serializer.data, status=status.HTTP_200_OK)
 class FriendSuggestionSettingsDetail(generics.RetrieveUpdateAPIView):

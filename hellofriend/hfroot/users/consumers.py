@@ -46,9 +46,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'data': state,
             }))
 
-        elif action == 'update_score_state':
-            fields = data.get('data', {})
-            result = await self.update_score_state(fields)
+        elif action == 'update_gecko_data':
+            payload = data.get('data', {})
+            result = await self.handle_update_gecko_data(payload)
             await self.send(text_data=json.dumps({
                 'action': 'score_state',
                 'data': result,
@@ -59,54 +59,66 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event['data']))
 
     @database_sync_to_async
+    def handle_update_gecko_data(self, payload):
+        from users.gecko_helpers import process_gecko_data
+        from users.models import GeckoScoreState
+        from users.serializers import GeckoScoreStateSerializer
+
+        # 1. Record activity data (steps, distance, sessions, points)
+        process_gecko_data(
+            user=self.user,
+            friend_id=payload.get('friend_id'),
+            steps=payload.get('steps'),
+            distance=payload.get('distance'),
+            started_on=payload.get('started_on'),
+            ended_on=payload.get('ended_on'),
+            points_earned_list=payload.get('points_earned'),
+        )
+
+        # 2. Recompute energy with fresh session data
+        obj, _ = GeckoScoreState.objects.get_or_create(user=self.user)
+        obj.recompute_energy()
+
+        # 3. Apply streak/multiplier update if provided
+        score_fields = payload.get('score_state')
+        if score_fields and isinstance(score_fields, dict):
+            if not (obj.expires_at and obj.expires_at > timezone.now()):
+                max_multiplier = obj.max_score_multiplier or 1
+                max_streak_seconds = obj.max_streak_length_seconds or 60
+
+                data = dict(score_fields)
+                if 'multiplier' in data:
+                    try:
+                        requested = int(data['multiplier'])
+                    except (TypeError, ValueError):
+                        return GeckoScoreStateSerializer(obj).data
+                    if requested > max_multiplier:
+                        data['multiplier'] = max_multiplier
+
+                requested_length = data.pop('expiration_length', None)
+                length_seconds = max_streak_seconds
+                if requested_length is not None:
+                    try:
+                        parsed = int(requested_length)
+                        if 0 < parsed <= max_streak_seconds:
+                            length_seconds = parsed
+                    except (TypeError, ValueError):
+                        pass
+                data['expires_at'] = timezone.now() + datetime.timedelta(seconds=length_seconds)
+
+                serializer = GeckoScoreStateSerializer(obj, data=data, partial=True)
+                serializer.is_valid(raise_exception=True)
+                serializer.save()
+                obj.recompute_energy()
+                obj.refresh_from_db()
+
+        return GeckoScoreStateSerializer(obj).data
+
+    @database_sync_to_async
     def get_score_state(self):
         from users.models import GeckoScoreState
         from users.serializers import GeckoScoreStateSerializer
 
         obj, _ = GeckoScoreState.objects.get_or_create(user=self.user)
         obj.recompute_energy()
-        return GeckoScoreStateSerializer(obj).data
-
-    @database_sync_to_async
-    def update_score_state(self, fields):
-        from users.models import GeckoScoreState
-        from users.serializers import GeckoScoreStateSerializer
-
-        obj, _ = GeckoScoreState.objects.get_or_create(user=self.user)
-        obj.recompute_energy()
-
-        # If a streak is currently active, lock updates and return current state
-        if obj.expires_at and obj.expires_at > timezone.now():
-            return GeckoScoreStateSerializer(obj).data
-
-        # Read caps directly from score state (mirrored from GeckoConfigs)
-        max_multiplier = obj.max_score_multiplier or 1
-        max_streak_seconds = obj.max_streak_length_seconds or 60
-
-        data = dict(fields)
-        if 'multiplier' in data:
-            try:
-                requested = int(data['multiplier'])
-            except (TypeError, ValueError):
-                return GeckoScoreStateSerializer(obj).data
-            if requested > max_multiplier:
-                data['multiplier'] = max_multiplier
-
-        # Determine expires_at from expiration_length (seconds)
-        requested_length = data.pop('expiration_length', None)
-        length_seconds = max_streak_seconds
-        if requested_length is not None:
-            try:
-                parsed = int(requested_length)
-                if 0 < parsed <= max_streak_seconds:
-                    length_seconds = parsed
-            except (TypeError, ValueError):
-                pass
-        data['expires_at'] = timezone.now() + datetime.timedelta(seconds=length_seconds)
-
-        serializer = GeckoScoreStateSerializer(obj, data=data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        obj.recompute_energy()
-        obj.refresh_from_db()
         return GeckoScoreStateSerializer(obj).data
