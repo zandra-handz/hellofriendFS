@@ -7,6 +7,13 @@ import geckoscripts.models
 from friends import models as friends_models
 from users import models as users_models
 
+import logging
+logger = logging.getLogger('gecko.ws')
+
+
+
+
+
 
 def process_gecko_data(user, friend_id, steps=0, distance=0,
                        started_on=None, ended_on=None,
@@ -22,6 +29,18 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
 
     Returns the updated GeckoData instance for the given friend.
     """
+
+    logger.info(
+        f'[process_gecko_data] start '
+        f'user={user.id} friend_id={friend_id} '
+        f'steps={delta_steps} distance={delta_distance} '
+        f'started_on={started_on} ended_on={ended_on} '
+        f'points_count={len(points_earned_list)} '
+        f'points_pre_resolved={points_pre_resolved}'
+    )
+
+
+
     delta_steps = int(steps or 0)
     delta_distance = int(distance or 0)
     if not isinstance(points_earned_list, list):
@@ -84,10 +103,14 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
         }
         if total_points:
             gecko_data_update['total_points'] = F('total_points') + total_points
-        friends_models.GeckoData.objects.filter(
+        updated_rows = friends_models.GeckoData.objects.filter(
             user=user, friend_id=friend_id
         ).update(**gecko_data_update)
 
+        logger.info(
+            f'[process_gecko_data] GeckoData update '
+            f'user={user.id} friend_id={friend_id} rows_updated={updated_rows}'
+        )
         combined_data_update = {
             'total_steps': F('total_steps') + delta_steps,
             'total_distance': F('total_distance') + delta_distance,
@@ -95,10 +118,21 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
         }
         if total_points:
             combined_data_update['total_gecko_points'] = F('total_gecko_points') + total_points
-        users_models.GeckoCombinedData.objects.filter(user=user).update(**combined_data_update)
+        combined_rows = users_models.GeckoCombinedData.objects.filter(
+            user=user
+        ).update(**combined_data_update)
 
+        logger.info(
+            f'[process_gecko_data] GeckoCombinedData update '
+            f'user={user.id} rows_updated={combined_rows}'
+        )
         existing_combined_session = None
         existing_friend_session = None
+
+        logger.info(
+            f'[process_gecko_data] session check '
+            f'user={user.id} started_on={started_on} ended_on={ended_on}'
+        )
 
         if started_on and ended_on:
             existing_combined_session = users_models.GeckoCombinedSession.objects.filter(
@@ -108,6 +142,11 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 ended_on__gte=started_on,
             ).first()
 
+
+            if existing_combined_session:
+                logger.info(f'[process_gecko_data] updating combined session id={existing_combined_session.id}')
+            else:
+                logger.info(f'[process_gecko_data] creating combined session')
             if existing_combined_session:
                 existing_combined_session.ended_on = ended_on
                 existing_combined_session.steps += delta_steps
@@ -150,6 +189,11 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 )
 
         if points_earned_list:
+
+            logger.info(
+                f'[process_gecko_data] creating ledger entries '
+                f'user={user.id} count={len(points_earned_list)}'
+            )
             users_models.GeckoPointsLedger.objects.bulk_create([
                 users_models.GeckoPointsLedger(
                     user=user,
