@@ -213,6 +213,39 @@ DATABASES = {
         'PORT': os.getenv('DB_PORT'),
     }
 } 
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    'formatters': {
+        'standard': {
+            'format': '[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
+        },
+    },
+
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard',
+        },
+    },
+
+    'loggers': {
+        
+        'gecko.ws': {
+            'handlers': ['console'],
+            'level': 'DEBUG',   
+            'propagate': False,
+        },
+ 
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
+}
    
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
