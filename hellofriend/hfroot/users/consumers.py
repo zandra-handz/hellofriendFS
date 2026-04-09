@@ -28,7 +28,6 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.score_state = init['score_state']
         self.score_rules = init['score_rules']
         self.pending_data = []
-        self.pending_points = []
 
         # Recompute with current time before sending
         self._recompute_energy_in_memory()
@@ -39,7 +38,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         }))
 
     async def disconnect(self, close_code):
-        if hasattr(self, 'pending_data') and (self.pending_data or self.pending_points):
+        if hasattr(self, 'pending_data') and self.pending_data:
             await self._flush_to_db()
 
         if hasattr(self, 'room_group_name'):
@@ -68,7 +67,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             }))
 
         elif action == 'flush':
-            if self.pending_data or self.pending_points:
+            if self.pending_data:
                 await self._flush_to_db()
                 await self.send(text_data=json.dumps({
                     'action': 'flush_ack',
@@ -259,15 +258,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             'started_on': started_on,
             'ended_on': ended_on,
             'total_points': total_points,
+            'points_earned': resolved_points,
             '_started_dt': started_dt,
             '_ended_dt': ended_dt,
         })
-        if resolved_points:
-            for rp in resolved_points:
-                rp['friend_id'] = payload.get('friend_id')
-                rp['started_on'] = started_on
-                rp['ended_on'] = ended_on
-            self.pending_points.extend(resolved_points)
 
         # Apply streak/multiplier update if provided
         score_fields = payload.get('score_state')
@@ -399,15 +393,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         from users.gecko_helpers import process_gecko_data
         from users.models import GeckoScoreState
 
-        # Flush each pending activity entry
+        # Flush each pending activity entry — same as the old view did,
+        # one process_gecko_data call per update
         for entry in self.pending_data:
-            # Find the points that belong to this entry
-            entry_points = [
-                p for p in self.pending_points
-                if p.get('friend_id') == entry['friend_id']
-                and p.get('started_on') == entry['started_on']
-                and p.get('ended_on') == entry['ended_on']
-            ]
             process_gecko_data(
                 user=self.user,
                 friend_id=entry['friend_id'],
@@ -415,7 +403,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 distance=entry['distance'],
                 started_on=entry['started_on'],
                 ended_on=entry['ended_on'],
-                points_earned_list=entry_points,
+                points_earned_list=entry.get('points_earned', []),
                 points_pre_resolved=True,
             )
 
@@ -434,4 +422,3 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         ])
 
         self.pending_data.clear()
-        self.pending_points.clear()
