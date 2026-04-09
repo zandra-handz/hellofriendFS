@@ -12,6 +12,17 @@ All changes are commented-out code additions only. No existing code was removed 
 
 12. users/routing.py — removed user_id from WebSocket URL pattern (user identity comes from JWT token now)
 
+14. users/models.py — added mirrored config fields to GeckoScoreState (personality_type, memory_type,
+    active_hours_type, story_type, stamina, max_active_hours, max_duration_till_revival,
+    max_score_multiplier, max_streak_length_seconds, active_hours, gecko_created_on)
+    - GeckoConfigs.save() now syncs these fields to GeckoScoreState
+
+15. users/serializers.py — added config fields + display labels to GeckoScoreStateSerializer
+    - recharge_per_second now reads from model directly instead of querying geckoconfigs
+
+16. users/consumers.py — update_score_state reads max_multiplier/max_streak from score state model
+    instead of querying GeckoConfigs
+
 13. users/consumers.py — rewrote consumer with get_score_state and update_score_state actions
     - Sends initial state on connect
     - get_score_state: recomputes energy, returns serialized GeckoScoreState

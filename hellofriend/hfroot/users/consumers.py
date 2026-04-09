@@ -69,7 +69,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def update_score_state(self, fields):
-        from users.models import GeckoScoreState, GeckoConfigs
+        from users.models import GeckoScoreState
         from users.serializers import GeckoScoreStateSerializer
 
         obj, _ = GeckoScoreState.objects.get_or_create(user=self.user)
@@ -79,12 +79,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         if obj.expires_at and obj.expires_at > timezone.now():
             return GeckoScoreStateSerializer(obj).data
 
-        # Pull caps from GeckoConfigs
-        config = GeckoConfigs.objects.filter(user=self.user).only(
-            'max_score_multiplier', 'max_streak_length_seconds'
-        ).first()
-        max_multiplier = config.max_score_multiplier if config else 1
-        max_streak_seconds = config.max_streak_length_seconds if config else 60
+        # Read caps directly from score state (mirrored from GeckoConfigs)
+        max_multiplier = obj.max_score_multiplier or 1
+        max_streak_seconds = obj.max_streak_length_seconds or 60
 
         data = dict(fields)
         if 'multiplier' in data:

@@ -50,6 +50,10 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
     step_fatigue_per_step = serializers.SerializerMethodField()
     streak_fatigue_multiplier = serializers.SerializerMethodField()
     surplus_cap = serializers.SerializerMethodField()
+    personality_type_label = serializers.SerializerMethodField()
+    memory_type_label = serializers.SerializerMethodField()
+    active_hours_type_label = serializers.SerializerMethodField()
+    story_type_label = serializers.SerializerMethodField()
 
     class Meta():
         model = models.GeckoScoreState
@@ -59,13 +63,24 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
             'revives_at',
             'recharge_per_second', 'streak_recharge_per_second',
             'step_fatigue_per_step', 'streak_fatigue_multiplier', 'surplus_cap',
+            'personality_type', 'personality_type_label',
+            'memory_type', 'memory_type_label',
+            'active_hours_type', 'active_hours_type_label',
+            'story_type', 'story_type_label',
+            'stamina', 'max_active_hours', 'max_duration_till_revival',
+            'max_score_multiplier', 'max_streak_length_seconds',
+            'active_hours', 'gecko_created_on',
         ]
-        read_only_fields = ['base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at', 'revives_at']
+        read_only_fields = [
+            'base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at', 'revives_at',
+            'personality_type', 'memory_type', 'active_hours_type', 'story_type',
+            'stamina', 'max_active_hours', 'max_duration_till_revival',
+            'max_score_multiplier', 'max_streak_length_seconds',
+            'active_hours', 'gecko_created_on',
+        ]
 
     def _get_recharge_per_second(self, obj):
-        configs = getattr(obj.user, 'geckoconfigs', None)
-        max_active_hours = getattr(configs, 'max_active_hours', 16) if configs else 16
-        full_rest_hours = 24 - max_active_hours
+        full_rest_hours = 24 - obj.max_active_hours
         return 1.0 / (full_rest_hours * 3600)
 
     def get_recharge_per_second(self, obj):
@@ -82,6 +97,18 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
 
     def get_surplus_cap(self, obj):
         return constants.SURPLUS_CAP
+
+    def get_personality_type_label(self, obj):
+        return obj.get_personality_type_display()
+
+    def get_memory_type_label(self, obj):
+        return obj.get_memory_type_display()
+
+    def get_active_hours_type_label(self, obj):
+        return obj.get_active_hours_type_display()
+
+    def get_story_type_label(self, obj):
+        return obj.get_story_type_display()
 
 
 class GeckoConfigsSerializer(serializers.ModelSerializer):

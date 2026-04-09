@@ -436,8 +436,18 @@ class GeckoScoreState(models.Model):
     energy_updated_at = models.DateTimeField(default=timezone.now)
     revives_at = models.DateTimeField(null=True, blank=True)
 
-
-
+    # Mirrored from GeckoConfigs — synced on config save
+    personality_type = models.IntegerField(choices=Personality.choices, default=Personality.CURIOUS)
+    memory_type = models.IntegerField(choices=Memory.choices, default=Memory.AMNESIAC)
+    active_hours_type = models.IntegerField(choices=ActivityHours.choices, default=ActivityHours.DAY)
+    story_type = models.IntegerField(choices=Story.choices, default=Story.LEARNER)
+    stamina = models.FloatField(default=1.0)
+    max_active_hours = models.SmallIntegerField(default=16)
+    max_duration_till_revival = models.PositiveIntegerField(default=60)
+    max_score_multiplier = models.PositiveIntegerField(default=3)
+    max_streak_length_seconds = models.PositiveIntegerField(default=10)
+    active_hours = models.JSONField(default=list, blank=True)
+    gecko_created_on = models.DateTimeField(null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
@@ -668,7 +678,27 @@ class GeckoConfigs(models.Model):
             old_active_hours = old.active_hours
 
         super().save(*args, **kwargs)
-        self.user.geckoscorestate.recompute_energy()
+
+        # Sync config fields to GeckoScoreState
+        score_state = self.user.geckoscorestate
+        score_state.personality_type = self.personality_type
+        score_state.memory_type = self.memory_type
+        score_state.active_hours_type = self.active_hours_type
+        score_state.story_type = self.story_type
+        score_state.stamina = self.stamina
+        score_state.max_active_hours = self.max_active_hours
+        score_state.max_duration_till_revival = self.max_duration_till_revival
+        score_state.max_score_multiplier = self.max_score_multiplier
+        score_state.max_streak_length_seconds = self.max_streak_length_seconds
+        score_state.active_hours = self.active_hours
+        if is_create:
+            score_state.gecko_created_on = self.created_on
+        score_state.save(update_fields=[
+            'personality_type', 'memory_type', 'active_hours_type', 'story_type',
+            'stamina', 'max_active_hours', 'max_duration_till_revival',
+            'max_score_multiplier', 'max_streak_length_seconds', 'active_hours',
+        ] + (['gecko_created_on'] if is_create else []))
+        score_state.recompute_energy()
 
 
 
