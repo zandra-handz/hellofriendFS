@@ -30,6 +30,12 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
     Returns the updated GeckoData instance for the given friend.
     """
 
+
+
+
+    delta_steps = int(steps or 0)
+    delta_distance = int(distance or 0)
+
     logger.info(
         f'[process_gecko_data] start '
         f'user={user.id} friend_id={friend_id} '
@@ -39,10 +45,6 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
         f'points_pre_resolved={points_pre_resolved}'
     )
 
-
-
-    delta_steps = int(steps or 0)
-    delta_distance = int(distance or 0)
     if not isinstance(points_earned_list, list):
         points_earned_list = []
 
