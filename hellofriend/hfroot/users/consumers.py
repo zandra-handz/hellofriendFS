@@ -429,7 +429,6 @@
 
 #         self.pending_data.clear()
 
-
 import json
 import logging
 import datetime
@@ -552,6 +551,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event['data']))
 
     # ------------------------------------------------------------------
+    # In-memory energy recomputation
+    # ------------------------------------------------------------------
 
     def _recompute_energy_in_memory(self):
         ss = self.score_state
@@ -604,21 +605,29 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         streak_is_active = (
             multiplier > base_multiplier
+            and expires_at
             and expires_at > energy_updated_at
         )
 
         if streak_is_active and active_seconds > 0:
             streak_end = min(expires_at, now)
             streak_seconds = max(0, (streak_end - energy_updated_at).total_seconds())
-            streak_ratio = min(1.0, streak_seconds / elapsed)
+            streak_ratio = min(1.0, streak_seconds / elapsed) if elapsed > 0 else 0.0
 
             streak_active_seconds = active_seconds * streak_ratio
-            streak_steps = new_steps * (streak_active_seconds / active_seconds) if active_seconds else 0
+            streak_steps = (
+                new_steps * (streak_active_seconds / active_seconds)
+                if active_seconds else 0
+            )
             normal_steps = new_steps - streak_steps
 
             fatigue = (
                 (normal_steps * constants.STEP_FATIGUE_PER_STEP)
-                + (streak_steps * constants.STEP_FATIGUE_PER_STEP * constants.STREAK_FATIGUE_MULTIPLIER)
+                + (
+                    streak_steps
+                    * constants.STEP_FATIGUE_PER_STEP
+                    * constants.STREAK_FATIGUE_MULTIPLIER
+                )
             )
             recharge = (
                 (rest_seconds * recharge_per_second)
@@ -671,6 +680,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         )
 
     # ------------------------------------------------------------------
+    # In-memory update handler
+    # ------------------------------------------------------------------
 
     def _handle_update_in_memory(self, payload):
         ss = self.score_state
@@ -702,15 +713,21 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             if not isinstance(e, dict):
                 continue
 
-            rule = self.score_rules.get(e.get('code'))
-            if rule is None or rule['label'] != e.get('label'):
+            code = e.get('code')
+            label = e.get('label')
+            rule = self.score_rules.get(code)
+
+            if rule is None or rule['label'] != label:
                 continue
 
             ts_raw = e.get('timestamp_earned')
             ts = parse_datetime(ts_raw) if ts_raw else timezone.now()
+            if ts is None:
+                ts = timezone.now()
 
             applied_multiplier = (
-                active_multiplier if (streak_expires_at and ts < streak_expires_at)
+                active_multiplier
+                if (streak_expires_at and ts < streak_expires_at)
                 else base_multiplier
             )
 
@@ -741,9 +758,138 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             f'entries={len(self.pending_data)} total_points={total_points}'
         )
 
+        score_fields = payload.get('score_state')
+        if score_fields and isinstance(score_fields, dict):
+            if not (ss['expires_at'] and ss['expires_at'] > timezone.now()):
+                max_multiplier = ss.get('max_score_multiplier', 1)
+                max_streak_seconds = ss.get('max_streak_length_seconds', 60)
+
+                if 'multiplier' in score_fields:
+                    try:
+                        requested = int(score_fields['multiplier'])
+                    except (TypeError, ValueError):
+                        self._recompute_energy_in_memory()
+                        return
+
+                    if requested > max_multiplier:
+                        score_fields['multiplier'] = max_multiplier
+
+                    ss['multiplier'] = score_fields['multiplier']
+
+                requested_length = score_fields.get('expiration_length')
+                length_seconds = max_streak_seconds
+                if requested_length is not None:
+                    try:
+                        parsed = int(requested_length)
+                        if 0 < parsed <= max_streak_seconds:
+                            length_seconds = parsed
+                    except (TypeError, ValueError):
+                        pass
+
+                ss['expires_at'] = timezone.now() + datetime.timedelta(seconds=length_seconds)
+
         self._recompute_energy_in_memory()
 
     # ------------------------------------------------------------------
+    # Serialization
+    # ------------------------------------------------------------------
+
+    def _serialize_score_state(self):
+        ss = self.score_state
+        max_active_hours = ss.get('max_active_hours', 16)
+        full_rest_hours = 24 - max_active_hours
+        recharge_per_second = 1.0 / (full_rest_hours * 3600)
+
+        def _fmt_dt(val):
+            if val is None:
+                return None
+            if isinstance(val, str):
+                return val
+            return val.isoformat()
+
+        return {
+            'user': self.user.id,
+            'multiplier': ss['multiplier'],
+            'expires_at': _fmt_dt(ss['expires_at']),
+            'updated_on': _fmt_dt(ss.get('updated_on')),
+            'base_multiplier': ss['base_multiplier'],
+            'energy': ss['energy'],
+            'surplus_energy': ss['surplus_energy'],
+            'energy_updated_at': _fmt_dt(ss['energy_updated_at']),
+            'revives_at': _fmt_dt(ss['revives_at']),
+            'recharge_per_second': recharge_per_second,
+            'streak_recharge_per_second': recharge_per_second * 0.5,
+            'step_fatigue_per_step': constants.STEP_FATIGUE_PER_STEP,
+            'streak_fatigue_multiplier': constants.STREAK_FATIGUE_MULTIPLIER,
+            'surplus_cap': constants.SURPLUS_CAP,
+            'personality_type': ss.get('personality_type'),
+            'personality_type_label': ss.get('personality_type_label'),
+            'memory_type': ss.get('memory_type'),
+            'memory_type_label': ss.get('memory_type_label'),
+            'active_hours_type': ss.get('active_hours_type'),
+            'active_hours_type_label': ss.get('active_hours_type_label'),
+            'story_type': ss.get('story_type'),
+            'story_type_label': ss.get('story_type_label'),
+            'stamina': ss.get('stamina', 1.0),
+            'max_active_hours': max_active_hours,
+            'max_duration_till_revival': ss.get('max_duration_till_revival', 60),
+            'max_score_multiplier': ss.get('max_score_multiplier', 3),
+            'max_streak_length_seconds': ss.get('max_streak_length_seconds', 10),
+            'active_hours': ss.get('active_hours', []),
+            'gecko_created_on': _fmt_dt(ss.get('gecko_created_on')),
+        }
+
+    # ------------------------------------------------------------------
+    # DB operations
+    # ------------------------------------------------------------------
+
+    @database_sync_to_async
+    def _load_initial_state(self):
+        from users.models import GeckoScoreState
+        from geckoscripts.models import ScoreRule
+
+        obj, _ = GeckoScoreState.objects.get_or_create(user=self.user)
+        obj.recompute_energy()
+
+        score_state = {
+            'multiplier': obj.multiplier,
+            'base_multiplier': obj.base_multiplier,
+            'expires_at': obj.expires_at,
+            'energy': obj.energy,
+            'surplus_energy': obj.surplus_energy,
+            'energy_updated_at': obj.energy_updated_at,
+            'revives_at': obj.revives_at,
+            'updated_on': obj.updated_on,
+            'personality_type': obj.personality_type,
+            'personality_type_label': obj.get_personality_type_display(),
+            'memory_type': obj.memory_type,
+            'memory_type_label': obj.get_memory_type_display(),
+            'active_hours_type': obj.active_hours_type,
+            'active_hours_type_label': obj.get_active_hours_type_display(),
+            'story_type': obj.story_type,
+            'story_type_label': obj.get_story_type_display(),
+            'stamina': obj.stamina,
+            'max_active_hours': obj.max_active_hours,
+            'max_duration_till_revival': obj.max_duration_till_revival,
+            'max_score_multiplier': obj.max_score_multiplier,
+            'max_streak_length_seconds': obj.max_streak_length_seconds,
+            'active_hours': obj.active_hours,
+            'gecko_created_on': obj.gecko_created_on,
+        }
+
+        rules = {
+            r.code: {
+                'code': r.code,
+                'label': r.label,
+                'points': r.points,
+            }
+            for r in ScoreRule.objects.filter(version=1)
+        }
+
+        return {
+            'score_state': score_state,
+            'score_rules': rules,
+        }
 
     @database_sync_to_async
     def _flush_to_db(self):
@@ -775,8 +921,12 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         obj.revives_at = ss['revives_at']
 
         obj.save(update_fields=[
-            'multiplier', 'expires_at', 'energy',
-            'surplus_energy', 'energy_updated_at', 'revives_at',
+            'multiplier',
+            'expires_at',
+            'energy',
+            'surplus_energy',
+            'energy_updated_at',
+            'revives_at',
         ])
 
         self.pending_data.clear()
