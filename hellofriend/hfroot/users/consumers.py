@@ -562,6 +562,13 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         if elapsed <= 0:
             return
+    
+        if (
+            ss['multiplier'] > ss['base_multiplier']
+            and ss.get('expires_at')
+            and ss['expires_at'] <= now
+        ):
+            ss['multiplier'] = ss['base_multiplier']
 
         prev_energy = ss['energy']
         prev_surplus = ss['surplus_energy']

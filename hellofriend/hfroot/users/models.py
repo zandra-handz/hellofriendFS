@@ -458,6 +458,14 @@ class GeckoScoreState(models.Model):
         if elapsed <= 0:
             return
 
+        if (
+            self.multiplier > self.base_multiplier
+            and self.expires_at
+            and self.expires_at <= now
+        ):
+            self.multiplier = self.base_multiplier
+
+
         configs = getattr(self.user, 'geckoconfigs', None)
         revival_seconds = getattr(configs, 'max_duration_till_revival', 60) if configs else 60
 
