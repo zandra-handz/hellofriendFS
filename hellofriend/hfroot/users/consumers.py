@@ -597,11 +597,27 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         new_steps = 0
         active_seconds = 0
+        # for entry in self.pending_data:
+        #     started = entry.get('_started_dt')
+        #     ended = entry.get('_ended_dt')
+        #     if started and ended and ended > energy_updated_at:
+        #         active_seconds += max(0, (ended - started).total_seconds())
+        #     new_steps += entry.get('steps', 0)
+
         for entry in self.pending_data:
             started = entry.get('_started_dt')
             ended = entry.get('_ended_dt')
-            if started and ended and ended > energy_updated_at:
-                active_seconds += max(0, (ended - started).total_seconds())
+
+            if not started or not ended:
+                continue
+
+            # clamp to recompute window
+            start = max(started, energy_updated_at)
+            end = min(ended, now)
+
+            if end > start:
+                active_seconds += (end - start).total_seconds()
+
             new_steps += entry.get('steps', 0)
 
         rest_seconds = max(0, elapsed - active_seconds)
@@ -687,7 +703,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 drain -= surplus_energy
                 surplus_energy = 0.0
                 energy = max(0.0, energy - drain)
-                
+
         logger.info(
             f'[recompute outputs] user={self.user.id} '
             f'fatigue={fatigue:.12f} '
