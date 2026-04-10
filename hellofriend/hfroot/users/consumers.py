@@ -616,6 +616,23 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             and expires_at > energy_updated_at
         )
 
+        logger.info(
+            f'[recompute inputs] user={self.user.id} '
+            f'energy_before={prev_energy:.12f} '
+            f'surplus_before={prev_surplus:.12f} '
+            f'elapsed={elapsed:.6f} '
+            f'new_steps={new_steps} '
+            f'active_seconds={active_seconds:.6f} '
+            f'rest_seconds={rest_seconds:.6f} '
+            f'stamina={stamina:.6f} '
+            f'multiplier={multiplier} '
+            f'base_multiplier={base_multiplier} '
+            f'expires_at={expires_at} '
+            f'streak_is_active={streak_is_active} '
+            f'recharge_per_second={recharge_per_second:.12f} '
+            f'streak_recharge_per_second={streak_recharge_per_second:.12f}'
+        )
+
         if streak_is_active and active_seconds > 0:
             streak_end = min(expires_at, now)
             streak_seconds = max(0, (streak_end - energy_updated_at).total_seconds())
@@ -644,10 +661,13 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             fatigue = new_steps * constants.STEP_FATIGUE_PER_STEP
             recharge = rest_seconds * recharge_per_second
 
+
         effective_recharge = recharge * stamina
         effective_fatigue = fatigue / stamina
 
         net = effective_recharge - effective_fatigue
+
+
 
         if net >= 0:
             room_in_main = 1.0 - energy
@@ -667,6 +687,18 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 drain -= surplus_energy
                 surplus_energy = 0.0
                 energy = max(0.0, energy - drain)
+                
+        logger.info(
+            f'[recompute outputs] user={self.user.id} '
+            f'fatigue={fatigue:.12f} '
+            f'recharge={recharge:.12f} '
+            f'effective_recharge={effective_recharge:.12f} '
+            f'effective_fatigue={effective_fatigue:.12f} '
+            f'net={net:.12f} '
+            f'energy_after={energy:.12f} '
+            f'surplus_after={surplus_energy:.12f}'
+        )
+
 
         if energy <= 0.0 and surplus_energy <= 0.0:
             if not revives_at:
@@ -711,6 +743,17 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         started_dt = parse_datetime(started_on) if isinstance(started_on, str) else started_on
         ended_dt = parse_datetime(ended_on) if isinstance(ended_on, str) else ended_on
 
+
+        logger.info(
+            f'[update_mem payload] user={self.user.id} '
+            f'steps={delta_steps} '
+            f'distance={delta_distance} '
+            f'started_on={started_on} '
+            f'ended_on={ended_on} '
+            f'started_dt={started_dt} '
+            f'ended_dt={ended_dt} '
+            f'points_count={len(points_earned_list)}'
+        )
         active_multiplier = ss['multiplier']
         base_multiplier = ss['base_multiplier']
         streak_expires_at = ss['expires_at']
@@ -759,6 +802,14 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             '_started_dt': started_dt,
             '_ended_dt': ended_dt,
         })
+
+        logger.info(
+            f'[update_mem pending] user={self.user.id} '
+            f'pending_count={len(self.pending_data)} '
+            f'last_steps={self.pending_data[-1]["steps"]} '
+            f'last_started_dt={self.pending_data[-1]["_started_dt"]} '
+            f'last_ended_dt={self.pending_data[-1]["_ended_dt"]}'
+        )
 
         logger.debug(
             f'[update_mem] queued user={self.user.id} '
