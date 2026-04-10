@@ -246,6 +246,9 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
     delta_steps = int(steps or 0)
     delta_distance = int(distance or 0)
 
+
+    logger.info(f'[update_mem] incoming points raw={points_earned_list}')
+
     if not isinstance(points_earned_list, list):
         points_earned_list = []
 
@@ -297,7 +300,10 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 'timestamp_earned': ts_raw,
             })
 
+        logger.info(f'[update_mem] resolved points={resolved_points}')
         points_earned_list = resolved_points
+
+        
 
     total_points = sum(e.get('amount', 0) for e in points_earned_list)
 
