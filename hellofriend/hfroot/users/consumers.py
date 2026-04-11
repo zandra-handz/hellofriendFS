@@ -522,7 +522,11 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             )
 
             self._handle_update_in_memory(payload)
-            await self._record_sync_sample('update_gecko_data', payload)
+
+            event_type = payload.get('event_type')
+            if not isinstance(event_type, str) or not event_type:
+                event_type = 'update_gecko_data'
+            await self._record_sync_sample(event_type, payload)
 
             await self.send(text_data=json.dumps({
                 'action': 'score_state',
