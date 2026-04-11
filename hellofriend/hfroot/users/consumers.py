@@ -529,7 +529,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'action': 'gecko_coords',
                 'data': {
                     'from_user': self.user.id,
-                    'gecko_position': self.gecko_screen_position,
+                    'position': self.gecko_screen_position,
                 },
             }))
 
@@ -604,8 +604,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event['data']))
 
     async def gecko_position_broadcast(self, event):
-        if event.get('from_user') == self.user.id:
-            return
+   
         await self.send(text_data=json.dumps({
             'action': 'gecko_coords',
             'data': {
