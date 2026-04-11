@@ -611,6 +611,10 @@ class GeckoEnergySyncSample(models.Model):
     client_computed_at = models.DateTimeField(null=True, blank=True)
     client_steps_in_payload = models.IntegerField(null=True, blank=True)
     client_distance_in_payload = models.FloatField(null=True, blank=True)
+    client_started_on = models.DateTimeField(null=True, blank=True)
+    client_ended_on = models.DateTimeField(null=True, blank=True)
+    client_fatigue = models.FloatField(null=True, blank=True)
+    client_recharge = models.FloatField(null=True, blank=True)
 
     # ---- Backend state, snapshotted before + after recompute ----
     server_energy_before = models.FloatField()

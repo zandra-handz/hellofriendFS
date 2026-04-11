@@ -734,6 +734,10 @@ class GeckoEnergySyncSampleSerializer(serializers.ModelSerializer):
             'client_computed_at',
             'client_steps_in_payload',
             'client_distance_in_payload',
+            'client_started_on',
+            'client_ended_on',
+            'client_fatigue',
+            'client_recharge',
 
             'server_energy_before',
             'server_energy_after',

@@ -930,6 +930,28 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         client_steps = payload.get('steps') if payload else None
         client_distance = payload.get('distance') if payload else None
 
+        client_started_on_raw = payload.get('started_on') if payload else None
+        client_started_on = (
+            parse_datetime(client_started_on_raw)
+            if isinstance(client_started_on_raw, str) else None
+        )
+        client_ended_on_raw = payload.get('ended_on') if payload else None
+        client_ended_on = (
+            parse_datetime(client_ended_on_raw)
+            if isinstance(client_ended_on_raw, str) else None
+        )
+
+        client_fatigue_raw = payload.get('client_fatigue') if payload else None
+        client_fatigue = (
+            float(client_fatigue_raw)
+            if isinstance(client_fatigue_raw, (int, float)) else None
+        )
+        client_recharge_raw = payload.get('client_recharge') if payload else None
+        client_recharge = (
+            float(client_recharge_raw)
+            if isinstance(client_recharge_raw, (int, float)) else None
+        )
+
         energy_delta = None
         if isinstance(client_energy, (int, float)):
             energy_delta = client_energy - debug['new_energy']
@@ -944,6 +966,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             client_computed_at=client_computed_at,
             client_steps=int(client_steps) if client_steps is not None else None,
             client_distance=float(client_distance) if client_distance is not None else None,
+            client_started_on=client_started_on,
+            client_ended_on=client_ended_on,
+            client_fatigue=client_fatigue,
+            client_recharge=client_recharge,
             debug=debug,
             energy_delta=energy_delta,
             phantom_steps=phantom_steps,
@@ -954,6 +980,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
     def _write_sync_sample(
         self, *, trigger, client_energy, client_surplus, client_multiplier,
         client_computed_at, client_steps, client_distance,
+        client_started_on, client_ended_on,
+        client_fatigue, client_recharge,
         debug, energy_delta, phantom_steps, total_steps_all_time,
     ):
         from users.models import GeckoEnergySyncSample
@@ -966,6 +994,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             client_computed_at=client_computed_at,
             client_steps_in_payload=client_steps,
             client_distance_in_payload=client_distance,
+            client_started_on=client_started_on,
+            client_ended_on=client_ended_on,
+            client_fatigue=client_fatigue,
+            client_recharge=client_recharge,
             server_energy_before=debug['prev_energy'],
             server_energy_after=debug['new_energy'],
             server_surplus_before=debug['prev_surplus'],
