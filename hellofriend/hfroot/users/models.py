@@ -650,6 +650,11 @@ class GeckoEnergySyncSample(models.Model):
     multiplier_active = models.BooleanField(default=False)
     streak_expires_at = models.DateTimeField(null=True, blank=True)
 
+    # Consumer-side running tally of all-time steps at the moment of recompute.
+    # Seeded from GeckoCombinedData.total_steps on connect and incremented per
+    # update payload. Nullable so older rows remain valid.
+    total_steps_all_time = models.PositiveIntegerField(null=True, blank=True)
+
     class Meta:
         indexes = [
             models.Index(fields=['user', '-created_at']),

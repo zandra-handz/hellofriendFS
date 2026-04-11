@@ -947,13 +947,14 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             debug=debug,
             energy_delta=energy_delta,
             phantom_steps=phantom_steps,
+            total_steps_all_time=self.total_steps_all_time,
         )
 
     @database_sync_to_async
     def _write_sync_sample(
         self, *, trigger, client_energy, client_surplus, client_multiplier,
         client_computed_at, client_steps, client_distance,
-        debug, energy_delta, phantom_steps,
+        debug, energy_delta, phantom_steps, total_steps_all_time,
     ):
         from users.models import GeckoEnergySyncSample
         GeckoEnergySyncSample.objects.create(
@@ -986,6 +987,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             phantom_steps=phantom_steps,
             multiplier_active=debug['multiplier_active'],
             streak_expires_at=debug['streak_expires_at'],
+            total_steps_all_time=total_steps_all_time,
         )
 
     # ------------------------------------------------------------------

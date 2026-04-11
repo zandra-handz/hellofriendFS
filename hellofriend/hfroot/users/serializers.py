@@ -760,4 +760,6 @@ class GeckoEnergySyncSampleSerializer(serializers.ModelSerializer):
 
             'multiplier_active',
             'streak_expires_at',
+
+            'total_steps_all_time',
         ]
