@@ -507,6 +507,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         if action == 'get_score_state':
             self._recompute_energy_in_memory()
+            await self._record_sync_sample('get_score_state', None)
 
             await self.send(text_data=json.dumps({
                 'action': 'score_state',
@@ -521,6 +522,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             )
 
             self._handle_update_in_memory(payload)
+            await self._record_sync_sample('update_gecko_data', payload)
 
             await self.send(text_data=json.dumps({
                 'action': 'score_state',
@@ -556,6 +558,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
     def _recompute_energy_in_memory(self):
         ss = self.score_state
+        self._last_recompute_debug = None
         now = timezone.now()
         energy_updated_at = ss['energy_updated_at']
         elapsed = (now - energy_updated_at).total_seconds()
@@ -597,6 +600,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         new_steps = 0
         active_seconds = 0
+        pending_in_window = 0
+        pending_stale = 0
+        pending_steps_all = 0
+        pending_steps_in_window = 0
         # for entry in self.pending_data:
         #     started = entry.get('_started_dt')
         #     ended = entry.get('_ended_dt')
@@ -615,10 +622,17 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             start = max(started, energy_updated_at)
             end = min(ended, now)
 
+            entry_steps = entry.get('steps', 0)
+            pending_steps_all += entry_steps
+
             if end > start:
                 active_seconds += (end - start).total_seconds()
+                pending_in_window += 1
+                pending_steps_in_window += entry_steps
+            else:
+                pending_stale += 1
 
-            new_steps += entry.get('steps', 0)
+            new_steps += entry_steps
 
         rest_seconds = max(0, elapsed - active_seconds)
 
@@ -721,6 +735,28 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 revives_at = now + datetime.timedelta(seconds=revival_seconds)
         else:
             revives_at = None
+
+        self._last_recompute_debug = {
+            'window_seconds': elapsed,
+            'active_seconds': active_seconds,
+            'new_steps': new_steps,
+            'fatigue': fatigue,
+            'recharge': recharge,
+            'net': net,
+            'prev_energy': prev_energy,
+            'prev_surplus': prev_surplus,
+            'prev_updated_at': energy_updated_at,
+            'new_energy': energy,
+            'new_surplus': surplus_energy,
+            'new_updated_at': now,
+            'pending_entries_count': len(self.pending_data),
+            'pending_entries_in_window': pending_in_window,
+            'pending_entries_stale': pending_stale,
+            'pending_total_steps_all': pending_steps_all,
+            'pending_total_steps_in_window': pending_steps_in_window,
+            'multiplier_active': multiplier > base_multiplier,
+            'streak_expires_at': expires_at,
+        }
 
         ss['energy'] = energy
         ss['surplus_energy'] = surplus_energy
@@ -863,6 +899,92 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 ss['expires_at'] = timezone.now() + datetime.timedelta(seconds=length_seconds)
 
         self._recompute_energy_in_memory()
+
+    # ------------------------------------------------------------------
+    # Sync telemetry
+    # ------------------------------------------------------------------
+
+    async def _record_sync_sample(self, trigger, payload):
+        debug = getattr(self, '_last_recompute_debug', None)
+        if not debug:
+            return
+
+        client_energy = payload.get('client_energy') if payload else None
+        client_surplus = payload.get('client_surplus_energy') if payload else None
+        client_multiplier = payload.get('client_multiplier') if payload else None
+        client_computed_at_raw = payload.get('client_computed_at') if payload else None
+        client_computed_at = (
+            parse_datetime(client_computed_at_raw)
+            if isinstance(client_computed_at_raw, str) else None
+        )
+        client_steps = payload.get('steps') if payload else None
+        client_distance = payload.get('distance') if payload else None
+
+        energy_delta = None
+        if isinstance(client_energy, (int, float)):
+            energy_delta = client_energy - debug['new_energy']
+
+        phantom_steps = debug['new_steps'] - debug['pending_total_steps_in_window']
+
+        keep = (
+            phantom_steps > 0
+            or (energy_delta is not None and abs(energy_delta) >= 0.001)
+            or debug['window_seconds'] >= 30
+        )
+        if not keep:
+            return
+
+        await self._write_sync_sample(
+            trigger=trigger,
+            client_energy=client_energy,
+            client_surplus=client_surplus,
+            client_multiplier=client_multiplier,
+            client_computed_at=client_computed_at,
+            client_steps=int(client_steps) if client_steps is not None else None,
+            client_distance=float(client_distance) if client_distance is not None else None,
+            debug=debug,
+            energy_delta=energy_delta,
+            phantom_steps=phantom_steps,
+        )
+
+    @database_sync_to_async
+    def _write_sync_sample(
+        self, *, trigger, client_energy, client_surplus, client_multiplier,
+        client_computed_at, client_steps, client_distance,
+        debug, energy_delta, phantom_steps,
+    ):
+        from users.models import GeckoEnergySyncSample
+        GeckoEnergySyncSample.objects.create(
+            user=self.user,
+            trigger=trigger,
+            client_energy=client_energy,
+            client_surplus=client_surplus,
+            client_multiplier=client_multiplier,
+            client_computed_at=client_computed_at,
+            client_steps_in_payload=client_steps,
+            client_distance_in_payload=client_distance,
+            server_energy_before=debug['prev_energy'],
+            server_energy_after=debug['new_energy'],
+            server_surplus_before=debug['prev_surplus'],
+            server_surplus_after=debug['new_surplus'],
+            server_updated_at_before=debug['prev_updated_at'],
+            server_updated_at_after=debug['new_updated_at'],
+            recompute_window_seconds=debug['window_seconds'],
+            recompute_active_seconds=debug['active_seconds'],
+            recompute_new_steps=debug['new_steps'],
+            recompute_fatigue=debug['fatigue'],
+            recompute_recharge=debug['recharge'],
+            recompute_net=debug['net'],
+            pending_entries_count=debug['pending_entries_count'],
+            pending_entries_in_window=debug['pending_entries_in_window'],
+            pending_entries_stale=debug['pending_entries_stale'],
+            pending_total_steps_all=debug['pending_total_steps_all'],
+            pending_total_steps_in_window=debug['pending_total_steps_in_window'],
+            energy_delta=energy_delta,
+            phantom_steps=phantom_steps,
+            multiplier_active=debug['multiplier_active'],
+            streak_expires_at=debug['streak_expires_at'],
+        )
 
     # ------------------------------------------------------------------
     # Serialization

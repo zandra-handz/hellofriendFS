@@ -15,3 +15,4 @@ admin.site.register(models.GeckoConfigs)
 admin.site.register(models.GeckoSleepChangeLog)
 admin.site.register(models.GeckoScoreState)
 admin.site.register(models.GeckoEnergyLog)
+admin.site.register(models.GeckoEnergySyncSample) #fpr debugging/analytics

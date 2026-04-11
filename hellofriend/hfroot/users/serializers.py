@@ -718,3 +718,46 @@ class GeckoEnergyLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.GeckoEnergyLog
         fields = ['id', 'energy', 'surplus_energy', 'steps', 'total_steps', 'friend', 'recorded_at']
+
+
+class GeckoEnergySyncSampleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.GeckoEnergySyncSample
+        fields = [
+            'id',
+            'created_at',
+            'trigger',
+
+            'client_energy',
+            'client_surplus',
+            'client_multiplier',
+            'client_computed_at',
+            'client_steps_in_payload',
+            'client_distance_in_payload',
+
+            'server_energy_before',
+            'server_energy_after',
+            'server_surplus_before',
+            'server_surplus_after',
+            'server_updated_at_before',
+            'server_updated_at_after',
+
+            'recompute_window_seconds',
+            'recompute_active_seconds',
+            'recompute_new_steps',
+            'recompute_fatigue',
+            'recompute_recharge',
+            'recompute_net',
+
+            'pending_entries_count',
+            'pending_entries_in_window',
+            'pending_entries_stale',
+            'pending_total_steps_all',
+            'pending_total_steps_in_window',
+
+            'energy_delta',
+            'phantom_steps',
+
+            'multiplier_active',
+            'streak_expires_at',
+        ]

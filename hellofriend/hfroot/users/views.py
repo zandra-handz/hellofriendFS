@@ -83,6 +83,26 @@ def get_current_user(request):
     return JsonResponse(serializer.data)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_or_reset_friend_link_code(request):
+    user = request.user
+
+    code = models.FriendLinkCode.generate_code()
+
+    obj, _ = models.FriendLinkCode.objects.update_or_create(
+        user=user,
+        defaults={
+            'code': code,
+            'expires_at': timezone.now() + datetime.timedelta(minutes=1),
+        }
+    )
+
+    return response.Response({
+        'code': obj.code,
+        'expires_at': obj.expires_at,
+    }, status=status.HTTP_200_OK)
+
 
 @api_view(['POST'])
 @login_required
@@ -441,6 +461,24 @@ class GeckoEnergyLogView(generics.ListAPIView):
         return models.GeckoEnergyLog.objects.filter(
             user=self.request.user
         ).order_by('-recorded_at')
+
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get("nopaginate") == "true":
+            queryset = self.get_queryset()
+            serializer = self.get_serializer(queryset, many=True)
+            return response.Response(serializer.data)
+        return super().list(request, *args, **kwargs)
+
+
+class GeckoEnergySyncSampleView(generics.ListAPIView):
+    serializer_class = serializers.GeckoEnergySyncSampleSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = MediumPagination
+
+    def get_queryset(self):
+        return models.GeckoEnergySyncSample.objects.filter(
+            user=self.request.user
+        ).order_by('-created_at')
 
     def list(self, request, *args, **kwargs):
         if request.query_params.get("nopaginate") == "true":

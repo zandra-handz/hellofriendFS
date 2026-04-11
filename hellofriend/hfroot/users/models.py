@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 # from django.contrib.postgres.fields import ArrayField
 from django.db import models
+import uuid
 # import friends.models could cause circular import because this file imports users. using 'friends.ThoughtCapsulez' and 'friends.Image' below instead
 
 # Create your models here.
@@ -168,6 +169,24 @@ class BadRainbowzUser(AbstractUser):
                 GeckoCombinedData.objects.create(user=self) 
                 UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
                 
+
+
+class FriendLinkCode(models.Model):
+    user = models.OneToOneField(
+        'users.BadRainbowzUser',
+        on_delete=models.CASCADE,
+        related_name='friend_link_code',
+    )
+
+    code = models.CharField(max_length=16, unique=True)
+    expires_at = models.DateTimeField()
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    @staticmethod
+    def generate_code():
+        return uuid.uuid4().hex[:8].upper()
 
 
 class UserCategory(models.Model):
@@ -573,9 +592,70 @@ class GeckoScoreState(models.Model):
         if now.hour == 0 and now.minute < 2:
             GeckoEnergyLog.prune_old(self.user)
 
+class GeckoEnergySyncSample(models.Model):
+    user = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name='energy_sync_samples',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
+    # What triggered this recompute
+    trigger = models.CharField(max_length=32)
+    # 'update_gecko_data' | 'get_score_state' | 'flush' | 'connect'
 
+    # ---- Frontend's claim (only present on update_gecko_data) ----
+    client_energy = models.FloatField(null=True, blank=True)
+    client_surplus = models.FloatField(null=True, blank=True)
+    client_multiplier = models.FloatField(null=True, blank=True)
+    client_computed_at = models.DateTimeField(null=True, blank=True)
+    client_steps_in_payload = models.IntegerField(null=True, blank=True)
+    client_distance_in_payload = models.FloatField(null=True, blank=True)
 
+    # ---- Backend state, snapshotted before + after recompute ----
+    server_energy_before = models.FloatField()
+    server_energy_after = models.FloatField()
+    server_surplus_before = models.FloatField()
+    server_surplus_after = models.FloatField()
+    server_updated_at_before = models.DateTimeField()
+    server_updated_at_after = models.DateTimeField()
+
+    # ---- The recompute's own view of this window ----
+    # What _recompute_energy_in_memory thought happened.
+    # These are the numbers the bug corrupts.
+    recompute_window_seconds = models.FloatField()      # `elapsed`
+    recompute_active_seconds = models.FloatField()      # sum of clamped slices
+    recompute_new_steps = models.IntegerField()         # the buggy accumulator
+    recompute_fatigue = models.FloatField()
+    recompute_recharge = models.FloatField()
+    recompute_net = models.FloatField()
+
+    # ---- pending_data state at the moment of recompute ----
+    # These are the bug-confirmation fields.
+    pending_entries_count = models.IntegerField()
+    pending_entries_in_window = models.IntegerField()   # had end > start
+    pending_entries_stale = models.IntegerField()       # ended <= energy_updated_at
+    pending_total_steps_all = models.IntegerField()     # sum across ALL entries
+    pending_total_steps_in_window = models.IntegerField()  # only fresh ones
+
+    # ---- Derived deltas (computed in the helper, stored for easy querying) ----
+    energy_delta = models.FloatField(null=True, blank=True, db_index=True)
+    # client_energy - server_energy_after
+
+    phantom_steps = models.IntegerField(null=True, blank=True, db_index=True)
+    # recompute_new_steps - pending_total_steps_in_window
+    # > 0 means the bug just fired
+
+    # ---- Context for filtering outliers ----
+    multiplier_active = models.BooleanField(default=False)
+    streak_expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', '-created_at']),
+            models.Index(fields=['-phantom_steps']),
+        ]
+        ordering = ['-id']
 
 class GeckoEnergyLog(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='geckoenergylog_set')

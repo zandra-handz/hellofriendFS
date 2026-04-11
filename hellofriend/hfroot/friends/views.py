@@ -101,6 +101,58 @@ class FriendCreateView(APIView):
     }
     '''
 
+
+# editing the linked user field
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def link_user_to_friend_with_code(request, friend_id):
+    user_b = request.user
+    code_value = request.data.get('code')
+
+    if not code_value:
+        return response.Response(
+            {'error': 'code is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        link = users.models.FriendLinkCode.objects.select_related('user').get(code=code_value)
+    except users.models.FriendLinkCode.DoesNotExist:
+        return response.Response({'error': 'Invalid code'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if link.expires_at < timezone.now():
+        return response.Response({'error': 'Code expired'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        friend = models.Friend.objects.get(
+            id=friend_id,
+            user=link.user   # must belong to User A
+        )
+    except models.Friend.DoesNotExist:
+        return response.Response({'error': 'Invalid friend'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if friend.linked_user is not None:
+        return response.Response({'error': 'Already linked'}, status=status.HTTP_400_BAD_REQUEST)
+
+    existing = models.Friend.objects.filter(
+        user=link.user,
+        linked_user=user_b
+    ).exists()
+
+    if existing:
+        return response.Response(
+            {'error': 'User already linked to another friend'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if user_b == link.user:
+        return response.Response({'error': 'Cannot link to yourself'}, status=status.HTTP_400_BAD_REQUEST)
+
+    friend.linked_user = user_b
+    friend.save()
+
+    return response.Response({'success': True}, status=status.HTTP_200_OK)
+
 class FriendDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.FriendSerializer
     permission_classes = [IsAuthenticated]

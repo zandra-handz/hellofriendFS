@@ -43,7 +43,11 @@ urlpatterns = [
     path('gecko/points/all/ledger/', views.GeckoPointsLedgerView.as_view()),
 
     path('gecko/energy-log/', views.GeckoEnergyLogView.as_view(), name='gecko-energy-log'),
+    path('gecko/energy-sync/', views.GeckoEnergySyncSampleView.as_view(), name='gecko-energy-sync'),
     path('gecko/dev/reset-energy/', views.dev_reset_energy, name='dev-reset-energy'),
     path('gecko/dev/deplete-energy/', views.dev_deplete_energy, name='dev-deplete-energy'),
+
+    path('friend-link-code/', views.create_or_reset_friend_link_code),
+ 
 
 ]

@@ -7,7 +7,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator, RegexVa
 
 
 from django.db import models, transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.db.models.expressions import OrderBy
 from django.utils import timezone
 import traceback
@@ -64,15 +64,19 @@ phone_regex = RegexValidator(
     message="Phone number must be entered in the format: '+123456789'. Up to 15 digits allowed."
 )
 
+ 
+
 class Friend(models.Model):
 
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     name = models.CharField(max_length=64, null=False, blank=False)
+ 
+
+    linked_user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.SET_NULL, null=True, blank=True, related_name="linked_friend_records")
     first_name = models.CharField(max_length=64, null=True, blank=True)
     last_name = models.CharField(max_length=64, null=True, blank=True)
     dashboard_last_viewed = models.DateTimeField(null=True, blank=True, default=None)
 
-   
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -80,8 +84,6 @@ class Friend(models.Model):
     saved_color_dark = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for saved dark theme")
     saved_color_light = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for saved light theme")
     
-   
-
     # specific to HF front end settings, I decided this was better than the calculations I was running repeatedly on front end
     # (because I don't anticipate colors getting changed on the front end too much)
     theme_color_dark = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for the dark theme")
@@ -96,9 +98,24 @@ class Friend(models.Model):
     gecko_data = models.OneToOneField('friends.GeckoData', on_delete=models.CASCADE, null=True, blank=True, related_name='friend_gecko_data')
     
 
+    # class Meta:
+    #     ordering = ('next_meet__date',)
+    #     unique_together = ('user', 'name')
+
+
     class Meta:
         ordering = ('next_meet__date',)
-        unique_together = ('user', 'name')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'name'],
+                name='unique_friend_name_per_user',
+            ),
+            models.UniqueConstraint(
+                fields=['user', 'linked_user'],
+                condition=Q(linked_user__isnull=False),
+                name='unique_linked_user_per_owner',
+            ),
+        ]
 
     @property
     def first_meet_entered_in_words(self):
