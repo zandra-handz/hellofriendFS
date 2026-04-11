@@ -469,10 +469,12 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.score_state = init['score_state']
         self.score_rules = init['score_rules']
         self.pending_data = []
+        self.total_steps_all_time = init['total_steps_all_time']
 
         logger.info(
             f'[connect] loaded score_state user={self.user.id} '
-            f'energy={self.score_state["energy"]:.4f} rules={len(self.score_rules)}'
+            f'energy={self.score_state["energy"]:.4f} rules={len(self.score_rules)} '
+            f'total_steps_all_time={self.total_steps_all_time}'
         )
 
         self._recompute_energy_in_memory()
@@ -784,9 +786,12 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         delta_steps = int(payload.get('steps') or 0)
         delta_distance = int(payload.get('distance') or 0)
 
+        self.total_steps_all_time += delta_steps
+
         logger.debug(
             f'[update_mem] user={self.user.id} '
-            f'steps={delta_steps} distance={delta_distance}'
+            f'steps={delta_steps} distance={delta_distance} '
+            f'total_steps_all_time={self.total_steps_all_time}'
         )
 
         started_on = payload.get('started_on')
@@ -804,6 +809,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             f'[update_mem payload] user={self.user.id} '
             f'steps={delta_steps} '
             f'distance={delta_distance} '
+            f'total_steps_all_time={self.total_steps_all_time} '
             f'started_on={started_on} '
             f'ended_on={ended_on} '
             f'started_dt={started_dt} '
@@ -1009,6 +1015,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         return {
             'user': self.user.id,
+            'total_steps_all_time': self.total_steps_all_time,
             'multiplier': ss['multiplier'],
             'expires_at': _fmt_dt(ss['expires_at']),
             'updated_on': _fmt_dt(ss.get('updated_on')),
@@ -1045,11 +1052,14 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def _load_initial_state(self):
-        from users.models import GeckoScoreState
+        from users.models import GeckoScoreState, GeckoCombinedData
         from geckoscripts.models import ScoreRule
 
         obj, _ = GeckoScoreState.objects.get_or_create(user=self.user)
         obj.recompute_energy()
+
+        combined, _ = GeckoCombinedData.objects.get_or_create(user=self.user)
+        total_steps_all_time = combined.total_steps
 
         score_state = {
             'multiplier': obj.multiplier,
@@ -1089,6 +1099,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         return {
             'score_state': score_state,
             'score_rules': rules,
+            'total_steps_all_time': total_steps_all_time,
         }
 
     @database_sync_to_async
