@@ -476,9 +476,19 @@ class GeckoEnergySyncSampleView(generics.ListAPIView):
     pagination_class = MediumPagination
 
     def get_queryset(self):
-        return models.GeckoEnergySyncSample.objects.filter(
+        qs = models.GeckoEnergySyncSample.objects.filter(
             user=self.request.user
         ).order_by('-created_at')
+
+        trigger = self.request.query_params.get('trigger')
+        if trigger:
+            qs = qs.filter(trigger=trigger)
+
+        exclude = self.request.query_params.getlist('exclude_trigger')
+        if exclude:
+            qs = qs.exclude(trigger__in=exclude)
+
+        return qs
 
     def list(self, request, *args, **kwargs):
         if request.query_params.get("nopaginate") == "true":
