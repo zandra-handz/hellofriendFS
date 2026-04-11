@@ -936,14 +936,6 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         phantom_steps = debug['new_steps'] - debug['pending_total_steps_in_window']
 
-        keep = (
-            phantom_steps > 0
-            or (energy_delta is not None and abs(energy_delta) >= 0.001)
-            or debug['window_seconds'] >= 30
-        )
-        if not keep:
-            return
-
         await self._write_sync_sample(
             trigger=trigger,
             client_energy=client_energy,
