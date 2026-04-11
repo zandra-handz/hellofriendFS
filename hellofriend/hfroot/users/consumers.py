@@ -451,10 +451,19 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         self.user = user
         self.room_group_name = f'gecko_energy_{self.user.id}'
-        logger.info(f'[connect] user={self.user.id} group={self.room_group_name}')
+        self.shared_with_friend_group_name = f'gecko_shared_with_friend_{self.user.id}'
+        logger.info(
+            f'[connect] user={self.user.id} '
+            f'group={self.room_group_name} '
+            f'shared_with_friend_group={self.shared_with_friend_group_name}'
+        )
 
         await self.channel_layer.group_add(
             self.room_group_name,
+            self.channel_name,
+        )
+        await self.channel_layer.group_add(
+            self.shared_with_friend_group_name,
             self.channel_name,
         )
         await self.accept()
@@ -470,6 +479,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.score_rules = init['score_rules']
         self.pending_data = []
         self.total_steps_all_time = init['total_steps_all_time']
+        self.gecko_screen_position = [] # on FE:  this.lead = [lead0, lead1];
+        
 
         logger.info(
             f'[connect] loaded score_state user={self.user.id} '
@@ -497,6 +508,12 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 self.channel_name,
             )
 
+        if hasattr(self, 'shared_with_friend_group_name'):
+            await self.channel_layer.group_discard(
+                self.shared_with_friend_group_name,
+                self.channel_name,
+            )
+
     async def receive(self, text_data):
         try:
             data = json.loads(text_data)
@@ -507,7 +524,35 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         action = data.get('action')
         logger.debug(f'[receive] user={self.user.id} action={action}')
 
-        if action == 'get_score_state':
+        if action == 'get_gecko_screen_position':
+            await self.send(text_data=json.dumps({
+                'action': 'gecko_coords',
+                'data': {
+                    'from_user': self.user.id,
+                    'gecko_position': self.gecko_screen_position,
+                },
+            }))
+
+        elif action == 'update_gecko_position':
+            payload = data.get('data', {})
+            pos = payload.get('position')
+            if not (isinstance(pos, list) and len(pos) == 2):
+                logger.warning(
+                    f'[update_gecko_position] user={self.user.id} invalid position={pos!r}'
+                )
+                return
+
+            self.gecko_screen_position = pos
+            await self.channel_layer.group_send(
+                self.shared_with_friend_group_name,
+                {
+                    'type': 'gecko_position_broadcast',
+                    'from_user': self.user.id,
+                    'position': pos,
+                },
+            )
+
+        elif action == 'get_score_state':
             self._recompute_energy_in_memory()
             await self._record_sync_sample('get_score_state', None)
 
@@ -557,6 +602,17 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
     async def energy_update(self, event):
         logger.debug(f'[push] energy_update user={self.user.id}')
         await self.send(text_data=json.dumps(event['data']))
+
+    async def gecko_position_broadcast(self, event):
+        if event.get('from_user') == self.user.id:
+            return
+        await self.send(text_data=json.dumps({
+            'action': 'gecko_coords',
+            'data': {
+                'from_user': event.get('from_user'),
+                'position': event.get('position'),
+            },
+        }))
 
     # ------------------------------------------------------------------
     # In-memory energy recomputation

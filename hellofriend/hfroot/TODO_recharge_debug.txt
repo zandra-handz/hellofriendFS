@@ -1,0 +1,65 @@
+Recharge shows 0 in sync log — debug notes
+===========================================
+
+Symptom: client_recharge is 0 on every sync sample, while client_fatigue
+is aligned with backend. Both should come from the same score_state
+payload, so something specific is broken.
+
+Likely causes
+-------------
+1. rechargePerSecond is literally still 0 on the gait instance.
+   Partial hydration — stepFatiguePerStep key gets through, but
+   recharge_per_second doesn't.
+
+2. Multiplier gate flipping the wrong way.
+   update() only uses streakRechargePerSecond when multiplier > baseMultiplier.
+   If both are 1, 1 > 1 is false, falls through to rechargePerSecond
+   (which may be the stale/unset one). Fatigue uses stepFatiguePerStep
+   unconditionally, with streak as a modifier — never depends on which
+   constant was hydrated.
+
+First step: verify which one it is
+----------------------------------
+Log once per ~100 frames inside update():
+
+  if (Math.random() < 0.01) {
+    console.log("[GAIT RATES]", {
+      rechargePerSecond: this.rechargePerSecond,
+      streakRechargePerSecond: this.streakRechargePerSecond,
+      stepFatiguePerStep: this.stepFatiguePerStep,
+      stamina: this.stamina,
+      energy: this.energy,
+      multiplier: this.multiplier,
+    });
+  }
+
+If stepFatiguePerStep is nonzero but rechargePerSecond is 0, it's a
+hydration issue. If both rates are populated, it's the gate.
+
+Defensive fix: mirror fatigue's structure
+-----------------------------------------
+One base rate always populated, streak is just a modifier. Non-zero
+default so hydration failure can't zero it out.
+
+  // constructor
+  this.rechargePerSecond =
+    energyConfig.recharge_per_second ?? (1 / (8 * 3600));
+  this.streakRechargeMultiplier =
+    energyConfig.streak_recharge_multiplier ?? 0.5;
+
+  // update()
+  if (this.energy > 0 && this.energy < 1.0) {
+    let rate = this.rechargePerSecond;
+    if (this.multiplier > this.baseMultiplier) {
+      rate *= this.streakRechargeMultiplier;
+    }
+    const recharge = rate * this.stamina * dt;
+    const before = this.energy;
+    this.energy = Math.min(1.0, this.energy + recharge);
+    this.windowRecharge += this.energy - before;
+  }
+
+After the fix, if recharge is still zero it's the energy < 1.0 gate
+not firing (frontend energy is stuck at 1.0), not a config issue.
+
+Remember: run the log first. Don't guess.

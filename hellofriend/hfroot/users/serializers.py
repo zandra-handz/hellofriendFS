@@ -721,6 +721,13 @@ class GeckoEnergyLogSerializer(serializers.ModelSerializer):
 
 
 class GeckoEnergySyncSampleSerializer(serializers.ModelSerializer):
+    client_window_seconds = serializers.SerializerMethodField()
+
+    def get_client_window_seconds(self, obj):
+        if obj.client_started_on and obj.client_ended_on:
+            return (obj.client_ended_on - obj.client_started_on).total_seconds()
+        return None
+
     class Meta:
         model = models.GeckoEnergySyncSample
         fields = [
@@ -736,6 +743,7 @@ class GeckoEnergySyncSampleSerializer(serializers.ModelSerializer):
             'client_distance_in_payload',
             'client_started_on',
             'client_ended_on',
+            'client_window_seconds',
             'client_fatigue',
             'client_recharge',
 
