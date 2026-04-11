@@ -11,6 +11,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework import generics, response, status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.pagination import PageNumberPagination
@@ -487,6 +488,18 @@ class GeckoEnergySyncSampleView(generics.ListAPIView):
         exclude = self.request.query_params.getlist('exclude_trigger')
         if exclude:
             qs = qs.exclude(trigger__in=exclude)
+
+        since_raw = self.request.query_params.get('since')
+        if since_raw:
+            since_dt = parse_datetime(since_raw)
+            if since_dt is not None:
+                qs = qs.filter(created_at__gte=since_dt)
+
+        until_raw = self.request.query_params.get('until')
+        if until_raw:
+            until_dt = parse_datetime(until_raw)
+            if until_dt is not None:
+                qs = qs.filter(created_at__lte=until_dt)
 
         return qs
 
