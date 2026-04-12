@@ -15,6 +15,7 @@ urlpatterns = [
     path('update-app-setup/', views.UpdateAppSetupComplete.as_view()),
     path('<int:friend_id>/', views.FriendProfile.as_view()),
     path('<int:friend_id>/link/', views.link_user_to_friend_with_code),
+    path('<int:friend_id>/live-sesh/invite/', views.create_live_sesh_invite, name='live-sesh-invite-create'),
     path('<int:friend_id>/info/', views.FriendDetail.as_view()),
     path('<int:friend_id>/dashboard/', views.FriendDashboardView.as_view()),
     path('<int:friend_id>/settings/', views.FriendSuggestionSettingsDetail.as_view()),

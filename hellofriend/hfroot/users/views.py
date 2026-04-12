@@ -1,5 +1,6 @@
 from . import models
 from . import serializers
+from .notifications import notify_user
 import datetime
 from django.apps import apps
 # from django.core.mail import send_mail
@@ -1062,6 +1063,15 @@ def accept_live_sesh_invite(request, invite_id):
                 'current_log': host_sesh.current_log,
             },
         )
+
+    # Notify the sender in real time that their invite was accepted
+    notify_user(sender.id, 'live_sesh_invite_accepted', {
+        'invite_id': invite.id,
+        'accepted_by': recipient.id,
+        'accepted_by_username': recipient.username,
+        'session_start': now.isoformat(),
+        'expires_at': expires_at.isoformat(),
+    })
 
     return response.Response(
         serializers.UserFriendCurrentLiveSeshSerializer(my_sesh).data,

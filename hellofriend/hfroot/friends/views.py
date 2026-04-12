@@ -153,6 +153,46 @@ def link_user_to_friend_with_code(request, friend_id):
 
     return response.Response({'success': True}, status=status.HTTP_200_OK)
 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_live_sesh_invite(request, friend_id):
+    user = request.user
+
+    try:
+        friend = models.Friend.objects.select_related('linked_user').get(
+            id=friend_id, user=user,
+        )
+    except models.Friend.DoesNotExist:
+        return response.Response({'error': 'Invalid friend'}, status=status.HTTP_400_BAD_REQUEST)
+
+    recipient = friend.linked_user
+    if recipient is None:
+        return response.Response(
+            {'error': 'Friend has no linked user'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if recipient == user:
+        return response.Response(
+            {'error': 'Cannot invite yourself'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    invite, _ = users.models.UserFriendLiveSeshInvite.objects.update_or_create(
+        sender=user,
+        recipient=recipient,
+        defaults={'accepted_on': None},
+    )
+
+    from users.notifications import notify_user
+    notify_user(recipient.id, 'live_sesh_invite')
+
+    return response.Response(
+        users.serializers.UserFriendLiveSeshInviteSerializer(invite).data,
+        status=status.HTTP_200_OK,
+    )
+
 class FriendDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.FriendSerializer
     permission_classes = [IsAuthenticated]
