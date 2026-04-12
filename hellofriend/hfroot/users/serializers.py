@@ -775,3 +775,38 @@ class GeckoEnergySyncSampleSerializer(serializers.ModelSerializer):
 
             'total_steps_all_time',
         ]
+
+
+class UserFriendLiveSeshInviteSerializer(serializers.ModelSerializer):
+    sender_username = serializers.CharField(source='sender.username', read_only=True)
+    recipient_username = serializers.CharField(source='recipient.username', read_only=True)
+
+    class Meta:
+        model = models.UserFriendLiveSeshInvite
+        fields = [
+            'id', 'sender', 'recipient', 'sender_username', 'recipient_username',
+            'created_on', 'updated_on', 'accepted_on',
+        ]
+
+
+class UserFriendCurrentLiveSeshSerializer(serializers.ModelSerializer):
+    other_user_username = serializers.CharField(source='other_user.username', read_only=True)
+
+    class Meta:
+        model = models.UserFriendCurrentLiveSesh
+        fields = [
+            'id', 'user', 'is_host', 'other_user', 'other_user_username',
+            'session_start', 'expires_at', 'created_on', 'updated_on',
+        ]
+
+
+class UserFriendLiveSeshLogSerializer(serializers.ModelSerializer):
+    host_username = serializers.CharField(source='host.username', read_only=True)
+    guest_username = serializers.CharField(source='guest.username', read_only=True)
+
+    class Meta:
+        model = models.UserFriendLiveSeshLog
+        fields = [
+            'id', 'host', 'guest', 'host_username', 'guest_username',
+            'start', 'end', 'created_on', 'updated_on',
+        ]

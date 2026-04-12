@@ -974,4 +974,96 @@ class RequestPasswordResetCodeView(APIView):
 #         )
 
 #         return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
-   
+
+
+LIVE_SESH_DURATION = datetime.timedelta(hours=1)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_current_live_sesh(request):
+    user = request.user
+    try:
+        sesh = models.UserFriendCurrentLiveSesh.objects.select_related('other_user').get(user=user)
+    except models.UserFriendCurrentLiveSesh.DoesNotExist:
+        return response.Response(None, status=status.HTTP_200_OK)
+
+    return response.Response(
+        serializers.UserFriendCurrentLiveSeshSerializer(sesh).data,
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_live_sesh_invites(request):
+    user = request.user
+
+    sent_qs = models.UserFriendLiveSeshInvite.objects.filter(
+        sender=user, accepted_on__isnull=True
+    ).select_related('sender', 'recipient').order_by('-created_on')
+
+    pending_qs = models.UserFriendLiveSeshInvite.objects.filter(
+        recipient=user, accepted_on__isnull=True
+    ).select_related('sender', 'recipient').order_by('-created_on')
+
+    return response.Response({
+        'sent': serializers.UserFriendLiveSeshInviteSerializer(sent_qs, many=True).data,
+        'pending': serializers.UserFriendLiveSeshInviteSerializer(pending_qs, many=True).data,
+    }, status=status.HTTP_200_OK)
+
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def accept_live_sesh_invite(request, invite_id):
+    user = request.user
+
+    try:
+        invite = models.UserFriendLiveSeshInvite.objects.select_related('sender', 'recipient').get(
+            pk=invite_id, recipient=user, accepted_on__isnull=True
+        )
+    except models.UserFriendLiveSeshInvite.DoesNotExist:
+        return response.Response(
+            {'detail': 'Invite not found or already accepted.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    now = timezone.now()
+    expires_at = now + LIVE_SESH_DURATION
+    sender = invite.sender
+    recipient = invite.recipient
+
+    with transaction.atomic():
+        invite.accepted_on = now
+        invite.save(update_fields=['accepted_on', 'updated_on'])
+
+        # Host side — model's save() will auto-create the shared log
+        host_sesh, _ = models.UserFriendCurrentLiveSesh.objects.update_or_create(
+            user=sender,
+            defaults={
+                'other_user': recipient,
+                'is_host': True,
+                'session_start': now,
+                'expires_at': expires_at,
+                'current_log': None,
+            },
+        )
+
+        # Guest side — reuse the log created above
+        my_sesh, _ = models.UserFriendCurrentLiveSesh.objects.update_or_create(
+            user=recipient,
+            defaults={
+                'other_user': sender,
+                'is_host': False,
+                'session_start': now,
+                'expires_at': expires_at,
+                'current_log': host_sesh.current_log,
+            },
+        )
+
+    return response.Response(
+        serializers.UserFriendCurrentLiveSeshSerializer(my_sesh).data,
+        status=status.HTTP_200_OK,
+    )

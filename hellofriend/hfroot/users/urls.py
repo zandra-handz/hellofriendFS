@@ -48,6 +48,9 @@ urlpatterns = [
     path('gecko/dev/deplete-energy/', views.dev_deplete_energy, name='dev-deplete-energy'),
 
     path('friend-link-code/', views.create_or_reset_friend_link_code),
- 
+
+    path('live-sesh/current/', views.get_current_live_sesh, name='live-sesh-current'),
+    path('live-sesh/invites/', views.get_live_sesh_invites, name='live-sesh-invites'),
+    path('live-sesh/invites/<int:invite_id>/accept/', views.accept_live_sesh_invite, name='live-sesh-invite-accept'),
 
 ]

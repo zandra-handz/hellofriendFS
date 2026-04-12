@@ -172,6 +172,7 @@ class BadRainbowzUser(AbstractUser):
                     code=FriendLinkCode.generate_code(),
                     expires_at=timezone.now(),
                 )
+                UserFriendCurrentLiveSesh.objects.create(user=self)
                 UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
                 
 
@@ -184,7 +185,7 @@ class FriendLinkCode(models.Model):
     )
 
     code = models.CharField(max_length=16, unique=True)
-    expires_at = models.DateTimeField()
+    expires_at = models.DateTimeField(default=timezone.now)
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
@@ -193,7 +194,107 @@ class FriendLinkCode(models.Model):
     def generate_code():
         return uuid.uuid4().hex[:8].upper()
     
+
+class UserFriendLiveSeshInvite(models.Model):
  
+    sender = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='sender_live_sesh_invite')
+    recipient = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='recipient_live_sesh_invite')
+    
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    accepted_on = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_on']
+        constraints = [
+            models.UniqueConstraint(fields=['sender', 'recipient'], name='unique_sender_recipient_invite')
+        ]
+
+
+    def __str__(self):
+        return f"Invite from {self.sender.username} to {self.recipient.username} at {self.created_on}"
+
+    
+ 
+class UserFriendCurrentLiveSesh(models.Model):
+
+    user = models.OneToOneField(
+        'users.BadRainbowzUser',
+        on_delete=models.CASCADE,
+        related_name='user_friend_current_live_sesh',
+    )
+    is_host = models.BooleanField(default=False)
+    other_user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='other_user_friend_current_live_sesh')
+    
+    session_start = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField(default=timezone.now)
+
+    current_log = models.OneToOneField(
+        'users.UserFriendLiveSeshLog',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='current_sesh',
+    )
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        now = timezone.now()
+
+        # If updating, trim the previous log's end if it was still active and is being replaced
+        if self.pk is not None:
+            try:
+                old = UserFriendCurrentLiveSesh.objects.get(pk=self.pk)
+                new_log_id = self.current_log.pk if self.current_log else None
+                if (
+                    old.current_log_id
+                    and old.expires_at > now
+                    and old.current_log_id != new_log_id
+                ):
+                    UserFriendLiveSeshLog.objects.filter(pk=old.current_log_id).update(
+                        end=now, updated_on=now,
+                    )
+            except UserFriendCurrentLiveSesh.DoesNotExist:
+                pass
+
+        # Auto-create a log if none is attached
+        if not self.current_log:
+            self.current_log = UserFriendLiveSeshLog.objects.create(
+                host=self.user if self.is_host else self.other_user,
+                guest=self.other_user if self.is_host else self.user,
+                start=self.session_start,
+                end=self.expires_at,
+            )
+
+        super().save(*args, **kwargs)
+
+
+
+
+
+class UserFriendLiveSeshLog(models.Model):
+ 
+    host = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='host_sesh_log')
+    guest = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='guest_sesh_log')
+   
+    start = models.DateTimeField()
+    end = models.DateTimeField()
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+    class Meta:
+        ordering = ['-created_on']
+        
+    def __str__(self):
+        return f"Session hosted by {self.host.username} with {self.guest.username} from {self.start} to {self.end}"
+
+    
+
+
+
 
 
 class UserCategory(models.Model):
