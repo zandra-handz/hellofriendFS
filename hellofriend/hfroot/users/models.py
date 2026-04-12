@@ -164,9 +164,10 @@ class BadRainbowzUser(AbstractUser):
             with transaction.atomic():
                 UserProfile.objects.create(user=self)
                 UserSettings.objects.create(user=self)
-                GeckoConfigs.objects.create(user=self)
                 GeckoScoreState.objects.create(user=self)
-                GeckoCombinedData.objects.create(user=self) 
+                GeckoConfigs.objects.create(user=self)
+                GeckoCombinedData.objects.create(user=self)
+                FriendLinkCode.objects.create(user=self)
                 UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
                 
 
