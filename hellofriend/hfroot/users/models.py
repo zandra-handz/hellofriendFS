@@ -167,7 +167,11 @@ class BadRainbowzUser(AbstractUser):
                 GeckoScoreState.objects.create(user=self)
                 GeckoConfigs.objects.create(user=self)
                 GeckoCombinedData.objects.create(user=self)
-                FriendLinkCode.objects.create(user=self)
+                FriendLinkCode.objects.create(
+                    user=self,
+                    code=FriendLinkCode.generate_code(),
+                    expires_at=timezone.now(),
+                )
                 UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
                 
 
