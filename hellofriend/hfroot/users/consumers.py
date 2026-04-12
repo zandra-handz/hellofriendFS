@@ -466,6 +466,18 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             self.shared_with_friend_group_name,
             self.channel_name,
         )
+
+        partner_id = await self._get_active_live_sesh_partner_id()
+        if partner_id is not None:
+            self.joined_sesh_group = f'gecko_shared_with_friend_{partner_id}'
+            await self.channel_layer.group_add(
+                self.joined_sesh_group,
+                self.channel_name,
+            )
+            logger.info(
+            f'[connect] user={self.user.id} joined partner sesh group={self.joined_sesh_group}'
+            )
+
         await self.accept()
 
         try:
@@ -513,6 +525,13 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 self.shared_with_friend_group_name,
                 self.channel_name,
             )
+        
+        if getattr(self, 'joined_sesh_group', None):
+            await self.channel_layer.group_discard(
+                self.joined_sesh_group,
+                self.channel_name,
+            )
+            self.joined_sesh_group = None
 
     async def receive(self, text_data):
         try:
@@ -531,6 +550,46 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'from_user': self.user.id,
                     'position': self.gecko_screen_position,
                 },
+            }))
+
+        elif action == 'join_live_sesh':
+            partner_id = await self._get_active_live_sesh_partner_id()
+            if partner_id is None:
+                logger.info(f'[join_live_sesh] user={self.user.id} no active sesh — refusing')
+                await self.send(text_data=json.dumps({
+                    'action': 'join_live_sesh_failed',
+                    'data': {'reason': 'no_active_sesh'},
+                }))
+                return
+            
+            # if already in a partner group, discard first
+            old = getattr(self, 'joined_sesh_group', None)
+            new_group = f'gecko_shared_with_friend_{partner_id}'
+            if old and old != new_group:
+                await self.channel_layer.group_discard(old, self.channel_name)
+
+            self.joined_sesh_group = new_group
+            await self.channel_layer.group_add(new_group, self.channel_name)
+
+            logger.info(
+                f'[join_live_sesh] user={self.user.id} joined partner group={new_group}'
+            )
+
+            await self.send(text_data=json.dumps({
+                'action': 'join_live_sesh_ok',
+                'data': {'partner_id': partner_id},
+
+            }))
+        
+        elif action == 'leave_live_sesh':
+            old = getattr(self, 'joined_sesh_group', None)
+            if old:
+                await self.channel_layer.group_discard(old, self.channel_name)
+                self.joined_sesh_group = None
+                logger.info(f'[leave_live_sesh] user={self.user.id} left group={old}')
+
+            await self.send(text_data=json.dumps({
+                'action': 'leave_live_sesh_ok',
             }))
 
         elif action == 'update_gecko_position':
@@ -1030,6 +1089,23 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             phantom_steps=phantom_steps,
             total_steps_all_time=self.total_steps_all_time,
         )
+
+
+
+    # @database_sync_to_async marks this sync ORM call safe to use inside the
+    # async consumer. The wrapper runs the function in a worker thread and
+    # gives back a coroutine (hence the `await` at the call site).
+    #   - Without wrapper: ORM runs in the event-loop thread -> blocks everything.
+    #   - With wrapper: ORM runs in a worker thread -> event loop keeps serving
+    #     other connections while your coroutine sleeps.
+    @database_sync_to_async
+    def _get_active_live_sesh_partner_id(self):
+        from users.models import UserFriendCurrentLiveSesh
+        sesh = UserFriendCurrentLiveSesh.objects.filter(
+            user_id=self.user.id,
+            expires_at__gt=timezone.now(),
+        ).first()
+        return sesh.other_user_id if sesh else None
 
     @database_sync_to_async
     def _write_sync_sample(
