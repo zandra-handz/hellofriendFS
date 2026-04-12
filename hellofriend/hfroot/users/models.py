@@ -230,12 +230,12 @@ class UserFriendCurrentLiveSesh(models.Model):
     session_start = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField(default=timezone.now)
 
-    current_log = models.OneToOneField(
+    current_log = models.ForeignKey(
         'users.UserFriendLiveSeshLog',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='current_sesh',
+        related_name='current_seshes',
     )
 
     created_on = models.DateTimeField(auto_now_add=True)

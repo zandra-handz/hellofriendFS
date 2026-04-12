@@ -977,7 +977,7 @@ class RequestPasswordResetCodeView(APIView):
 #         return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
 
 
-LIVE_SESH_DURATION = datetime.timedelta(hours=1)
+LIVE_SESH_DURATION = datetime.timedelta(hours=24)
 
 
 @api_view(['GET'])
