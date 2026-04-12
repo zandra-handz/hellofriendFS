@@ -126,7 +126,7 @@ def link_user_to_friend_with_code(request, friend_id):
     try:
         friend = models.Friend.objects.get(
             id=friend_id,
-            user=link.user   # must belong to User A
+            user=user_b   # must belong to the requester
         )
     except models.Friend.DoesNotExist:
         return response.Response({'error': 'Invalid friend'}, status=status.HTTP_400_BAD_REQUEST)
@@ -135,8 +135,8 @@ def link_user_to_friend_with_code(request, friend_id):
         return response.Response({'error': 'Already linked'}, status=status.HTTP_400_BAD_REQUEST)
 
     existing = models.Friend.objects.filter(
-        user=link.user,
-        linked_user=user_b
+        user=user_b,
+        linked_user=link.user
     ).exists()
 
     if existing:
@@ -148,7 +148,7 @@ def link_user_to_friend_with_code(request, friend_id):
     if user_b == link.user:
         return response.Response({'error': 'Cannot link to yourself'}, status=status.HTTP_400_BAD_REQUEST)
 
-    friend.linked_user = user_b
+    friend.linked_user = link.user
     friend.save()
 
     return response.Response({'success': True}, status=status.HTTP_200_OK)
