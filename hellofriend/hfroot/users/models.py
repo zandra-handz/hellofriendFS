@@ -187,6 +187,8 @@ class FriendLinkCode(models.Model):
     @staticmethod
     def generate_code():
         return uuid.uuid4().hex[:8].upper()
+    
+ 
 
 
 class UserCategory(models.Model):

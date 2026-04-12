@@ -316,7 +316,7 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = models.Friend
-        fields = ['id', 'name', 'first_meet_entered', 'date', 'days_since', 
+        fields = ['id', 'name', 'linked_user', 'first_meet_entered', 'date', 'days_since', 
                   'days_since_words', 'time_score', 'future_date_in_words',
                   'suggestion_settings', 'friend_faves', 'gecko_data']
 
