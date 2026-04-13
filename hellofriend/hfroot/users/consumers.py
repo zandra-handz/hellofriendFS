@@ -429,6 +429,7 @@
 
 #         self.pending_data.clear()
 
+import asyncio
 import json
 import logging
 import datetime
@@ -630,6 +631,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 return
 
             self.host_gecko_screen_position = pos
+            # DEBUG: remove before release — delays host broadcast so a single
+            # phone can swap to the guest build and watch the move arrive.
+            await asyncio.sleep(5)
             await self.channel_layer.group_send(
                 self.shared_with_friend_group_name,
                 {
