@@ -1036,6 +1036,14 @@ def accept_live_sesh_invite(request, invite_id):
     sender = invite.sender
     recipient = invite.recipient
 
+    from friends.models import Friend
+    sender_friend = Friend.objects.filter(
+        user=sender, linked_user=recipient,
+    ).only('id').first()
+    recipient_friend = Friend.objects.filter(
+        user=recipient, linked_user=sender,
+    ).only('id').first()
+
     with transaction.atomic():
         invite.accepted_on = now
         invite.save(update_fields=['accepted_on', 'updated_on'])
@@ -1045,6 +1053,7 @@ def accept_live_sesh_invite(request, invite_id):
             user=sender,
             defaults={
                 'other_user': recipient,
+                'friend': sender_friend,
                 'is_host': True,
                 'session_start': now,
                 'expires_at': expires_at,
@@ -1057,6 +1066,7 @@ def accept_live_sesh_invite(request, invite_id):
             user=recipient,
             defaults={
                 'other_user': sender,
+                'friend': recipient_friend,
                 'is_host': False,
                 'session_start': now,
                 'expires_at': expires_at,
