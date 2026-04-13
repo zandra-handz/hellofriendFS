@@ -450,6 +450,14 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
+        # Parse friend_id from query string (e.g. ws://.../?friend_id=42)
+        from urllib.parse import parse_qs
+        qs = parse_qs((self.scope.get('query_string') or b'').decode())
+        try:
+            provided_friend_id = int(qs.get('friend_id', [None])[0])
+        except (TypeError, ValueError):
+            provided_friend_id = None
+
         self.user = user
         self.room_group_name = f'gecko_energy_{self.user.id}'
         self.shared_with_friend_group_name = f'gecko_shared_with_friend_{self.user.id}'
@@ -469,6 +477,15 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         )
 
         partner_id = await self._get_active_live_sesh_partner_id()
+        if partner_id is not None and getattr(self, 'is_host', False):
+            # Host must supply a friend_id matching their sesh row's friend
+            if self.sesh_friend_id is None or provided_friend_id != self.sesh_friend_id:
+                logger.warning(
+                    f'[connect] host user={self.user.id} friend_id mismatch '
+                    f'(provided={provided_friend_id}, sesh={self.sesh_friend_id}) — rejecting'
+                )
+                await self.close()
+                return
         if partner_id is not None:
             self.joined_sesh_group = f'gecko_shared_with_friend_{partner_id}'
             await self.channel_layer.group_add(
@@ -1180,11 +1197,13 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         sesh = UserFriendCurrentLiveSesh.objects.filter(
             user_id=self.user.id,
             expires_at__gt=timezone.now(),
-        ).only('other_user_id', 'is_host').first()
+        ).only('other_user_id', 'is_host', 'friend_id').first()
         if not sesh:
             self.is_host = False
+            self.sesh_friend_id = None
             return None
         self.is_host = sesh.is_host
+        self.sesh_friend_id = sesh.friend_id
         return sesh.other_user_id
 
     @database_sync_to_async
