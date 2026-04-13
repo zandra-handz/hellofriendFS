@@ -226,6 +226,13 @@ class UserFriendCurrentLiveSesh(models.Model):
     )
     is_host = models.BooleanField(default=False)
     other_user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='other_user_friend_current_live_sesh')
+    friend = models.ForeignKey(
+        'friends.Friend',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='current_live_seshes',
+    )
     
     session_start = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField(default=timezone.now)
