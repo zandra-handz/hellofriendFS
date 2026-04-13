@@ -491,7 +491,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.score_rules = init['score_rules']
         self.pending_data = []
         self.total_steps_all_time = init['total_steps_all_time']
+        self.is_host = getattr(self, 'is_host', False)
         self.gecko_screen_position = [] # on FE:  this.lead = [lead0, lead1];
+        self.host_gecko_screen_position = [] # on FE:  this.lead = [lead0, lead1];
+        self.guest_gecko_screen_position = [] # on FE:  this.lead = [lead0, lead1];
         
 
         logger.info(
@@ -586,6 +589,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             if old:
                 await self.channel_layer.group_discard(old, self.channel_name)
                 self.joined_sesh_group = None
+                self.is_host = False
                 logger.info(f'[leave_live_sesh] user={self.user.id} left group={old}')
 
             await self.send(text_data=json.dumps({
@@ -606,6 +610,54 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 self.shared_with_friend_group_name,
                 {
                     'type': 'gecko_position_broadcast',
+                    'from_user': self.user.id,
+                    'position': pos,
+                },
+            )
+
+        elif action == 'update_host_gecko_position':
+            if not getattr(self, 'is_host', False):
+                logger.warning(
+                    f'[update_host_gecko_position] user={self.user.id} not host — ignoring'
+                )
+                return
+            payload = data.get('data', {})
+            pos = payload.get('position')
+            if not (isinstance(pos, list) and len(pos) == 2):
+                logger.warning(
+                    f'[update_host_gecko_position] user={self.user.id} invalid position={pos!r}'
+                )
+                return
+
+            self.host_gecko_screen_position = pos
+            await self.channel_layer.group_send(
+                self.shared_with_friend_group_name,
+                {
+                    'type': 'host_gecko_position_broadcast',
+                    'from_user': self.user.id,
+                    'position': pos,
+                },
+            )
+
+        elif action == 'update_guest_gecko_position':
+            if getattr(self, 'is_host', False):
+                logger.warning(
+                    f'[update_guest_gecko_position] user={self.user.id} is host — ignoring'
+                )
+                return
+            payload = data.get('data', {})
+            pos = payload.get('position')
+            if not (isinstance(pos, list) and len(pos) == 2):
+                logger.warning(
+                    f'[update_guest_gecko_position] user={self.user.id} invalid position={pos!r}'
+                )
+                return
+
+            self.guest_gecko_screen_position = pos
+            await self.channel_layer.group_send(
+                self.shared_with_friend_group_name,
+                {
+                    'type': 'guest_gecko_position_broadcast',
                     'from_user': self.user.id,
                     'position': pos,
                 },
@@ -666,6 +718,26 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
    
         await self.send(text_data=json.dumps({
             'action': 'gecko_coords',
+            'data': {
+                'from_user': event.get('from_user'),
+                'position': event.get('position'),
+            },
+        }))
+
+    async def host_gecko_position_broadcast(self, event):
+
+        await self.send(text_data=json.dumps({
+            'action': 'host_gecko_coords',
+            'data': {
+                'from_user': event.get('from_user'),
+                'position': event.get('position'),
+            },
+        }))
+
+    async def guest_gecko_position_broadcast(self, event):
+
+        await self.send(text_data=json.dumps({
+            'action': 'guest_gecko_coords',
             'data': {
                 'from_user': event.get('from_user'),
                 'position': event.get('position'),
@@ -1104,8 +1176,12 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         sesh = UserFriendCurrentLiveSesh.objects.filter(
             user_id=self.user.id,
             expires_at__gt=timezone.now(),
-        ).first()
-        return sesh.other_user_id if sesh else None
+        ).only('other_user_id', 'is_host').first()
+        if not sesh:
+            self.is_host = False
+            return None
+        self.is_host = sesh.is_host
+        return sesh.other_user_id
 
     @database_sync_to_async
     def _write_sync_sample(
