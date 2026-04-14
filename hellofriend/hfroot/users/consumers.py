@@ -735,6 +735,18 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         logger.debug(f'[push] energy_update user={self.user.id}')
         await self.send(text_data=json.dumps(event['data']))
 
+    async def live_sesh_cancelled(self, event):
+        # Pushed via channel_layer.group_send to gecko_energy_{user_id} when
+        # a live sesh is cancelled. Notify the FE then close the socket.
+        try:
+            await self.send(text_data=json.dumps({
+                'action': 'live_sesh_cancelled',
+                'data': event.get('data', {}),
+            }))
+        finally:
+            logger.info(f'[live_sesh_cancelled] closing socket user={getattr(self, "user", None)}')
+            await self.close()
+
     async def gecko_position_broadcast(self, event):
    
         await self.send(text_data=json.dumps({

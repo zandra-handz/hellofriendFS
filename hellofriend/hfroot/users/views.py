@@ -980,6 +980,44 @@ class RequestPasswordResetCodeView(APIView):
 LIVE_SESH_DURATION = datetime.timedelta(hours=24)
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def cancel_current_live_sesh(request):
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+
+    user = request.user
+    sesh = models.UserFriendCurrentLiveSesh.objects.filter(user=user).first()
+    if not sesh:
+        return response.Response(
+            {'detail': 'No active sesh.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    partner_id = sesh.other_user_id
+    now = timezone.now()
+
+    with transaction.atomic():
+        models.UserFriendCurrentLiveSesh.objects.filter(
+            user_id__in=[user.id, partner_id],
+        ).update(expires_at=now)
+
+    # Force-disconnect both gecko sockets if they're connected.
+    channel_layer = get_channel_layer()
+    if channel_layer is not None:
+        payload = {'cancelled_by': user.id}
+        for uid in (user.id, partner_id):
+            async_to_sync(channel_layer.group_send)(
+                f'gecko_energy_{uid}',
+                {'type': 'live_sesh_cancelled', 'data': payload},
+            )
+
+    return response.Response(
+        {'detail': 'Live sesh cancelled.', 'partner_id': partner_id},
+        status=status.HTTP_200_OK,
+    )
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_current_live_sesh(request):

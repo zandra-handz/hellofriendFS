@@ -52,5 +52,5 @@ urlpatterns = [
     path('live-sesh/current/', views.get_current_live_sesh, name='live-sesh-current'),
     path('live-sesh/invites/', views.get_live_sesh_invites, name='live-sesh-invites'),
     path('live-sesh/invites/<int:invite_id>/accept/', views.accept_live_sesh_invite, name='live-sesh-invite-accept'),
-
+    path('live-sesh/current/cancel/', views.cancel_current_live_sesh, name='live-sesh-current-cancel'),       
 ]
