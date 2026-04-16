@@ -617,6 +617,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         elif action == 'update_gecko_position':
             payload = data.get('data', {})
             pos = payload.get('position')
+            # steps = payload.get('steps') or []
+            # moments = payload.get('moments') or []
             if not (isinstance(pos, list) and len(pos) == 2):
                 logger.warning(
                     f'[update_gecko_position] user={self.user.id} invalid position={pos!r}'
@@ -630,6 +632,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'type': 'gecko_position_broadcast',
                     'from_user': self.user.id,
                     'position': pos,
+                    # 'steps': steps,
+                    # 'moments': moments
                 },
             )
 
@@ -639,8 +643,11 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     f'[update_host_gecko_position] user={self.user.id} not host — ignoring'
                 )
                 return
-            payload = data.get('data', {})
+            payload = data.get('data', {}) 
             pos = payload.get('position')
+            steps = payload.get('steps') or [] 
+            moments = payload.get('moments') or []
+
             if not (isinstance(pos, list) and len(pos) == 2):
                 logger.warning(
                     f'[update_host_gecko_position] user={self.user.id} invalid position={pos!r}'
@@ -657,6 +664,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'type': 'host_gecko_position_broadcast',
                     'from_user': self.user.id,
                     'position': pos,
+                    'steps': steps,
+                    'moments': moments
+                    
                 },
             )
 
@@ -668,6 +678,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 return
             payload = data.get('data', {})
             pos = payload.get('position')
+            steps = payload.get('steps') or [] 
+
             if not (isinstance(pos, list) and len(pos) == 2):
                 logger.warning(
                     f'[update_guest_gecko_position] user={self.user.id} invalid position={pos!r}'
@@ -681,6 +693,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'type': 'guest_gecko_position_broadcast',
                     'from_user': self.user.id,
                     'position': pos,
+                    'steps': steps
                 },
             )
 
@@ -764,6 +777,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             'data': {
                 'from_user': event.get('from_user'),
                 'position': event.get('position'),
+                'steps': event.get('steps', []),
+                'moments': event.get('moments', [])
             },
         }))
 
@@ -774,6 +789,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             'data': {
                 'from_user': event.get('from_user'),
                 'position': event.get('position'),
+                'steps': event.get('steps', []),
             },
         }))
 
