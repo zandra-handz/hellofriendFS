@@ -140,7 +140,12 @@ CHANNEL_LAYERS = {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
             'hosts': [(os.getenv('REDIS_HOST', '127.0.0.1'), 6379)],
+            'capacity': 50, # messages stored in queue. default is 100
+            'expiry': 10, # 3 seconds before tossing from queue. default is 60
         },
+        'POOL': {
+            'max_connections': 10
+        }
     },
 }
 
@@ -215,7 +220,7 @@ DATABASES = {
 } 
 
 
-WEBSOCKET_LOGGING = False
+WEBSOCKET_LOGGING = True
 
 LOGGING = {
     'version': 1,

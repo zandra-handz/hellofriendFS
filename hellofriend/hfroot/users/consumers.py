@@ -674,8 +674,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'from_user': self.user.id,
                     'position': pos,
                     'steps': steps,
-                    'moments': moments
-                    
+                    'moments': moments,
+                    'timestamp': payload.get('timestamp'),
                 },
             )
 
@@ -702,7 +702,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'type': 'guest_gecko_position_broadcast',
                     'from_user': self.user.id,
                     'position': pos,
-                    'steps': steps
+                    'steps': steps,
+                    'timestamp': payload.get('timestamp'),
                 },
             )
 
@@ -786,6 +787,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'position': event.get('position'),
                 'steps': event.get('steps', []),
                 'moments': event.get('moments', []),
+                'timestamp': event.get('timestamp'),
             },
         }))
 
@@ -796,6 +798,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'from_user': event.get('from_user'),
                 'position': event.get('position'),
                 'steps': event.get('steps', []),
+                'timestamp': event.get('timestamp'),
             },
         }))
 
