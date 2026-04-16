@@ -215,6 +215,8 @@ DATABASES = {
 } 
 
 
+WEBSOCKET_LOGGING = False
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -236,8 +238,9 @@ LOGGING = {
         
         'gecko.ws': {
             'handlers': ['console'],
-            'level': 'DEBUG',   
+            'level': 'DEBUG',
             'propagate': False,
+            'disabled': not WEBSOCKET_LOGGING,
         },
  
         'django': {
