@@ -554,7 +554,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             )
             self.joined_sesh_group = None
 
-    async def receive(self, text_data):
+    async def receive(self, text_data=None, bytes_data=None):
+        if bytes_data is not None:
+            await self._handle_binary(bytes_data)
+            return
         try:
             data = json.loads(text_data)
         except Exception:
@@ -759,6 +762,62 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         finally:
             logger.info(f'[live_sesh_cancelled] closing socket user={getattr(self, "user", None)}')
             await self.close()
+
+    # ------------------------------------------------------------------
+    # Binary gecko frames (tags: 1=host, 2=guest, 3=plain)
+    # Layout (little-endian): byte0=tag, byte1=pad, then Int16 pairs (x,y)
+    # scaled x10. Host: pos + 4 steps + Uint8 count + count moments.
+    # Guest: pos + 4 steps. Plain: pos only.
+    # ------------------------------------------------------------------
+    async def _handle_binary(self, buf: bytes):
+        if len(buf) < 2:
+            logger.warning(f'[binary] user={self.user.id} buf too short len={len(buf)}')
+            return
+        tag = buf[0]
+
+        if tag == 1:  # host
+            if not getattr(self, 'is_host', False):
+                logger.warning(f'[binary host] user={self.user.id} not host — drop')
+                return
+            if len(buf) < 23:
+                logger.warning(f'[binary host] user={self.user.id} short len={len(buf)}')
+                return
+            count = buf[22]
+            expected = 23 + count * 4
+            if len(buf) != expected or count > 64:
+                logger.warning(
+                    f'[binary host] user={self.user.id} bad len={len(buf)} '
+                    f'count={count} expected={expected}'
+                )
+                return
+        elif tag == 2:  # guest
+            if getattr(self, 'is_host', False):
+                logger.warning(f'[binary guest] user={self.user.id} is host — drop')
+                return
+            if len(buf) != 22:
+                logger.warning(f'[binary guest] user={self.user.id} bad len={len(buf)}')
+                return
+        elif tag == 3:  # plain
+            if len(buf) != 6:
+                logger.warning(f'[binary plain] user={self.user.id} bad len={len(buf)}')
+                return
+        else:
+            logger.warning(f'[binary] user={self.user.id} unknown tag={tag}')
+            return
+
+        await self.channel_layer.group_send(
+            self.shared_with_friend_group_name,
+            {
+                'type': 'gecko_binary_broadcast',
+                'from_user': self.user.id,
+                'payload': buf,
+            },
+        )
+
+    async def gecko_binary_broadcast(self, event):
+        if event.get('from_user') == self.user.id:
+            return
+        await self.send(bytes_data=event['payload'])
 
     async def gecko_position_broadcast(self, event):
    
