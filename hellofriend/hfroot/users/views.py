@@ -1105,20 +1105,24 @@ def get_current_live_sesh(request):
 @permission_classes([IsAuthenticated])
 def get_live_sesh_invites(request):
     user = request.user
+    now = timezone.now()
 
     sent_qs = models.UserFriendLiveSeshInvite.objects.filter(
-        sender=user, accepted_on__isnull=True
+        sender=user,
+        accepted_on__isnull=True,
+        invite_expires_on__gt=now
     ).select_related('sender', 'recipient').order_by('-created_on')
 
     pending_qs = models.UserFriendLiveSeshInvite.objects.filter(
-        recipient=user, accepted_on__isnull=True
+        recipient=user,
+        accepted_on__isnull=True,
+        invite_expires_on__gt=now
     ).select_related('sender', 'recipient').order_by('-created_on')
 
     return response.Response({
         'sent': serializers.UserFriendLiveSeshInviteSerializer(sent_qs, many=True).data,
         'pending': serializers.UserFriendLiveSeshInviteSerializer(pending_qs, many=True).data,
     }, status=status.HTTP_200_OK)
-
 
 
 @api_view(['POST'])
