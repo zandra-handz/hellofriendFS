@@ -1193,3 +1193,33 @@ def accept_live_sesh_invite(request, invite_id):
         serializers.UserFriendCurrentLiveSeshSerializer(my_sesh).data,
         status=status.HTTP_200_OK,
     )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def decline_live_sesh_invite(request, invite_id):
+    user = request.user
+
+    try:
+        invite = models.UserFriendLiveSeshInvite.objects.get(
+            pk=invite_id,
+            recipient=user,
+            accepted_on__isnull=True,
+            declined_on__isnull=True,
+        )
+    except models.UserFriendLiveSeshInvite.DoesNotExist:
+        return response.Response(
+            {'detail': 'Invite not found or already handled.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    invite.declined_on = timezone.now()
+    invite.save(update_fields=['declined_on', 'updated_on'])
+
+    notify_user(invite.sender_id, 'live_sesh_invite_declined', {
+        'invite_id': invite.id,
+        'declined_by': user.id,
+        'declined_by_username': user.username,
+    })
+
+    return response.Response({'status': 'declined'}, status=status.HTTP_200_OK)
