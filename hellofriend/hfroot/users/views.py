@@ -472,6 +472,13 @@ class GeckoEnergyLogView(generics.ListAPIView):
         return super().list(request, *args, **kwargs)
 
 
+def gecko_analytics_dashboard(request):
+    User = models.GeckoEnergySyncSample._meta.get_field('user').related_model
+    user_ids = models.GeckoEnergySyncSample.objects.values_list('user_id', flat=True).distinct()
+    users = User.objects.filter(id__in=user_ids).order_by('username')
+    return render(request, 'gecko_analytics.html', {'users': users})
+
+
 class GeckoEnergyLogAnalyticsView(generics.ListAPIView):
     serializer_class = serializers.GeckoEnergyLogAnalyticsSerializer
     permission_classes = [AllowAny]

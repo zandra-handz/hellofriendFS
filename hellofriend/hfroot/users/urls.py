@@ -59,6 +59,9 @@ urlpatterns = [
     #   ?page=<n>          paginated, 30 rows/page (MediumPagination)
     #   ?nopaginate=true   return all matching rows in one response
     path('gecko/analytics/energy-sync/', views.GeckoEnergySyncSampleAnalyticsView.as_view(), name='gecko-analytics-energy-sync'),
+
+    # Plotly dashboard comparing server_energy_after vs client_energy per user.
+    path('gecko/analytics/dashboard/', views.gecko_analytics_dashboard, name='gecko-analytics-dashboard'),
     path('gecko/energy-sync/', views.GeckoEnergySyncSampleView.as_view(), name='gecko-energy-sync'),
     path('gecko/dev/reset-energy/', views.dev_reset_energy, name='dev-reset-energy'),
     path('gecko/dev/deplete-energy/', views.dev_deplete_energy, name='dev-deplete-energy'),

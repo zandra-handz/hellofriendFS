@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gecko Energy Analytics</title>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+        body { font-family: system-ui, sans-serif; margin: 2rem; }
+        .controls { margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center; }
+        #chart { width: 100%; height: 70vh; }
+        #status { color: #666; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <h1>Gecko Energy — server vs client over time</h1>
+    <div class="controls">
+        <label for="user-select">User:</label>
+        <select id="user-select">
+            <option value="">-- select a user --</option>
+            {% for u in users %}
+                <option value="{{ u.id }}">{{ u.username }} (id {{ u.id }})</option>
+            {% endfor %}
+        </select>
+        <span id="status"></span>
+    </div>
+    <div id="chart"></div>
+
+    <script>
+        const select = document.getElementById('user-select');
+        const chart = document.getElementById('chart');
+        const status = document.getElementById('status');
+
+        async function loadUser(userId) {
+            if (!userId) {
+                Plotly.purge(chart);
+                return;
+            }
+            status.textContent = 'loading…';
+            try {
+                const res = await fetch(`/users/gecko/analytics/energy-sync/?user_id=${userId}&nopaginate=true`);
+                const rows = await res.json();
+                if (!rows.length) {
+                    status.textContent = 'no samples for this user';
+                    Plotly.purge(chart);
+                    return;
+                }
+
+                const x = rows.map(r => r.created_at);
+                const serverY = rows.map(r => r.server_energy_after);
+                const clientY = rows.map(r => r.client_energy);
+
+                const traces = [
+                    {
+                        x, y: serverY,
+                        name: 'server_energy_after',
+                        type: 'scatter', mode: 'lines+markers',
+                        line: { color: '#1f77b4' },
+                    },
+                    {
+                        x, y: clientY,
+                        name: 'client_energy',
+                        type: 'scatter', mode: 'lines+markers',
+                        line: { color: '#ff7f0e' },
+                        connectgaps: false,
+                    },
+                ];
+
+                const layout = {
+                    xaxis: { title: 'time', type: 'date' },
+                    yaxis: { title: 'energy', range: [0, 1.05] },
+                    hovermode: 'x unified',
+                    margin: { t: 20 },
+                };
+
+                Plotly.newPlot(chart, traces, layout, { responsive: true });
+                status.textContent = `${rows.length} samples`;
+            } catch (err) {
+                status.textContent = 'error: ' + err.message;
+            }
+        }
+
+        select.addEventListener('change', (e) => loadUser(e.target.value));
+    </script>
+</body>
+</html>
