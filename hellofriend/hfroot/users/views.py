@@ -501,6 +501,38 @@ class GeckoEnergyLogAnalyticsView(generics.ListAPIView):
         return super().list(request, *args, **kwargs)
 
 
+class GeckoEnergySyncSampleAnalyticsView(generics.ListAPIView):
+    serializer_class = serializers.GeckoEnergySyncSampleAnalyticsSerializer
+    permission_classes = [AllowAny]
+    pagination_class = MediumPagination
+
+    def get_queryset(self):
+        qs = models.GeckoEnergySyncSample.objects.all().order_by('created_at')
+        since = self.request.query_params.get('since')
+        until = self.request.query_params.get('until')
+        user_id = self.request.query_params.get('user_id')
+        trigger = self.request.query_params.get('trigger')
+        if since:
+            parsed = parse_datetime(since)
+            if parsed:
+                qs = qs.filter(created_at__gte=parsed)
+        if until:
+            parsed = parse_datetime(until)
+            if parsed:
+                qs = qs.filter(created_at__lt=parsed)
+        if user_id:
+            qs = qs.filter(user_id=user_id)
+        if trigger:
+            qs = qs.filter(trigger=trigger)
+        return qs
+
+    def list(self, request, *args, **kwargs):
+        if request.query_params.get('nopaginate') == 'true':
+            serializer = self.get_serializer(self.filter_queryset(self.get_queryset()), many=True)
+            return response.Response(serializer.data)
+        return super().list(request, *args, **kwargs)
+
+
 class GeckoEnergySyncSampleView(generics.ListAPIView):
     serializer_class = serializers.GeckoEnergySyncSampleSerializer
     permission_classes = [IsAuthenticated]

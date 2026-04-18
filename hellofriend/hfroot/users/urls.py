@@ -50,6 +50,15 @@ urlpatterns = [
     #   ?page=<n>          paginated, 30 rows/page (MediumPagination)
     #   ?nopaginate=true   return all matching rows in one response
     path('gecko/analytics/energy-log/', views.GeckoEnergyLogAnalyticsView.as_view(), name='gecko-analytics-energy-log'),
+
+    # Open endpoint returning all users' GeckoEnergySyncSample rows. Query params:
+    #   ?since=<iso>       filter created_at >= since
+    #   ?until=<iso>       filter created_at <  until
+    #   ?user_id=<id>      filter to a single user
+    #   ?trigger=<name>    filter to one trigger (update_gecko_data | get_score_state | flush | connect)
+    #   ?page=<n>          paginated, 30 rows/page (MediumPagination)
+    #   ?nopaginate=true   return all matching rows in one response
+    path('gecko/analytics/energy-sync/', views.GeckoEnergySyncSampleAnalyticsView.as_view(), name='gecko-analytics-energy-sync'),
     path('gecko/energy-sync/', views.GeckoEnergySyncSampleView.as_view(), name='gecko-energy-sync'),
     path('gecko/dev/reset-energy/', views.dev_reset_energy, name='dev-reset-energy'),
     path('gecko/dev/deplete-energy/', views.dev_deplete_energy, name='dev-deplete-energy'),

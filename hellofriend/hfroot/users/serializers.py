@@ -783,6 +783,11 @@ class GeckoEnergySyncSampleSerializer(serializers.ModelSerializer):
         ]
 
 
+class GeckoEnergySyncSampleAnalyticsSerializer(GeckoEnergySyncSampleSerializer):
+    class Meta(GeckoEnergySyncSampleSerializer.Meta):
+        fields = ['user'] + GeckoEnergySyncSampleSerializer.Meta.fields
+
+
 class UserFriendLiveSeshInviteSerializer(serializers.ModelSerializer):
     sender_username = serializers.CharField(source='sender.username', read_only=True)
     recipient_username = serializers.CharField(source='recipient.username', read_only=True)
