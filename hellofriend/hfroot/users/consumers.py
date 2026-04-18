@@ -654,6 +654,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             payload = data.get('data', {}) 
             pos = payload.get('position')
             steps = payload.get('steps') or [] 
+            step_angles = payload.get('step_angles') or []
             moments = payload.get('moments') or []
 
             if not (isinstance(pos, list) and len(pos) == 2):
@@ -665,7 +666,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             self.host_gecko_screen_position = pos
             logger.info(
                 f'[update_host_gecko_position] user={self.user.id} '
-                f'pos={pos} steps={steps} moments={moments}'
+                f'pos={pos} steps={steps} step_angles={step_angles} moments={moments}'
             )
             await self.channel_layer.group_send(
                 self.shared_with_friend_group_name,
@@ -674,6 +675,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'from_user': self.user.id,
                     'position': pos,
                     'steps': steps,
+                    'step_angles': step_angles,
                     'moments': moments,
                     'timestamp': payload.get('timestamp'),
                 },
@@ -786,7 +788,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'from_user': event.get('from_user'),
                 'position': event.get('position'),
                 'steps': event.get('steps', []),
-                'fingers': event.get('fingers', []),
+                'step_angles': event.get('step_angles', []),
                 'moments': event.get('moments', []),
                 'timestamp': event.get('timestamp'),
             },
@@ -798,8 +800,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             'data': {
                 'from_user': event.get('from_user'),
                 'position': event.get('position'),
-                'steps': event.get('steps', []),
-                'fingers': event.get('fingers', []),
+                'steps': event.get('steps', []), 
                 'timestamp': event.get('timestamp'),
             },
         }))
