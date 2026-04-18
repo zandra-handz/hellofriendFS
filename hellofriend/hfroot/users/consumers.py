@@ -655,6 +655,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             pos = payload.get('position')
             steps = payload.get('steps') or [] 
             step_angles = payload.get('step_angles') or []
+            held_moments = payload.get('held_moments') or []
             moments = payload.get('moments') or []
 
             if not (isinstance(pos, list) and len(pos) == 2):
@@ -666,7 +667,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             self.host_gecko_screen_position = pos
             logger.info(
                 f'[update_host_gecko_position] user={self.user.id} '
-                f'pos={pos} steps={steps} step_angles={step_angles} moments={moments}'
+                f'pos={pos} steps={steps} step_angles={step_angles} held_moments={held_moments} moments={moments}'
             )
             await self.channel_layer.group_send(
                 self.shared_with_friend_group_name,
@@ -676,6 +677,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'position': pos,
                     'steps': steps,
                     'step_angles': step_angles,
+                    'held_moments': held_moments,
                     'moments': moments,
                     'timestamp': payload.get('timestamp'),
                 },
