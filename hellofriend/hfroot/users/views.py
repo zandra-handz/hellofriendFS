@@ -1121,15 +1121,18 @@ def get_live_sesh_invites(request):
 
 
 
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def accept_live_sesh_invite(request, invite_id):
     user = request.user
 
     try:
-        invite = models.UserFriendLiveSeshInvite.objects.select_related('sender', 'recipient').get(
-            pk=invite_id, recipient=user, accepted_on__isnull=True
+        invite = models.UserFriendLiveSeshInvite.objects.select_related(
+            'sender', 'recipient'
+        ).get(
+            pk=invite_id,
+            recipient=user,
+            accepted_on__isnull=True,
         )
     except models.UserFriendLiveSeshInvite.DoesNotExist:
         return response.Response(
@@ -1138,6 +1141,14 @@ def accept_live_sesh_invite(request, invite_id):
         )
 
     now = timezone.now()
+
+    # optional safety check (don’t change flow, just reject expired)
+    if invite.invite_expires_on and invite.invite_expires_on <= now:
+        return response.Response(
+            {'detail': 'Invite expired.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     expires_at = now + LIVE_SESH_DURATION
     sender = invite.sender
     recipient = invite.recipient
@@ -1146,6 +1157,7 @@ def accept_live_sesh_invite(request, invite_id):
     sender_friend = Friend.objects.filter(
         user=sender, linked_user=recipient,
     ).only('id').first()
+
     recipient_friend = Friend.objects.filter(
         user=recipient, linked_user=sender,
     ).only('id').first()
@@ -1154,7 +1166,6 @@ def accept_live_sesh_invite(request, invite_id):
         invite.accepted_on = now
         invite.save(update_fields=['accepted_on', 'updated_on'])
 
-        # Host side — model's save() will auto-create the shared log
         host_sesh, _ = models.UserFriendCurrentLiveSesh.objects.update_or_create(
             user=sender,
             defaults={
@@ -1167,7 +1178,6 @@ def accept_live_sesh_invite(request, invite_id):
             },
         )
 
-        # Guest side — reuse the log created above
         my_sesh, _ = models.UserFriendCurrentLiveSesh.objects.update_or_create(
             user=recipient,
             defaults={
@@ -1180,7 +1190,6 @@ def accept_live_sesh_invite(request, invite_id):
             },
         )
 
-    # Notify the sender in real time that their invite was accepted
     notify_user(sender.id, 'live_sesh_invite_accepted', {
         'invite_id': invite.id,
         'accepted_by': recipient.id,
@@ -1194,7 +1203,6 @@ def accept_live_sesh_invite(request, invite_id):
         status=status.HTTP_200_OK,
     )
 
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def decline_live_sesh_invite(request, invite_id):
@@ -1205,7 +1213,6 @@ def decline_live_sesh_invite(request, invite_id):
             pk=invite_id,
             recipient=user,
             accepted_on__isnull=True,
-            declined_on__isnull=True,
         )
     except models.UserFriendLiveSeshInvite.DoesNotExist:
         return response.Response(
@@ -1213,8 +1220,8 @@ def decline_live_sesh_invite(request, invite_id):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    invite.declined_on = timezone.now()
-    invite.save(update_fields=['declined_on', 'updated_on'])
+    invite.invite_expires_on = timezone.now()
+    invite.save(update_fields=['invite_expires_on', 'updated_on'])
 
     notify_user(invite.sender_id, 'live_sesh_invite_declined', {
         'invite_id': invite.id,

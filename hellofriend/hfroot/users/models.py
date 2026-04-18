@@ -195,27 +195,49 @@ class FriendLinkCode(models.Model):
         return uuid.uuid4().hex[:8].upper()
     
 
+
 class UserFriendLiveSeshInvite(models.Model):
- 
-    sender = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='sender_live_sesh_invite')
-    recipient = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='recipient_live_sesh_invite')
-    
+
+    sender = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name='sender_live_sesh_invite'
+    )
+    recipient = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name='recipient_live_sesh_invite'
+    )
+
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
     accepted_on = models.DateTimeField(null=True, blank=True)
+    invite_expires_on = models.DateTimeField(null=True, blank=True)
+
+
+
+    def reset_expiration_to_six_hours(self):
+        """
+        Extends invite expiration to 6 hours from now.
+        """
+        self.invite_expires_on = timezone.now() + datetime.timedelta(hours=6)
+        self.save(update_fields=["invite_expires_on", "updated_on"])
+        return self.invite_expires_on
 
     class Meta:
         ordering = ['-created_on']
         constraints = [
-            models.UniqueConstraint(fields=['sender', 'recipient'], name='unique_sender_recipient_invite')
+            models.UniqueConstraint(
+                fields=['sender', 'recipient'],
+                name='unique_sender_recipient_invite'
+            )
         ]
 
+ 
 
     def __str__(self):
         return f"Invite from {self.sender.username} to {self.recipient.username} at {self.created_on}"
-
-    
  
 class UserFriendCurrentLiveSesh(models.Model):
 

@@ -796,7 +796,7 @@ class UserFriendLiveSeshInviteSerializer(serializers.ModelSerializer):
         model = models.UserFriendLiveSeshInvite
         fields = [
             'id', 'sender', 'recipient', 'sender_username', 'recipient_username',
-            'created_on', 'updated_on', 'accepted_on',
+            'created_on', 'updated_on', 'accepted_on', 'invite_expires_on',
         ]
 
 

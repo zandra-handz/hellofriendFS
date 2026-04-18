@@ -185,6 +185,8 @@ def create_live_sesh_invite(request, friend_id):
         defaults={'accepted_on': None},
     )
 
+    invite.reset_expiration_to_six_hours()
+
     from users.notifications import notify_user
     notify_user(recipient.id, 'live_sesh_invite')
 
