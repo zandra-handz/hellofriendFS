@@ -43,6 +43,13 @@ urlpatterns = [
     path('gecko/points/all/ledger/', views.GeckoPointsLedgerView.as_view()),
 
     path('gecko/energy-log/', views.GeckoEnergyLogView.as_view(), name='gecko-energy-log'),
+    # Open endpoint returning all users' GeckoEnergyLog rows. Query params:
+    #   ?since=<iso>       filter recorded_at >= since (e.g. 2026-04-01T00:00:00Z)
+    #   ?until=<iso>       filter recorded_at <  until
+    #   ?user_id=<id>      filter to a single user
+    #   ?page=<n>          paginated, 30 rows/page (MediumPagination)
+    #   ?nopaginate=true   return all matching rows in one response
+    path('gecko/analytics/energy-log/', views.GeckoEnergyLogAnalyticsView.as_view(), name='gecko-analytics-energy-log'),
     path('gecko/energy-sync/', views.GeckoEnergySyncSampleView.as_view(), name='gecko-energy-sync'),
     path('gecko/dev/reset-energy/', views.dev_reset_energy, name='dev-reset-energy'),
     path('gecko/dev/deplete-energy/', views.dev_deplete_energy, name='dev-deplete-energy'),

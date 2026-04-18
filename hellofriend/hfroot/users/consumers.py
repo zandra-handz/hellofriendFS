@@ -786,6 +786,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'from_user': event.get('from_user'),
                 'position': event.get('position'),
                 'steps': event.get('steps', []),
+                'fingers': event.get('fingers', []),
                 'moments': event.get('moments', []),
                 'timestamp': event.get('timestamp'),
             },
@@ -798,6 +799,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'from_user': event.get('from_user'),
                 'position': event.get('position'),
                 'steps': event.get('steps', []),
+                'fingers': event.get('fingers', []),
                 'timestamp': event.get('timestamp'),
             },
         }))
