@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Gecko Energy Analytics</title>
+    <title>Gecko Energy Analytics — Preview</title>
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <style>
         :root {
@@ -10,6 +10,9 @@
             --muted: #666;
             --control-bg: #f5f5f5;
             --control-border: #ccc;
+            --banner-bg: #fff3cd;
+            --banner-border: #ffe69c;
+            --banner-fg: #664d03;
         }
         html[data-theme="dark"] {
             --bg: #121212;
@@ -17,6 +20,9 @@
             --muted: #9a9a9a;
             --control-bg: #1f1f1f;
             --control-border: #3a3a3a;
+            --banner-bg: #2a2410;
+            --banner-border: #5a4a1a;
+            --banner-fg: #f0d875;
         }
         body {
             font-family: system-ui, sans-serif; margin: 2rem;
@@ -38,9 +44,11 @@
             body { margin: 1rem; }
         }
         #status { color: var(--muted); font-size: 0.9rem; }
-        .topbar {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 1rem; gap: 1rem;
+        .dev-banner {
+            background: var(--banner-bg); border: 1px solid var(--banner-border); color: var(--banner-fg);
+            padding: 0.5rem 0.75rem; border-radius: 4px; margin-bottom: 1rem;
+            font-size: 0.85rem;
+            display: flex; justify-content: space-between; align-items: center; gap: 1rem;
         }
         #theme-toggle {
             background: transparent; border: 1px solid currentColor; color: inherit;
@@ -49,18 +57,25 @@
     </style>
 </head>
 <body>
-    <div class="topbar">
-        <h1 style="margin: 0;">Gecko Gameplay Analytics</h1>
+    <div class="dev-banner">
+        <span><strong>Preview mode</strong> — uses generated dummy data. Open directly in a browser (no server needed).</span>
         <button id="theme-toggle" type="button">Light mode</button>
     </div>
+    <h1>Gecko Gameplay Analytics</h1>
     <div class="controls">
         <label for="user-select">User:</label>
         <select id="user-select">
             <option value="">-- select a user --</option>
-            {% for u in users %}
-                <option value="{{ u.id }}">{{ u.username }} (id {{ u.id }})</option>
-            {% endfor %}
+            <option value="1">alice (id 1)</option>
+            <option value="2">bob (id 2)</option>
+            <option value="3">carol_sparse (id 3)</option>
+            <option value="4">dave_empty (id 4)</option>
         </select>
+
+        <label for="sample-count">Samples:</label>
+        <input id="sample-count" type="number" value="120" min="0" max="2000" style="width: 80px;" />
+
+        <button id="regen">Regenerate</button>
 
         <label style="display: flex; align-items: center; gap: 0.35rem;">
             <input id="grid-toggle" type="checkbox" /> Grid
@@ -95,6 +110,8 @@
 
     <script>
         const select = document.getElementById('user-select');
+        const sampleCount = document.getElementById('sample-count');
+        const regenBtn = document.getElementById('regen');
         const chart = document.getElementById('chart');
         const status = document.getElementById('status');
         const themeToggle = document.getElementById('theme-toggle');
@@ -109,7 +126,7 @@
             return new Set(Array.from(triggerFilters).filter(cb => cb.checked).map(cb => cb.value));
         }
 
-        const STORAGE_KEY = 'gecko-analytics-theme';
+        const STORAGE_KEY = 'gecko-preview-theme';
         function applyTheme(theme) {
             document.documentElement.setAttribute('data-theme', theme);
             themeToggle.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
@@ -126,6 +143,56 @@
         document.documentElement.setAttribute('data-theme', savedTheme);
         themeToggle.textContent = savedTheme === 'dark' ? 'Light mode' : 'Dark mode';
 
+        function seededRandom(seed) {
+            let s = seed;
+            return () => {
+                s = (s * 9301 + 49297) % 233280;
+                return s / 233280;
+            };
+        }
+
+        const TRIGGERS = ['update_gecko_data', 'get_score_state', 'flush', 'connect'];
+
+        function generateRows(userId, count) {
+            if (!count || count <= 0) return [];
+            const rand = seededRandom(userId * 1000 + count);
+            const rows = [];
+            const now = Date.now();
+            const stepMs = 5 * 60 * 1000; // 5 min between samples — makes windows visible at default zoom
+
+            let serverEnergy = 0.5 + rand() * 0.3;
+            for (let i = count - 1; i >= 0; i--) {
+                const t = new Date(now - i * stepMs);
+                const drift = (rand() - 0.5) * 0.08;
+                serverEnergy = Math.max(0, Math.min(1, serverEnergy + drift));
+                const clientDrift = (rand() - 0.5) * 0.15;
+                const clientEnergy = Math.max(0, Math.min(1, serverEnergy + clientDrift));
+                const hasClient = rand() > 0.15;
+                const trigger = TRIGGERS[Math.floor(rand() * TRIGGERS.length)];
+
+                // Window durations ~30-120s so blocks span visibly between 5-min samples
+                const serverDuration = (30 + rand() * 90) * 1000;
+                const serverAfter = t.getTime();
+                const serverBefore = serverAfter - serverDuration;
+                const clientStartSkew = (rand() - 0.5) * 40000;
+                const clientEndSkew = (rand() - 0.5) * 40000;
+                const clientStart = serverBefore + clientStartSkew;
+                const clientEnd = serverAfter + clientEndSkew;
+
+                rows.push({
+                    created_at: t.toISOString(),
+                    server_energy_after: serverEnergy,
+                    client_energy: hasClient ? clientEnergy : null,
+                    trigger,
+                    server_updated_at_before: new Date(serverBefore).toISOString(),
+                    server_updated_at_after: new Date(serverAfter).toISOString(),
+                    client_started_on: hasClient ? new Date(clientStart).toISOString() : null,
+                    client_ended_on: hasClient ? new Date(clientEnd).toISOString() : null,
+                });
+            }
+            return rows;
+        }
+
         async function loadUser(userId) {
             if (!userId) {
                 Plotly.purge(chart);
@@ -133,15 +200,15 @@
                 chart.style.height = '40vh';
                 return;
             }
-            status.textContent = 'loading…';
+            status.textContent = 'generating…';
 
             let rows;
-            try {
-                const res = await fetch(`/users/gecko/analytics/energy-sync/?user_id=${userId}&nopaginate=true`);
-                rows = await res.json();
-            } catch (err) {
-                status.textContent = 'error: ' + err.message;
-                return;
+            if (userId === '3') {
+                rows = generateRows(parseInt(userId), 8);
+            } else if (userId === '4') {
+                rows = [];
+            } else {
+                rows = generateRows(parseInt(userId), parseInt(sampleCount.value) || 0);
             }
 
             const allowed = activeTriggers();
@@ -177,11 +244,13 @@
             const lineShape = curved ? 'spline' : 'linear';
             const traceMode = curved ? 'lines' : 'lines+markers';
 
+            // Adjust chart height to accommodate extra rows
             let h = 40;
             if (showVariance) h += 4;
             if (showWindows) h += 18;
             chart.style.height = `${h}vh`;
 
+            // Domains for stacked subplot rows (bottom-up)
             let varianceDomain = null, windowsDomain = null, mainDomain;
             let cursor = 0;
             if (showVariance) {
@@ -218,6 +287,7 @@
                 },
             ];
 
+            // Compute windows: thick horizontal line segments, null-separated
             if (showWindows) {
                 const winAxisId = showVariance ? 'y3' : 'y2';
 
@@ -228,14 +298,12 @@
                 const clientYCat = [];
                 const clientMeta = [];
                 rows.forEach(r => {
-                    if (r.server_updated_at_before && r.server_updated_at_after) {
-                        const sDur = new Date(r.server_updated_at_after).getTime()
-                                   - new Date(r.server_updated_at_before).getTime();
-                        const sMeta = [r.server_updated_at_before, r.server_updated_at_after, sDur];
-                        serverX.push(r.server_updated_at_before, r.server_updated_at_after, null);
-                        serverYCat.push('server', 'server', null);
-                        serverMeta.push(sMeta, sMeta, null);
-                    }
+                    const sDur = new Date(r.server_updated_at_after).getTime()
+                               - new Date(r.server_updated_at_before).getTime();
+                    const sMeta = [r.server_updated_at_before, r.server_updated_at_after, sDur];
+                    serverX.push(r.server_updated_at_before, r.server_updated_at_after, null);
+                    serverYCat.push('server', 'server', null);
+                    serverMeta.push(sMeta, sMeta, null);
                     if (r.client_started_on && r.client_ended_on) {
                         const cDur = new Date(r.client_ended_on).getTime()
                                    - new Date(r.client_started_on).getTime();
@@ -297,6 +365,7 @@
                 });
             }
 
+            // x-axis anchors to the lowest visible subplot
             const xAnchor = showVariance ? 'y2' : (showWindows ? 'y2' : 'y');
 
             const layout = {
@@ -417,10 +486,11 @@
 
             chart.classList.toggle('glow', isDark);
             Plotly.newPlot(chart, traces, layout, { responsive: true });
-            status.textContent = `${rows.length} samples`;
+            status.textContent = `${rows.length} samples (dummy)`;
         }
 
         select.addEventListener('change', (e) => loadUser(e.target.value));
+        regenBtn.addEventListener('click', () => loadUser(select.value));
         gridToggle.addEventListener('change', () => { if (select.value) loadUser(select.value); });
         curveToggle.addEventListener('change', () => { if (select.value) loadUser(select.value); });
         varianceToggle.addEventListener('change', () => { if (select.value) loadUser(select.value); });

@@ -61,6 +61,8 @@ urlpatterns = [
     path('gecko/analytics/energy-sync/', views.GeckoEnergySyncSampleAnalyticsView.as_view(), name='gecko-analytics-energy-sync'),
 
     # Plotly dashboard comparing server_energy_after vs client_energy per user.
+    # Local dummy-data preview (no server needed), open in browser via PowerShell:
+    #   Invoke-Item "<path-to>\hellofriendFS\hellofriend\hfroot\templates\gecko_analytics_preview.html"
     path('gecko/analytics/dashboard/', views.gecko_analytics_dashboard, name='gecko-analytics-dashboard'),
     path('gecko/energy-sync/', views.GeckoEnergySyncSampleView.as_view(), name='gecko-energy-sync'),
     path('gecko/dev/reset-energy/', views.dev_reset_energy, name='dev-reset-energy'),
