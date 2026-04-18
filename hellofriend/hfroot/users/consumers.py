@@ -791,6 +791,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'position': event.get('position'),
                 'steps': event.get('steps', []),
                 'step_angles': event.get('step_angles', []),
+                'held_moments': event.get('held_moments', []),
                 'moments': event.get('moments', []),
                 'timestamp': event.get('timestamp'),
             },
