@@ -221,7 +221,7 @@ class UserFriendLiveSeshInvite(models.Model):
         """
         Extends invite expiration to 6 hours from now.
         """
-        self.invite_expires_on = timezone.now() + datetime.timedelta(hours=6)
+        self.invite_expires_on = timezone.now() + timedelta(hours=6)
         self.save(update_fields=["invite_expires_on", "updated_on"])
         return self.invite_expires_on
 
