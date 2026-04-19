@@ -674,7 +674,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             payload = data.get('data', {})
             pos = payload.get('position')
             steps = payload.get('steps') or [] 
-            step_angles = payload.get('step_angles') or []
+            first_fingers = payload.get('first_fingers') or []
             held_moments = payload.get('held_moments') or []
             moments = payload.get('moments') or []
 
@@ -687,7 +687,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             self.host_gecko_screen_position = pos
             logger.info(
                 f'[update_host_gecko_position] user={self.user.id} '
-                f'pos={pos} steps={steps} step_angles={step_angles} held_moments={held_moments} moments={moments}'
+                f'pos={pos} steps={steps} first_fingers={first_fingers} held_moments={held_moments} moments={moments}'
             )
             await self.channel_layer.group_send(
                 self.shared_with_friend_group_name,
@@ -697,7 +697,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'friend_id': self.friend_id,
                     'position': pos,
                     'steps': steps,
-                    'step_angles': step_angles,
+                    'first_fingers': first_fingers,
                     'held_moments': held_moments,
                     'moments': moments,
                     'timestamp': payload.get('timestamp'),
@@ -816,7 +816,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'friend_id': event.get('friend_id'),
                 'position': event.get('position'),
                 'steps': event.get('steps', []),
-                'step_angles': event.get('step_angles', []),
+                'first_fingers': event.get('first_fingers', []),
                 'held_moments': event.get('held_moments', []),
                 'moments': event.get('moments', []), 
                 'moments_len': event.get('moments_len', []),
