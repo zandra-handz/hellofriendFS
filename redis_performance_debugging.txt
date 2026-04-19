@@ -1,0 +1,326 @@
+REDIS PERFORMANCE DEBUGGING ON A DIGITALOCEAN DROPLET
+======================================================
+
+Reference guide for diagnosing latency and performance issues on a Redis
+server running on a DO droplet. Run these from inside the droplet (SSH in
+first).
+
+
+1. INTRINSIC LATENCY
+--------------------
+Measures the host kernel/OS's ability to run Redis — excludes network and
+client. Check this first: if the host itself is slow, nothing Redis-side
+will help.
+
+    redis-cli --intrinsic-latency 100
+
+- Runs for ~100 seconds.
+- Healthy: max latency under ~200us.
+- Concerning: spikes above 1ms -> noisy neighbor, swapping, transparent
+  hugepages, or kernel issues.
+
+
+2. LATENCY FROM A CLIENT'S PERSPECTIVE
+--------------------------------------
+Round-trip latency including network.
+
+    redis-cli --latency                  # continuous min/max/avg
+    redis-cli --latency-history -i 5     # rolling samples every 5s
+    redis-cli --latency-dist             # colored latency distribution
+
+
+3. LATENCY MONITOR (INSIDE REDIS)
+---------------------------------
+Tracks slow events that happen inside the Redis process (fork, expire
+cycles, slow commands, etc).
+
+    # Enable — log any event slower than 100ms
+    redis-cli CONFIG SET latency-monitor-threshold 100
+
+    # Inspect
+    redis-cli LATENCY LATEST             # latest event per category
+    redis-cli LATENCY HISTORY <event>    # history for an event type
+    redis-cli LATENCY DOCTOR             # human-readable diagnosis + advice
+    redis-cli LATENCY RESET              # clear history
+
+LATENCY DOCTOR is the most useful single command — it interprets the data
+and points at likely causes.
+
+
+4. SLOW QUERY LOG
+-----------------
+Identifies individual commands that are taking too long.
+
+    # Log any command slower than 10ms (value is in microseconds)
+    redis-cli CONFIG SET slowlog-log-slower-than 10000
+    redis-cli CONFIG SET slowlog-max-len 128
+
+    redis-cli SLOWLOG GET 25             # last 25 slow entries
+    redis-cli SLOWLOG LEN
+    redis-cli SLOWLOG RESET
+
+
+5. OVERALL HEALTH
+-----------------
+    redis-cli INFO stats                 # ops/sec, hit/miss, rejected conns
+    redis-cli INFO memory                # used_memory, fragmentation, evictions
+    redis-cli INFO clients               # connected clients, blocked clients
+    redis-cli INFO persistence           # RDB/AOF status, fork times
+    redis-cli INFO replication           # replica lag if applicable
+    redis-cli MEMORY DOCTOR              # memory-specific diagnosis
+    redis-cli MEMORY STATS               # detailed breakdown
+
+Key things to watch:
+- mem_fragmentation_ratio > 1.5       -> fragmentation
+- evicted_keys rising                 -> maxmemory pressure
+- rejected_connections > 0            -> hitting maxclients
+- blocked_clients consistently high   -> slow consumers / BLPOP waiters
+
+
+6. LIVE COMMAND STREAM
+----------------------
+Shows every command hitting Redis in real time. HEAVY on production — it
+serializes through one client and can itself cause latency.
+
+    redis-cli MONITOR
+
+Use briefly, then Ctrl-C.
+
+
+7. HOST-LEVEL CHECKS (DROPLET)
+------------------------------
+Redis latency often comes from the host, not Redis.
+
+    # Swap — Redis hates swap
+    free -h
+    vmstat 1 5
+
+    # Transparent Huge Pages — known to cause fork latency spikes
+    cat /sys/kernel/mm/transparent_hugepage/enabled
+    # Should be [never]. To disable temporarily:
+    # echo never > /sys/kernel/mm/transparent_hugepage/enabled
+
+    # CPU steal (noisy neighbor on shared droplet)
+    top           # look at "st" column
+    mpstat 1 5    # %steal column
+
+    # Disk I/O (matters if AOF/RDB is enabled)
+    iostat -x 1 5
+
+    # System load
+    uptime
+
+Red flags:
+- Any swap usage      -> fix vm.swappiness, add RAM, or tune maxmemory.
+- THP enabled         -> disable it; causes fork stalls during BGSAVE/AOF rewrite.
+- High %steal         -> noisy neighbor; consider resizing or moving droplet.
+
+
+8. BENCHMARK THROUGHPUT
+-----------------------
+Baseline what the server can actually do:
+
+    redis-cli --version
+    redis-benchmark -q -n 100000                    # default suite
+    redis-benchmark -q -t get,set -n 100000 -c 50   # targeted
+    redis-benchmark -q -t get -n 100000 -P 16       # with pipelining
+
+
+SUGGESTED WORKFLOW
+------------------
+1. redis-cli --intrinsic-latency 100   — rule out host.
+2. redis-cli LATENCY DOCTOR            — let Redis diagnose itself.
+3. redis-cli SLOWLOG GET 25            — find offending commands.
+4. redis-cli INFO memory + MEMORY DOCTOR — check memory pressure.
+5. Host checks (swap, THP, steal)      — if intrinsic latency was bad.
+6. redis-benchmark                     — confirm after changes.
+
+
+COMMON CULPRITS
+---------------
+Symptom                                   | Likely cause
+------------------------------------------|----------------------------------
+High intrinsic latency                    | THP, swap, CPU steal, kernel
+Periodic latency spikes                   | BGSAVE/AOF fork on large dataset
+SLOWLOG full of KEYS/SMEMBERS/HGETALL     | O(N) commands on big keys
+Rising evicted_keys                       | maxmemory too low or leaky keys
+High blocked_clients                      | Slow consumers on BLPOP/streams
+rejected_connections                      | maxclients too low or conn leak
+Replica lag                               | Network, slow replica, big commands
+
+
+==============================================================
+DEBUG SESSION FINDINGS (2026-04-19)
+==============================================================
+
+DIAGNOSED ISSUE: Transparent Hugepages (THP) enabled in [madvise] mode.
+
+Symptoms observed:
+- Average intrinsic latency was excellent (~68-110 nanoseconds).
+- But max latency spiked repeatedly during a single run:
+  1ms -> 5ms -> 14ms -> 20ms -> 21ms.
+- CPU steal was 0% at sample time, no swap, load near zero,
+  Redis itself using ~10MB RSS and <1% CPU.
+- Classic signature of khugepaged compaction stalls preempting
+  the Redis process for multi-ms windows.
+
+Droplet state at diagnosis:
+- 960MiB RAM droplet (likely Basic shared-CPU).
+- THP: always [madvise] never   <-- the problem
+- Swap: 0B (fine; Redis should never swap anyway).
+- Memory: 561Mi used / 960Mi total, 399Mi available.
+
+
+ACTION STEPS
+------------
+
+1. Disable THP immediately:
+
+    echo never > /sys/kernel/mm/transparent_hugepage/enabled
+    echo never > /sys/kernel/mm/transparent_hugepage/defrag
+
+
+    DONE 4/19/2026
+
+2. Make it permanent across reboots via a systemd unit.
+
+   Create the unit file with nano (simpler than a heredoc — no quoting
+   or whitespace gotchas):
+
+    sudo nano /etc/systemd/system/disable-thp.service
+
+   Paste the following into the empty editor, then save with Ctrl-O,
+   Enter to confirm the filename, and Ctrl-X to exit:
+
+    [Unit]
+    Description=Disable Transparent Huge Pages
+    After=sysinit.target local-fs.target
+    Before=redis-server.service
+
+    [Service]
+    Type=oneshot
+    ExecStart=/bin/sh -c 'echo never > /sys/kernel/mm/transparent_hugepage/enabled && echo never > /sys/kernel/mm/transparent_hugepage/defrag'
+    RemainAfterExit=yes
+
+    [Install]
+    WantedBy=basic.target
+
+   Verify the file contents:
+
+    cat /etc/systemd/system/disable-thp.service
+
+   Then enable it so it runs at every boot:
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now disable-thp
+    cat /sys/kernel/mm/transparent_hugepage/enabled   # expect [never]
+
+    DONE 4/19/2026 — confirmed output: always madvise [never]
+
+3. Restart Redis so it starts clean without inherited huge pages:
+
+    sudo systemctl restart redis-server
+
+4. Verify the fix — re-run intrinsic latency for the FULL 100 seconds:
+
+    redis-cli --intrinsic-latency 100
+
+   Expected after fix: max latency under ~1ms, ideally under 500us.
+
+   DONE 4/19/2026 — result: avg 67ns, max 1,154us (~1.1ms).
+   Down from 21,512us (21ms) before the fix — ~20x improvement.
+   Remaining ~1ms spikes are most likely hypervisor CPU steal on
+   the shared droplet (not fixable without resizing).
+
+5. Enable the Redis internal latency monitor (powers LATENCY DOCTOR).
+   By default it is OFF — `redis-cli LATENCY DOCTOR` will just reply
+   with the "I'm sorry, Dave" easter egg until enabled.
+
+    # Turn it on — records any internal event slower than 100ms.
+    redis-cli CONFIG SET latency-monitor-threshold 100
+
+    # Verify it's enabled (should return "100", not "0"):
+    redis-cli CONFIG GET latency-monitor-threshold
+
+    # Persist across Redis restarts — writes current running config
+    # back into /etc/redis/redis.conf:
+    redis-cli CONFIG REWRITE
+
+   Threshold tuning:
+   - 100  = default-ish; catches serious stalls only.
+   - 25   = more sensitive; more events, more insight.
+   - 10   = quite sensitive; noisy but thorough.
+
+   Let it run under real traffic for a few hours to a day, then:
+
+    redis-cli LATENCY LATEST       # most recent event per category
+    redis-cli LATENCY DOCTOR       # narrative diagnosis
+    redis-cli LATENCY HISTORY <event-name>
+
+   Important caveat: the latency monitor sees events INSIDE Redis
+   (forks, slow commands, expire cycles, AOF fsync stalls). It does
+   NOT see hypervisor CPU steal — steal is invisible to the Redis
+   process. So "no events recorded" alongside intrinsic-latency
+   spikes is itself a useful signal: it confirms the cause is
+   external to Redis.
+
+6. If multi-ms spikes persist after THP is disabled:
+   - Cause is almost certainly hypervisor CPU steal on a shared droplet.
+   - Confirm with: vmstat 1 30   (watch the "st" column over time)
+   - Fix: resize to a Premium Intel/AMD or CPU-Optimized droplet.
+
+7. Memory headroom watch:
+   - No swap is configured, so OOM-killer will strike if RAM tightens.
+   - Currently ~400MiB available — comfortable, but monitor as data grows.
+   - Consider setting Redis `maxmemory` + an eviction policy as a guard.
+
+
+==============================================================
+ONGOING MAINTENANCE TODO
+==============================================================
+
+[ ] Check LATENCY DOCTOR after real traffic has run
+    - Enabled the latency monitor on 4/19/2026 (threshold 100ms).
+    - Wait a few hours to a day of normal app traffic, then run:
+        redis-cli LATENCY LATEST
+        redis-cli LATENCY DOCTOR
+    - "No events recorded" is a GOOD result.
+    - If events show up, note them here with date + what was found.
+
+[ ] Sanity-check host steal over a longer window
+    - Remaining ~1ms intrinsic-latency spikes are probably hypervisor
+      steal on the shared droplet. To confirm, run at a random busy hour:
+        vmstat 1 60
+      Watch the "st" (steal) column. Nonzero bursts = confirmed steal.
+    - If confirmed and it matters for the app, plan a resize to a
+      Premium Intel/AMD or CPU-Optimized droplet.
+
+[ ] Set Redis maxmemory + eviction policy
+    - Droplet has no swap; OOM-killer will strike if Redis grows
+      unbounded. Pick a ceiling well under total RAM (e.g. 400mb on
+      a 960MiB droplet) and an eviction policy appropriate for the
+      workload (allkeys-lru is common for cache use).
+        redis-cli CONFIG SET maxmemory 400mb
+        redis-cli CONFIG SET maxmemory-policy allkeys-lru
+        redis-cli CONFIG REWRITE
+
+[ ] Periodic health spot-checks (monthly or after incidents)
+    - redis-cli --intrinsic-latency 100        # host health
+    - redis-cli LATENCY DOCTOR                 # internal events
+    - redis-cli SLOWLOG GET 25                 # slow commands
+    - redis-cli INFO memory | grep fragmentation_ratio
+    - redis-cli INFO stats | grep -E "evicted_keys|rejected_connections"
+    - free -h   /   vmstat 1 5                 # host memory + steal
+
+[ ] Re-verify THP stays disabled after kernel updates / reboots
+    - The disable-thp.service unit should handle this automatically,
+      but after any major system update confirm:
+        cat /sys/kernel/mm/transparent_hugepage/enabled   # [never]
+        systemctl status disable-thp
+
+[ ] Consider enabling slowlog with a sensible threshold
+    - If not already set, log commands slower than 10ms:
+        redis-cli CONFIG SET slowlog-log-slower-than 10000
+        redis-cli CONFIG SET slowlog-max-len 128
+        redis-cli CONFIG REWRITE
+    - Review periodically:  redis-cli SLOWLOG GET 25

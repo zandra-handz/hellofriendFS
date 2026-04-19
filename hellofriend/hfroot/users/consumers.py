@@ -451,15 +451,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        # Parse friend_id from query string (e.g. ws://.../?friend_id=42)
-        from urllib.parse import parse_qs
-        qs = parse_qs((self.scope.get('query_string') or b'').decode())
-        try:
-            provided_friend_id = int(qs.get('friend_id', [None])[0])
-        except (TypeError, ValueError):
-            provided_friend_id = None
-
         self.user = user
+        self.friend_id = None
         self.room_group_name = f'gecko_energy_{self.user.id}'
         self.shared_with_friend_group_name = f'gecko_shared_with_friend_{self.user.id}'
         logger.info(
@@ -478,15 +471,6 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         )
 
         partner_id = await self._get_active_live_sesh_partner_id()
-        if partner_id is not None and getattr(self, 'is_host', False):
-            # Host must supply a friend_id matching their sesh row's friend
-            if self.sesh_friend_id is None or provided_friend_id != self.sesh_friend_id:
-                logger.warning(
-                    f'[connect] host user={self.user.id} friend_id mismatch '
-                    f'(provided={provided_friend_id}, sesh={self.sesh_friend_id}) — rejecting'
-                )
-                await self.close()
-                return
         if partner_id is not None:
             self.joined_sesh_group = f'gecko_shared_with_friend_{partner_id}'
             await self.channel_layer.group_add(
@@ -572,7 +556,40 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         action = data.get('action')
         logger.debug(f'[receive] user={self.user.id} action={action}')
 
-        if action == 'get_gecko_screen_position':
+        if action == 'set_friend':
+            payload = data.get('data', {}) or {}
+            try:
+                new_fid = int(payload.get('friend_id'))
+            except (TypeError, ValueError):
+                logger.warning(f'[set_friend] user={self.user.id} invalid friend_id={payload.get("friend_id")!r}')
+                await self.send(text_data=json.dumps({
+                    'action': 'set_friend_failed',
+                    'data': {'reason': 'invalid_friend_id'},
+                }))
+                return
+
+            # Refresh sesh context so host/friend check is current.
+            await self._get_active_live_sesh_partner_id()
+            if getattr(self, 'is_host', False) and self.sesh_friend_id is not None:
+                if new_fid != self.sesh_friend_id:
+                    logger.warning(
+                        f'[set_friend] host user={self.user.id} mismatch '
+                        f'(provided={new_fid}, sesh={self.sesh_friend_id}) — rejecting'
+                    )
+                    await self.send(text_data=json.dumps({
+                        'action': 'set_friend_failed',
+                        'data': {'reason': 'sesh_friend_mismatch'},
+                    }))
+                    return
+
+            self.friend_id = new_fid
+            logger.info(f'[set_friend] user={self.user.id} friend_id={self.friend_id}')
+            await self.send(text_data=json.dumps({
+                'action': 'set_friend_ok',
+                'data': {'friend_id': self.friend_id},
+            }))
+
+        elif action == 'get_gecko_screen_position':
             await self.send(text_data=json.dumps({
                 'action': 'gecko_coords',
                 'data': {
@@ -623,10 +640,11 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             }))
 
         elif action == 'update_gecko_position':
+            if self.friend_id is None:
+                logger.warning(f'[update_gecko_position] user={self.user.id} friend_id not set — ignoring')
+                return
             payload = data.get('data', {})
             pos = payload.get('position')
-            # steps = payload.get('steps') or []
-            # moments = payload.get('moments') or []
             if not (isinstance(pos, list) and len(pos) == 2):
                 logger.warning(
                     f'[update_gecko_position] user={self.user.id} invalid position={pos!r}'
@@ -639,9 +657,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'gecko_position_broadcast',
                     'from_user': self.user.id,
+                    'friend_id': self.friend_id,
                     'position': pos,
-                    # 'steps': steps,
-                    # 'moments': moments
                 },
             )
 
@@ -651,7 +668,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     f'[update_host_gecko_position] user={self.user.id} not host — ignoring'
                 )
                 return
-            payload = data.get('data', {}) 
+            if self.friend_id is None:
+                logger.warning(f'[update_host_gecko_position] user={self.user.id} friend_id not set — ignoring')
+                return
+            payload = data.get('data', {})
             pos = payload.get('position')
             steps = payload.get('steps') or [] 
             step_angles = payload.get('step_angles') or []
@@ -674,6 +694,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'host_gecko_position_broadcast',
                     'from_user': self.user.id,
+                    'friend_id': self.friend_id,
                     'position': pos,
                     'steps': steps,
                     'step_angles': step_angles,
@@ -721,6 +742,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             }))
 
         elif action == 'update_gecko_data':
+            if self.friend_id is None:
+                logger.warning(f'[update_gecko_data] user={self.user.id} friend_id not set — ignoring')
+                return
             payload = data.get('data', {})
             logger.debug(
                 f'[update] user={self.user.id} steps={payload.get("steps")} '
@@ -779,6 +803,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             'action': 'gecko_coords',
             'data': {
                 'from_user': event.get('from_user'),
+                'friend_id': event.get('friend_id'),
                 'position': event.get('position'),
             },
         }))
@@ -788,6 +813,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             'action': 'host_gecko_coords',
             'data': {
                 'from_user': event.get('from_user'),
+                'friend_id': event.get('friend_id'),
                 'position': event.get('position'),
                 'steps': event.get('steps', []),
                 'step_angles': event.get('step_angles', []),
@@ -1105,7 +1131,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         total_points = sum(e['amount'] for e in resolved_points)
 
         self.pending_data.append({
-            'friend_id': payload.get('friend_id'),
+            'friend_id': self.friend_id,
             'steps': delta_steps,
             'distance': delta_distance,
             'started_on': started_on,

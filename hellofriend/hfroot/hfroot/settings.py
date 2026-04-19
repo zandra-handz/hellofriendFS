@@ -141,7 +141,7 @@ CHANNEL_LAYERS = {
         'CONFIG': {
             'hosts': [(os.getenv('REDIS_HOST', '127.0.0.1'), 6379)],
             'capacity': 50, # messages stored in queue. default is 100
-            'expiry': 10, # 3 seconds before tossing from queue. default is 60
+            'expiry': 10, # 10 seconds before tossing from queue. default is 60
         },
         'POOL': {
             'max_connections': 10

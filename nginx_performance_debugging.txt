@@ -1,0 +1,501 @@
+NGINX CONFIG & PERFORMANCE DEBUGGING
+====================================
+
+Reference guide for nginx configuration on the HelloFriend DO droplet,
+with a focus on WebSocket latency issues. Run these from inside the
+droplet over SSH.
+
+
+1. FIND THE CONFIG FILE
+-----------------------
+
+    ls /etc/nginx/sites-enabled/
+    sudo cat /etc/nginx/sites-enabled/<your-site>
+
+Look for the `location` block that handles the WebSocket path
+(usually `/ws/` or similar). That block is where the important
+directives live.
+
+Also worth a look:
+
+    sudo cat /etc/nginx/nginx.conf         # top-level config
+
+
+2. CRITICAL DIRECTIVES FOR WEBSOCKETS
+-------------------------------------
+
+These directly affect per-frame latency. Missing or wrong values here
+produce the classic "freeze, then burst" symptom.
+
+2.1  proxy_buffering off;
+     - THE single most important one for WebSockets.
+     - Default is "on". When on, nginx buffers response data (up to 8KB+)
+       before forwarding to the client.
+     - At ~20Hz × 1.5KB frames, nginx will accumulate several frames
+       before flushing — literally produces hold-then-burst behavior.
+     - MUST be off for real-time WS.
+
+2.2  proxy_request_buffering off;
+     - Same thing in the client -> server direction.
+     - Less commonly the culprit, but set for symmetry.
+
+2.3  tcp_nodelay on;
+     - Disables Nagle's algorithm (the kernel-level batching of small sends).
+     - Usually on by default in modern nginx, but verify.
+
+2.4  Upgrade / Connection headers — non-negotiable for WebSockets:
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+     Without these, nginx may downgrade to HTTP/1.0 or close/reopen
+     the connection, producing erratic latency.
+
+
+3. IMPORTANT BUT LESS LATENCY-SENSITIVE
+---------------------------------------
+
+3.1  proxy_read_timeout / proxy_send_timeout
+     - Default is 60s. Idle WS connections get killed after that.
+     - Bump to something comfortable:
+
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+
+     - Symptom if too low: WS drops every ~60s of inactivity.
+
+3.2  client_max_body_size
+     - Only matters for large frames. HelloFriend frames are ~1.5KB,
+       so not a concern here.
+
+
+4. REFERENCE: GOOD WEBSOCKET LOCATION BLOCK
+-------------------------------------------
+
+    location /ws/ {
+        proxy_pass http://your-upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Critical for low-latency WS:
+        proxy_buffering off;
+        proxy_request_buffering off;
+        tcp_nodelay on;
+
+        # Keep long-lived connections open:
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+
+5. WORKER / CONNECTION LIMITS (TOP-LEVEL)
+-----------------------------------------
+
+    sudo cat /etc/nginx/nginx.conf | grep -E "worker_processes|worker_connections"
+
+    worker_processes auto;             # usually fine
+    events { worker_connections 1024; }  # raise if you hit the ceiling
+
+If you're near the worker_connections ceiling under load, new WS
+connections stall. Unlikely on low-traffic apps, but check under load.
+
+
+6. SAFE EDIT + RELOAD WORKFLOW
+------------------------------
+
+    # 1. Open config
+    sudo nano /etc/nginx/sites-enabled/<your-site>
+
+    # 2. ALWAYS test syntax before reloading
+    sudo nginx -t
+
+    # 3. Reload — zero-downtime; existing connections continue
+    sudo systemctl reload nginx
+
+    # 4. If something went wrong, check logs
+    sudo tail -50 /var/log/nginx/error.log
+    sudo tail -50 /var/log/nginx/access.log
+
+
+7. LOG LOCATIONS & CUSTOM LOG FORMAT
+------------------------------------
+
+7.1  Default log locations
+
+    /var/log/nginx/access.log          # request log
+    /var/log/nginx/error.log           # errors + warnings
+    /var/log/nginx/<site>.access.log   # if per-site logging set up
+    /var/log/nginx/<site>.error.log
+
+7.2  Adding timing fields to access logs (recommended)
+
+The default access_log format does NOT include $request_time or
+$upstream_response_time — so you can't tell how slow requests were
+from the logs alone. Fix: define a custom `timed` log format in
+/etc/nginx/nginx.conf inside the http { ... } block.
+
+Step-by-step edit:
+
+  Step 1 — Back up the current config (so revert is easy):
+
+    sudo cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.bak-YYYY-MM-DD
+
+  Step 2 — Open the file in nano:
+
+    sudo nano /etc/nginx/nginx.conf
+
+  Step 3 — In nano, press Ctrl-W to search, type `access_log`, press
+  Enter. The cursor jumps to the line:
+
+    access_log /var/log/nginx/access.log;
+
+  (It's inside the http { ... } block, in the "Logging Settings"
+  section.)
+
+  Step 4 — Delete that line (Ctrl-K with cursor on the line) and
+  paste this block in its place:
+
+    log_format timed '$remote_addr - $remote_user [$time_local] '
+                     '"$request" $status $body_bytes_sent '
+                     '"$http_referer" "$http_user_agent" '
+                     'rt=$request_time urt=$upstream_response_time';
+
+    access_log /var/log/nginx/access.log timed;
+
+  Step 5 — Save and exit nano:
+    - Ctrl-O  (save)  -> press Enter to confirm filename
+    - Ctrl-X  (exit)
+
+  Step 6 — Verify syntax BEFORE reloading:
+
+    sudo nginx -t
+
+  Expected output:
+    nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+    nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+  If it errors, DO NOT reload. Fix the error, or restore the backup:
+
+    sudo cp /etc/nginx/nginx.conf.bak-YYYY-MM-DD /etc/nginx/nginx.conf
+
+  Step 7 — Apply (zero-downtime reload):
+
+    sudo systemctl reload nginx
+
+  Step 8 — Hit any page of the site in a browser, then confirm new
+  log lines end with `rt=... urt=...`:
+
+    sudo tail -5 /var/log/nginx/access.log
+
+  Old lines written before the reload won't have the fields — only
+  new traffic uses the new format.
+
+Fields:
+- $request_time          — total time nginx spent on the request,
+                           from first received byte to last sent byte.
+                           Seconds with ms precision (e.g. 0.004).
+- $upstream_response_time — time waiting on upstream (gunicorn/uvicorn).
+                           If ~= $request_time, the app is the bottleneck.
+                           If much smaller, time is lost in nginx or
+                           on the network to the client.
+
+Caveat for WebSockets:
+- $request_time on a WS connection is the ENTIRE session duration.
+  A WS open for an hour logs rt=3600.000. Filter out /ws/ entries
+  when analyzing slow HTTP requests, or log WS to a separate file.
+
+7.3  Useful one-liners (assume `timed` log format is enabled)
+
+    # Recent errors
+    sudo tail -100 /var/log/nginx/error.log
+
+    # Requests per status code in the last N lines
+    sudo tail -1000 /var/log/nginx/access.log \
+      | awk '{print $9}' | sort | uniq -c | sort -rn
+
+    # Top 20 slowest non-WS requests
+    sudo grep -v "/ws/" /var/log/nginx/access.log \
+      | awk '{for(i=1;i<=NF;i++) if($i ~ /^rt=/) print $i, $0}' \
+      | sort -rn -k1.4 \
+      | head -20
+
+    # Avg + p95 + max request time over last 10k lines (HTTP only)
+    sudo tail -10000 /var/log/nginx/access.log \
+      | grep -v "/ws/" \
+      | awk '{for(i=1;i<=NF;i++) if($i ~ /^rt=/) {sub("rt=","",$i); print $i}}' \
+      | sort -n \
+      | awk 'BEGIN{c=0} {a[c++]=$1; sum+=$1} END{print "count:",c," avg:",sum/c," p95:",a[int(c*0.95)]," max:",a[c-1]}'
+
+    # Requests where most time was in the app (upstream)
+    sudo tail -5000 /var/log/nginx/access.log \
+      | grep -v "/ws/" \
+      | awk '{for(i=1;i<=NF;i++){ if($i~/^rt=/) rt=$i; if($i~/^urt=/) urt=$i } print rt, urt, $0}' \
+      | sort -rn -k2.5 \
+      | head -20
+
+    # Watch slow requests live (>500ms)
+    sudo tail -f /var/log/nginx/access.log \
+      | awk '/rt=/ {for(i=1;i<=NF;i++) if($i~/^rt=/){sub("rt=","",$i); if($i+0 > 0.5) print}}'
+
+
+8. QUICK HEALTH CHECKS
+----------------------
+
+    # Is nginx running?
+    systemctl status nginx
+
+    # Config syntax valid?
+    sudo nginx -t
+
+    # Is it listening on expected ports?
+    sudo ss -tlnp | grep nginx
+
+    # Active connection count
+    sudo ss -tn state established '( sport = :443 or sport = :80 )' | wc -l
+
+
+9. DEBUGGING A WEBSOCKET LAG ISSUE
+----------------------------------
+
+Suggested order, fastest to slowest:
+
+9.1  Confirm the WS traffic path
+     - Which `location` block is actually matching?
+     - Add a distinctive header or log format during debugging if unsure.
+
+9.2  Verify proxy_buffering is off
+     - grep -r "proxy_buffering" /etc/nginx/
+     - If off is missing or commented out, that alone can cause
+       hold-then-burst symptoms.
+
+9.3  Check browser DevTools
+     - DevTools -> Network -> WS -> Messages
+     - Look at incoming frame timestamps.
+     - 2s gap followed by 15 frames in <1ms  = buffering somewhere
+       (either nginx, TCP HOL, or a proxy in the path).
+     - Consistent ~X ms spacing with no gaps = no buffering issue.
+
+9.4  Rule out the app
+     - Tail nginx access log in real time while reproducing:
+        sudo tail -f /var/log/nginx/access.log
+     - Does anything odd line up with the freeze?
+
+9.5  Rule out the network (see socket_lag_investigation.md)
+     - ping / mtr to the droplet.
+     - Ethernet vs WiFi comparison.
+     - "Freeze then burst" can ALSO be TCP head-of-line blocking from
+       packet loss — not an nginx issue. Distinguish before tuning.
+
+
+10. COMMON SYMPTOMS -> LIKELY CAUSE
+-----------------------------------
+
+Symptom                                    | Likely cause
+-------------------------------------------|-------------------------------------
+WS freezes, then bursts all queued msgs    | proxy_buffering on, OR TCP HOL
+WS drops every ~60 seconds of idle         | proxy_read_timeout too low (default)
+WS won't connect at all / 400 / 426        | Missing Upgrade/Connection headers
+Mixed 502 / 504 errors under load          | upstream slow or worker_connections low
+Static assets slow but WS fine             | sendfile/gzip/caching config issue
+WS works on desktop, not mobile            | intermediate proxy (carrier NAT) buffering
+
+
+==============================================================
+DEBUG SESSION FINDINGS (2026-04-19)
+==============================================================
+
+DIAGNOSED ISSUE: WebSocket `location /ws/` block is missing the
+directives required for low-latency streaming. Defaults apply, which
+means nginx is buffering WebSocket frames before forwarding — the
+classic cause of a "freeze, then burst" pattern in the client, even
+on good networks.
+
+Current `/ws/` block (as read on 4/19/2026):
+
+    location /ws/ {
+        proxy_pass http://unix:/run/gunicorn.sock;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+What's CORRECT:
+- proxy_http_version 1.1                  OK
+- Upgrade / Connection "upgrade" headers  OK
+- Forwarded headers                       OK
+- Unix socket transport (no TCP hop)      OK
+
+What's MISSING (and what it defaults to):
+
+    Directive                  | Current default | Should be
+    ---------------------------|-----------------|-----------
+    proxy_buffering            | ON              | off   <-- primary suspect
+    proxy_request_buffering    | ON              | off
+    tcp_nodelay                | (not explicit)  | on
+    proxy_read_timeout         | 60s             | 3600s <-- kills idle WS
+    proxy_send_timeout         | 60s             | 3600s
+
+Why proxy_buffering ON matches the symptom:
+- At ~20Hz x 1.5KB frames, nginx accumulates several frames in its
+  proxy buffer before flushing them to the client in one burst.
+- That produces exactly the hold-then-burst pattern the app was seeing,
+  and does NOT require a bad network to reproduce — it happens on
+  ethernet and good WiFi too.
+
+
+ACTION STEPS
+------------
+
+Step 1 — Find the actual site config filename.
+
+Your site config lives in /etc/nginx/sites-enabled/ under some filename
+(it might be called `default`, or `hellofriend`, or the domain name —
+varies per install). List the directory to see what's actually there:
+
+    ls /etc/nginx/sites-enabled/
+
+You'll get output like one of these:
+
+    default
+    # or
+    hellofriend
+    # or
+    hellofriend.conf
+
+Whatever filename you see is what you'll use in the next steps. If
+there are multiple files, open each with `sudo cat` to find the one
+that contains the `location /ws/` block you saw earlier.
+
+For the rest of this section we'll write <site> as a placeholder —
+substitute whatever filename you found. Example: if `ls` showed
+`hellofriend`, then <site> is `hellofriend`.
+
+Step 2 — Back up the current site config (so revert is easy).
+
+IMPORTANT: put the backup OUTSIDE /etc/nginx/sites-enabled/ — nginx
+includes every file in that dir, so a backup there will be parsed as
+live config and trigger "conflicting server name" warnings.
+
+    sudo mkdir -p /root/nginx-backups
+    sudo cp /etc/nginx/sites-enabled/<site> \
+            /root/nginx-backups/<site>.bak-YYYY-MM-DD
+
+Replace YYYY-MM-DD with today's date (e.g. 2026-04-19) so backups
+are easy to tell apart later.
+
+Step 3 — Open the config for editing:
+
+    sudo nano /etc/nginx/sites-enabled/<site>
+
+Step 4 — Find the WebSocket location block.
+
+In nano, press Ctrl-W to search. Type:
+
+    location /ws/
+
+and press Enter. The cursor jumps to the block that starts with
+`location /ws/ {`. Use the arrow keys to confirm you're looking at
+the right block (it should contain `proxy_pass http://unix:/run/gunicorn.sock;`).
+
+Step 5 — Replace the entire `location /ws/ { ... }` block with:
+
+    location /ws/ {
+        proxy_pass http://unix:/run/gunicorn.sock;
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Critical for low-latency WebSockets:
+        proxy_buffering off;
+        proxy_request_buffering off;
+        tcp_nodelay on;
+
+        # Keep long-lived connections open (default 60s kills idle WS):
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+
+Quickest way in nano:
+  - Put the cursor on the first line of the old block (`location /ws/ {`).
+  - Press Ctrl-K repeatedly to delete each line until the closing `}`
+    is gone too.
+  - Paste the replacement block where the cursor now sits.
+
+Step 6 — Save and exit nano:
+  - Ctrl-O  (save)  -> press Enter to confirm filename
+  - Ctrl-X  (exit)
+
+Step 7 — Test the config BEFORE reloading (catches typos):
+
+    sudo nginx -t
+
+  Expected output:
+    nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+    nginx: configuration file /etc/nginx/nginx.conf test is successful
+
+  If this prints errors, DO NOT reload. Either fix them in nano, or
+  restore the backup:
+
+    sudo cp /root/nginx-backups/<site>.bak-YYYY-MM-DD \
+            /etc/nginx/sites-enabled/<site>
+
+Step 8 — Reload nginx (zero-downtime; existing connections keep running):
+
+    sudo systemctl reload nginx
+
+Step 9 — Verify with DevTools on the client:
+   - DevTools -> Network -> WS -> Messages.
+   - Reproduce the two-client gecko scenario that showed the lag.
+   - Expect: frames arriving with consistent ~50ms spacing.
+   - Red flag: still seeing a ~2-second gap followed by many frames
+     arriving within <1ms. If that persists after this change, the
+     cause is NOT nginx buffering — move on to the priority list in
+     socket_lag_investigation.md (channel layer capacity, payload
+     trimming, client send throttling).
+
+Step 10 — Note on the socket name (informational only):
+   - /run/gunicorn.sock is the file name, but gunicorn alone is sync
+     WSGI and cannot serve WebSockets. Something ASGI-capable must
+     be running behind that socket (most likely gunicorn with
+     uvicorn workers: -k uvicorn.workers.UvicornWorker). Worth
+     renaming or documenting in the service unit for clarity someday.
+
+
+FOLLOW-UP CHECKS (after this fix)
+---------------------------------
+
+[ ] Watch client DevTools timestamps over a several-minute session to
+    confirm the freeze-then-burst pattern is gone.
+
+[ ] Also exercise the other `location /` routes to make sure the WS
+    changes didn't regress any regular HTTP requests. (They shouldn't —
+    the block is WS-only — but sanity check.)
+
+[ ] If lag persists, work through socket_lag_investigation.md priorities:
+      1. Channel layer `capacity: 50` -> raise to 100+.
+      2. Payload padding (~70% dead weight).
+      3. Client send rate throttling + sequence numbers.
+
+[ ] Enable the `timed` custom log format so access logs include
+    $request_time and $upstream_response_time.
+    - See section 7.2 above for the exact config to paste into
+      /etc/nginx/nginx.conf (inside the `http { ... }` block).
+    - After reload, verify new entries end with `rt=... urt=...`:
+        sudo tail -5 /var/log/nginx/access.log
+    - Use the one-liners in section 7.3 to find slow requests.
+
