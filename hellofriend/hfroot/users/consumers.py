@@ -480,16 +480,6 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             logger.info(
             f'[connect] user={self.user.id} joined partner sesh group={self.joined_sesh_group}'
             )
-            await self.channel_layer.group_send(
-                f'gecko_energy_{partner_id}',
-                {
-                    'type': 'sesh_context_refresh',
-                    'partner_id': self.user.id,
-                },
-            )
-            logger.info(
-                f'[connect] user={self.user.id} pushed sesh_context_refresh to partner={partner_id}'
-            )
 
         await self.accept()
 
