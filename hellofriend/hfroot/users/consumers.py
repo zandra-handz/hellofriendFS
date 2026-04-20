@@ -669,10 +669,17 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         elif action == 'update_host_gecko_position':
             if not getattr(self, 'is_host', False):
-                logger.warning(
-                    f'[update_host_gecko_position] user={self.user.id} not host — ignoring'
+                # Cache may be stale if the push-invalidation from the sesh-accept
+                # view was missed. Re-read once before rejecting.
+                await self._get_active_live_sesh_partner_id()
+                if not getattr(self, 'is_host', False):
+                    logger.warning(
+                        f'[update_host_gecko_position] user={self.user.id} not host — ignoring'
+                    )
+                    return
+                logger.info(
+                    f'[update_host_gecko_position] user={self.user.id} cache was stale, now host'
                 )
-                return
             if self.friend_id is None:
                 logger.warning(f'[update_host_gecko_position] user={self.user.id} friend_id not set — ignoring')
                 return
@@ -713,10 +720,15 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         elif action == 'update_guest_gecko_position':
             if getattr(self, 'is_host', False):
-                logger.warning(
-                    f'[update_guest_gecko_position] user={self.user.id} is host — ignoring'
+                await self._get_active_live_sesh_partner_id()
+                if getattr(self, 'is_host', False):
+                    logger.warning(
+                        f'[update_guest_gecko_position] user={self.user.id} is host — ignoring'
+                    )
+                    return
+                logger.info(
+                    f'[update_guest_gecko_position] user={self.user.id} cache was stale, now guest'
                 )
-                return
             payload = data.get('data', {})
             pos = payload.get('position')
             steps = payload.get('steps') or [] 
