@@ -611,11 +611,16 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             # if already in a partner group, discard first
             old = getattr(self, 'joined_sesh_group', None)
             new_group = f'gecko_shared_with_friend_{partner_id}'
-            if old and old != new_group:
-                await self.channel_layer.group_discard(old, self.channel_name)
-
-            self.joined_sesh_group = new_group
-            await self.channel_layer.group_add(new_group, self.channel_name)
+            # if old and old != new_group:
+            #     await self.channel_layer.group_discard(old, self.channel_name)
+            #
+            # self.joined_sesh_group = new_group
+            # await self.channel_layer.group_add(new_group, self.channel_name)
+            if old != new_group:
+                if old:
+                    await self.channel_layer.group_discard(old, self.channel_name)
+                self.joined_sesh_group = new_group
+                await self.channel_layer.group_add(new_group, self.channel_name)
 
             logger.info(
                 f'[join_live_sesh] user={self.user.id} joined partner group={new_group}'
