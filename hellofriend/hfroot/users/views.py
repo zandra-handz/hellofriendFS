@@ -1050,6 +1050,42 @@ LIVE_SESH_DURATION = datetime.timedelta(hours=24)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def end_current_live_sesh(request):
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+
+    user = request.user
+    sesh = models.UserFriendCurrentLiveSesh.objects.filter(user=user).first()
+    if not sesh:
+        return response.Response(
+            {'detail': 'No active sesh.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    partner_id = sesh.other_user_id
+    now = timezone.now()
+
+    with transaction.atomic():
+        models.UserFriendCurrentLiveSesh.objects.filter(
+            user_id__in=[user.id, partner_id],
+        ).update(expires_at=now)
+
+    channel_layer = get_channel_layer()
+    if channel_layer is not None:
+        for uid in (user.id, partner_id):
+            async_to_sync(channel_layer.group_send)(
+                f'gecko_energy_{uid}',
+                {'type': 'sesh_context_refresh', 'partner_id': None},
+            )
+
+    return response.Response(
+        {'detail': 'Live sesh ended.', 'partner_id': partner_id},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def cancel_current_live_sesh(request):
     from asgiref.sync import async_to_sync
     from channels.layers import get_channel_layer
@@ -1166,9 +1202,26 @@ def accept_live_sesh_invite(request, invite_id):
         user=recipient, linked_user=sender,
     ).only('id').first()
 
+    # Find any partners that will be displaced by overwriting sender/recipient
+    # rows, so their rows can be expired and their consumers refreshed below.
+    existing = models.UserFriendCurrentLiveSesh.objects.filter(
+        user_id__in=[sender.id, recipient.id]
+    ).only('user_id', 'other_user_id')
+    displaced_partner_ids = set()
+    for row in existing:
+        if row.user_id == sender.id and row.other_user_id != recipient.id:
+            displaced_partner_ids.add(row.other_user_id)
+        elif row.user_id == recipient.id and row.other_user_id != sender.id:
+            displaced_partner_ids.add(row.other_user_id)
+
     with transaction.atomic():
         invite.accepted_on = now
         invite.save(update_fields=['accepted_on', 'updated_on'])
+
+        if displaced_partner_ids:
+            models.UserFriendCurrentLiveSesh.objects.filter(
+                user_id__in=displaced_partner_ids
+            ).update(expires_at=now)
 
         host_sesh, _ = models.UserFriendCurrentLiveSesh.objects.update_or_create(
             user=sender,
@@ -1193,6 +1246,25 @@ def accept_live_sesh_invite(request, invite_id):
                 'current_log': host_sesh.current_log,
             },
         )
+
+    from asgiref.sync import async_to_sync
+    from channels.layers import get_channel_layer
+
+    channel_layer = get_channel_layer()
+    if channel_layer is not None:
+        for uid, partner_id in ((sender.id, recipient.id), (recipient.id, sender.id)):
+            async_to_sync(channel_layer.group_send)(
+                f'gecko_energy_{uid}',
+                {'type': 'sesh_context_refresh', 'partner_id': partner_id},
+            )
+        for displaced_uid in displaced_partner_ids:
+            async_to_sync(channel_layer.group_send)(
+                f'gecko_energy_{displaced_uid}',
+                {
+                    'type': 'live_sesh_cancelled',
+                    'data': {'cancelled_by': 'partner_started_new_sesh'},
+                },
+            )
 
     notify_user(sender.id, 'live_sesh_invite_accepted', {
         'invite_id': invite.id,

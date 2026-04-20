@@ -805,6 +805,28 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             logger.info(f'[live_sesh_cancelled] closing socket user={getattr(self, "user", None)}')
             await self.close()
 
+    async def sesh_context_refresh(self, event):
+        await self._get_active_live_sesh_partner_id()
+        logger.info(
+            f'[sesh_context_refresh] user={self.user.id} '
+            f'is_host={self.is_host} sesh_friend_id={self.sesh_friend_id}'
+        )
+        event_partner = event.get('partner_id')
+        old = getattr(self, 'joined_sesh_group', None)
+
+        if event_partner is None:
+            if old:
+                await self.channel_layer.group_discard(old, self.channel_name)
+                self.joined_sesh_group = None
+            return
+
+        new_group = f'gecko_shared_with_friend_{event_partner}'
+        if old != new_group:
+            if old:
+                await self.channel_layer.group_discard(old, self.channel_name)
+            await self.channel_layer.group_add(new_group, self.channel_name)
+            self.joined_sesh_group = new_group
+
     async def gecko_position_broadcast(self, event):
         await self.send(bytes_data=ormsgpack.packb({
             'action': 'gecko_coords',
