@@ -673,10 +673,13 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 return
             payload = data.get('data', {})
             pos = payload.get('position')
-            steps = payload.get('steps') or [] 
+            steps = payload.get('steps') or []
+            steps_len = payload.get('steps_len')
             first_fingers = payload.get('first_fingers') or []
             held_moments = payload.get('held_moments') or []
+            held_moments_len = payload.get('held_moments_len')
             moments = payload.get('moments') or []
+            moments_len = payload.get('moments_len')
 
             if not (isinstance(pos, list) and len(pos) == 2):
                 logger.warning(
@@ -685,10 +688,6 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 return
 
             self.host_gecko_screen_position = pos
-            logger.info(
-                f'[update_host_gecko_position] user={self.user.id} '
-                f'pos={pos} steps={steps} first_fingers={first_fingers} held_moments={held_moments} moments={moments}'
-            )
             await self.channel_layer.group_send(
                 self.shared_with_friend_group_name,
                 {
@@ -697,9 +696,12 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'friend_id': self.friend_id,
                     'position': pos,
                     'steps': steps,
+                    'steps_len': steps_len,
                     'first_fingers': first_fingers,
                     'held_moments': held_moments,
+                    'held_moments_len': held_moments_len,
                     'moments': moments,
+                    'moments_len': moments_len,
                     'timestamp': payload.get('timestamp'),
                 },
             )
@@ -816,10 +818,12 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'friend_id': event.get('friend_id'),
                 'position': event.get('position'),
                 'steps': event.get('steps', []),
+                'steps_len': event.get('steps_len'),
                 'first_fingers': event.get('first_fingers', []),
                 'held_moments': event.get('held_moments', []),
-                'moments': event.get('moments', []), 
-                'moments_len': event.get('moments_len', []),
+                'held_moments_len': event.get('held_moments_len'),
+                'moments': event.get('moments', []),
+                'moments_len': event.get('moments_len'),
                 'timestamp': event.get('timestamp'),
             },
         }))
