@@ -589,6 +589,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'data': {'friend_id': self.friend_id},
             }))
 
+        
+
         elif action == 'get_gecko_screen_position':
             await self.send(text_data=json.dumps({
                 'action': 'gecko_coords',
@@ -631,6 +633,11 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'data': {'partner_id': partner_id},
 
             }))
+
+            await self.channel_layer.group_send(
+                self.shared_with_friend_group_name,
+                {'type': 'peer_presence', 'user_id': self.user.id, 'online': True}
+            )
         
         elif action == 'leave_live_sesh':
             old = getattr(self, 'joined_sesh_group', None)
@@ -643,6 +650,12 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({
                 'action': 'leave_live_sesh_ok',
             }))
+
+            
+            await self.channel_layer.group_send(
+                self.shared_with_friend_group_name,
+                {'type': 'peer_presence', 'user_id': self.user.id, 'online': False}
+            )
 
         elif action == 'update_gecko_position':
             if self.friend_id is None:
@@ -801,6 +814,14 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         else:
             logger.warning(f'[receive] unknown action user={self.user.id} action={action}')
 
+    async def peer_presence(self, event):
+        if event['user_id'] == self.user.id:
+            return 
+        await self.send(text_data=json.dumps({
+            'action': 'peer_presence',
+            'data': { 'user_id': event['user_id'], 'online': event['online']}
+        }))
+        
     async def energy_update(self, event):
         logger.debug(f'[push] energy_update user={self.user.id}')
         await self.send(text_data=json.dumps(event['data']))
@@ -1533,6 +1554,12 @@ class NotificationsConsumer(AsyncWebsocketConsumer):
         logger.info(f'[notifications connect] user={self.user.id} group={self.group_name}')
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
+
+        await self.channel_layer.group_send(
+            self.shared_with_friend_group_name,
+            {'type': 'peer_presence', 'user_id': self.user.id, 'online': True}
+        )
+
         await self.accept()
 
     async def disconnect(self, close_code):
@@ -1540,6 +1567,10 @@ class NotificationsConsumer(AsyncWebsocketConsumer):
             f'[notifications disconnect] user={getattr(self, "user", None)} code={close_code}'
         )
         if hasattr(self, 'group_name'):
+            await self.channel_layer.group_send(
+                self.shared_with_friend_group_name,
+                {'type': 'peer_presence', 'user_id': self.user.id, 'online': False}
+            )
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     # --- event handlers (invoked via channel_layer.group_send with matching type) ---
