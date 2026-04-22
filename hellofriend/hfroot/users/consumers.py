@@ -481,6 +481,11 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             f'[connect] user={self.user.id} joined partner sesh group={self.joined_sesh_group}'
             )
 
+            await self.channel_layer.group_send(
+                self.shared_with_friend_group_name,
+                {'type': 'peer_presence', 'user_id': self.user.id, 'online': True}
+            )
+
         await self.accept()
 
         try:
@@ -531,6 +536,13 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 self.shared_with_friend_group_name,
                 self.channel_name,
             )
+
+            await self.channel_layer.group_send(
+                self.shared_with_friend_group_name,
+                {'type': 'peer_presence', 'user_id': self.user.id, 'online': False}
+            )
+
+        
         
         if getattr(self, 'joined_sesh_group', None):
             await self.channel_layer.group_discard(
@@ -1555,10 +1567,7 @@ class NotificationsConsumer(AsyncWebsocketConsumer):
 
         await self.channel_layer.group_add(self.group_name, self.channel_name)
 
-        await self.channel_layer.group_send(
-            self.shared_with_friend_group_name,
-            {'type': 'peer_presence', 'user_id': self.user.id, 'online': True}
-        )
+
 
         await self.accept()
 
@@ -1567,10 +1576,7 @@ class NotificationsConsumer(AsyncWebsocketConsumer):
             f'[notifications disconnect] user={getattr(self, "user", None)} code={close_code}'
         )
         if hasattr(self, 'group_name'):
-            await self.channel_layer.group_send(
-                self.shared_with_friend_group_name,
-                {'type': 'peer_presence', 'user_id': self.user.id, 'online': False}
-            )
+
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     # --- event handlers (invoked via channel_layer.group_send with matching type) ---
