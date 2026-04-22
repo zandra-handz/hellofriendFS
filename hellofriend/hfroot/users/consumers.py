@@ -669,6 +669,29 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 {'type': 'peer_presence', 'user_id': self.user.id, 'online': False}
             )
 
+        elif action == 'request_peer_presence':
+            partner_group = getattr(self, 'joined_sesh_group', None)
+            if not partner_group:
+                partner_id = await self._get_active_live_sesh_partner_id()
+                if partner_id is None:
+                    logger.info(
+                        f'[request_peer_presence] user={self.user.id} no active sesh partner'
+                    )
+                    return
+                partner_group = f'gecko_shared_with_friend_{partner_id}'
+
+            logger.info(
+                f'[request_peer_presence] user={self.user.id} '
+                f'pinging partner_group={partner_group}'
+            )
+            await self.channel_layer.group_send(
+                partner_group,
+                {
+                    'type': 'peer_presence_request',
+                    'requester_user_id': self.user.id,
+                },
+            )
+
         elif action == 'update_gecko_position':
             if self.friend_id is None:
                 logger.warning(f'[update_gecko_position] user={self.user.id} friend_id not set — ignoring')
@@ -828,11 +851,20 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
     async def peer_presence(self, event):
         if event['user_id'] == self.user.id:
-            return 
+            return
         await self.send(text_data=json.dumps({
             'action': 'peer_presence',
             'data': { 'user_id': event['user_id'], 'online': event['online']}
         }))
+
+    async def peer_presence_request(self, event):
+        requester_id = event.get('requester_user_id')
+        if requester_id == self.user.id:
+            return
+        await self.channel_layer.group_send(
+            f'gecko_shared_with_friend_{requester_id}',
+            {'type': 'peer_presence', 'user_id': self.user.id, 'online': True},
+        )
         
     async def energy_update(self, event):
         logger.debug(f'[push] energy_update user={self.user.id}')
