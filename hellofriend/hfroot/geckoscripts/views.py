@@ -19,8 +19,8 @@ class MediumPagination(PageNumberPagination):
 
 def _build_welcome_scripts_for_user(user):
     try:
-        config = users.models.GeckoConfigs.objects.get(user=user)
-    except users.models.GeckoConfigs.DoesNotExist:
+        config = users.models.GeckoScoreState.objects.get(user=user)
+    except users.models.GeckoScoreState.DoesNotExist:
         return []
 
     personality = config.personality_type

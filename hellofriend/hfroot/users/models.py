@@ -165,7 +165,7 @@ class BadRainbowzUser(AbstractUser):
                 UserProfile.objects.create(user=self)
                 UserSettings.objects.create(user=self)
                 GeckoScoreState.objects.create(user=self)
-                GeckoConfigs.objects.create(user=self)
+                # GeckoConfigs.objects.create(user=self)
                 GeckoCombinedData.objects.create(user=self)
                 FriendLinkCode.objects.create(
                     user=self,
@@ -598,15 +598,60 @@ class GeckoScoreState(models.Model):
     active_hours_type = models.IntegerField(choices=ActivityHours.choices, default=ActivityHours.DAY)
     story_type = models.IntegerField(choices=Story.choices, default=Story.LEARNER)
     stamina = models.FloatField(default=1.0)
+
     max_active_hours = models.SmallIntegerField(default=16)
+    # SWITCH TO max_active_hours = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)], default=(16))
+    
     max_duration_till_revival = models.PositiveIntegerField(default=60)
     max_score_multiplier = models.PositiveIntegerField(default=3)
     max_streak_length_seconds = models.PositiveIntegerField(default=10)
+
     active_hours = models.JSONField(default=list, blank=True)
+
     gecko_created_on = models.DateTimeField(null=True, blank=True)
 
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
+
+
+
+    # might not ever use active hours
+    def build_default_active_hours(self):
+        n = min(max(int(self.max_active_hours), 1), 24)
+
+        if self.active_hours_type == ActivityHours.DAY:
+            start = 12 - (n // 2)
+            return [(start + i) % 24 for i in range(n)]
+
+        if self.active_hours_type == ActivityHours.NIGHT:
+            start = (0 - (n // 2)) % 24
+            return [(start + i) % 24 for i in range(n)]
+
+        if self.active_hours_type == ActivityHours.RANDOM:
+            step = 24 / n
+            hours = []
+            seen = set()
+
+            for i in range(n):
+                hour = int(round(i * step)) % 24
+                if hour not in seen:
+                    seen.add(hour)
+                    hours.append(hour)
+
+            if len(hours) < n:
+                for hour in range(24):
+                    if hour not in seen:
+                        seen.add(hour)
+                        hours.append(hour)
+                    if len(hours) == n:
+                        break
+
+            return hours
+
+        start = 12 - (n // 2)
+        return [(start + i) % 24 for i in range(n)]
+
+
 
     def recompute_energy(self):
         now = timezone.now()
@@ -622,15 +667,15 @@ class GeckoScoreState(models.Model):
             self.multiplier = self.base_multiplier
 
 
-        configs = getattr(self.user, 'geckoconfigs', None)
-        revival_seconds = getattr(configs, 'max_duration_till_revival', 60) if configs else 60
+        # configs = getattr(self.user, 'geckoconfigs', None)
+        # revival_seconds = getattr(configs, 'max_duration_till_revival', 60) if configs else 60
 
         if self.energy <= 0.0 and self.surplus_energy <= 0.0:
             if self.revives_at and now >= self.revives_at:
                 self.energy = 0.05
                 self.revives_at = None
             elif not self.revives_at:
-                self.revives_at = now + timedelta(seconds=revival_seconds)
+                self.revives_at = now + timedelta(seconds=self.max_duration_till_revival)
             self.energy_updated_at = now
             self.save(update_fields=["energy", "surplus_energy", "energy_updated_at", "revives_at"])
             GeckoEnergyLog.objects.create(
@@ -641,9 +686,9 @@ class GeckoScoreState(models.Model):
             )
             return
 
-        stamina = getattr(configs, 'stamina', 1.0) if configs else 1.0
-        max_active_hours = getattr(configs, 'max_active_hours', 16) if configs else 16
-        full_rest_hours = 24 - max_active_hours
+        stamina = self.stamina                                                                                                                                                                                                                                 
+        max_active_hours = self.max_active_hours                                                                                                                                                                                                               
+        full_rest_hours = 24 - max_active_hours                                                                                                                                                                                                                
         recharge_per_second = 1.0 / (full_rest_hours * 3600)
         streak_recharge_per_second = recharge_per_second * 0.5
 
@@ -710,7 +755,7 @@ class GeckoScoreState(models.Model):
 
         if self.energy <= 0.0 and self.surplus_energy <= 0.0:
             if not self.revives_at:
-                self.revives_at = now + timedelta(seconds=revival_seconds)
+                self.revives_at = now + timedelta(seconds=self.max_duration_till_revival)
         else:
             self.revives_at = None
 
@@ -728,6 +773,21 @@ class GeckoScoreState(models.Model):
         )
         if now.hour == 0 and now.minute < 2:
             GeckoEnergyLog.prune_old(self.user)
+
+    def save(self,*args,**kwargs):
+        if not self.pk:
+            if not self.active_hours:
+                self.active_hours = self.build_default_active_hours()
+
+ 
+
+        super().save(*args, **kwargs)
+
+        self.recompute_energy()
+
+
+
+
 
 class GeckoEnergySyncSample(models.Model):
     user = models.ForeignKey(
@@ -848,6 +908,8 @@ class GeckoConfigs(models.Model):
     #     )
 
     max_active_hours = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)], default=(16))
+    
+    
     max_duration_till_revival = models.PositiveIntegerField(default=60)  # seconds at 0 energy before auto-revival
     max_score_multiplier = models.PositiveIntegerField(default=3)
     max_streak_length_seconds = models.PositiveIntegerField(default=10)
@@ -901,15 +963,15 @@ class GeckoConfigs(models.Model):
         if is_create and not self.active_hours:
             self.active_hours = self.build_default_active_hours()
 
-        old_active_hours_type = None
-        old_max_active_hours = None
-        old_active_hours = None
+        # old_active_hours_type = None
+        # old_max_active_hours = None
+        # old_active_hours = None
 
-        if not is_create:
-            old = GeckoConfigs.objects.get(pk=self.pk)
-            old_active_hours_type = old.active_hours_type
-            old_max_active_hours = old.max_active_hours
-            old_active_hours = old.active_hours
+        # if not is_create:
+        #     old = GeckoConfigs.objects.get(pk=self.pk)
+        #     old_active_hours_type = old.active_hours_type
+        #     old_max_active_hours = old.max_active_hours
+        #     old_active_hours = old.active_hours
 
         super().save(*args, **kwargs)
 
