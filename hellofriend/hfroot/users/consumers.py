@@ -455,6 +455,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.friend_id = None
         self.room_group_name = f'gecko_energy_{self.user.id}'
         self.shared_with_friend_group_name = f'gecko_shared_with_friend_{self.user.id}'
+        self.gecko_message = None
+        
+        
         logger.info(
             f'[connect] user={self.user.id} '
             f'group={self.room_group_name} '
@@ -601,6 +604,15 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'data': {'friend_id': self.friend_id},
             }))
 
+        elif action == 'get_gecko_message':
+            await self.send(text_data=json.dumps({
+                'action': 'gecko_message',
+                'data': {
+                    'from_user': self.user.id,
+                    'message': self.gecko_message
+                }
+            }))
+
         
 
         elif action == 'get_gecko_screen_position':
@@ -715,6 +727,31 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'position': pos,
                 },
             )
+
+        elif action == 'send_read_status_to_gecko':
+            payload = data.get('data', {})
+            message_code = payload.get('message_code')
+
+            if message_code == 0:
+                self.gecko_message = "Hi! I'm going to start reading this, if ya don't mind!"
+            elif message_code == 1:
+                return
+            elif message_code == 2:
+                return
+            else:
+                return
+
+            await self.send(text_data=json.dumps({
+                'action': 'gecko_message',
+                'data': {
+                    'from_user': self.user.id,
+                    'message': self.gecko_message,
+                },
+            }))
+            return
+                
+
+            
 
         elif action == 'update_host_gecko_position':
             if not getattr(self, 'is_host', False):
