@@ -654,6 +654,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         elif action == 'leave_live_sesh':
             old = getattr(self, 'joined_sesh_group', None)
             if old:
+                await self.channel_layer.group_send(
+                    self.shared_with_friend_group_name,
+                    {'type': 'peer_presence', 'user_id': self.user.id, 'online': False}
+                )
                 await self.channel_layer.group_discard(old, self.channel_name)
                 self.joined_sesh_group = None
                 self.is_host = False
@@ -664,10 +668,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             }))
 
             
-            await self.channel_layer.group_send(
-                self.shared_with_friend_group_name,
-                {'type': 'peer_presence', 'user_id': self.user.id, 'online': False}
-            )
+
 
         elif action == 'request_peer_presence':
             partner_group = getattr(self, 'joined_sesh_group', None)
