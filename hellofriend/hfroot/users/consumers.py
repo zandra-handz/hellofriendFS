@@ -728,6 +728,24 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 },
             )
 
+        elif action == 'send_front_end_text_to_gecko':
+            payload = data.get('data', {})
+            message = payload.get('message')
+
+            self.gecko_message = message
+               
+
+            await self.send(text_data=json.dumps({
+                'action': 'gecko_message',
+                'data': {
+                    'from_user': self.user.id,
+                    'message': self.gecko_message,
+                },
+            }))
+            return
+                
+
+    
         elif action == 'send_read_status_to_gecko':
             payload = data.get('data', {})
             message_code = payload.get('message_code')
@@ -739,7 +757,6 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
              
             elif message_code == 2:
                 self.gecko_message = "Read em all!"
-              
             else:
                 self.gecko_message = "Hrrrrrmmm hmmmmmmmm"
 
@@ -751,7 +768,6 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 },
             }))
             return
-                
 
             
 
