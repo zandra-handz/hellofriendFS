@@ -599,8 +599,7 @@ class GeckoScoreState(models.Model):
     story_type = models.IntegerField(choices=Story.choices, default=Story.LEARNER)
     stamina = models.FloatField(default=1.0)
 
-    max_active_hours = models.SmallIntegerField(default=16)
-    # SWITCH TO max_active_hours = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)], default=(16))
+    max_active_hours = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)], default=(16))
     
     max_duration_till_revival = models.PositiveIntegerField(default=60)
     max_score_multiplier = models.PositiveIntegerField(default=3)
