@@ -773,16 +773,10 @@ class GeckoScoreState(models.Model):
         if now.hour == 0 and now.minute < 2:
             GeckoEnergyLog.prune_old(self.user)
 
-    def save(self,*args,**kwargs):
-        if not self.pk:
-            if not self.active_hours:
-                self.active_hours = self.build_default_active_hours()
-
- 
-
+    def save(self, *args, **kwargs):
+        if not self.pk and not self.active_hours:
+            self.active_hours = self.build_default_active_hours()
         super().save(*args, **kwargs)
-
-        self.recompute_energy()
 
 
 
