@@ -735,11 +735,13 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             if message_code == 0:
                 self.gecko_message = "Hi! I'm going to start reading this, if ya don't mind!"
             elif message_code == 1:
-                return
+                self.gecko_message = "Still have some to read..."
+             
             elif message_code == 2:
-                return
+                self.gecko_message = "Hi! I'm going to start reading this, if ya don't mind!"
+              
             else:
-                return
+                self.gecko_message = "Hrrrrrmmm hmmmmmmmm"
 
             await self.send(text_data=json.dumps({
                 'action': 'gecko_message',
