@@ -37,7 +37,7 @@ urlpatterns = [
     path('addresses/add/', views.UserAddressCreate.as_view()),
     path('address/<int:pk>/', views.UserAddressDetail.as_view()),
 
-    path('gecko/configs/', views.GeckoConfigsView.as_view(), name='gecko-configs'),
+
     path('gecko/score-state/', views.GeckoScoreStateView.as_view(), name='gecko-score-state'),
     path('gecko/score-state/configs/', views.GeckoScoreStateConfigsView.as_view(), name='gecko-score-state-configs'),
     path('gecko/configs/choices/', views.gecko_config_choices, name='gecko-config-choices'),

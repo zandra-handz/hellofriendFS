@@ -577,29 +577,29 @@ class GeckoEnergySyncSampleView(generics.ListAPIView):
         return super().list(request, *args, **kwargs)
 
 
-class GeckoConfigsView(generics.RetrieveUpdateAPIView):
-    serializer_class = serializers.GeckoConfigsSerializer
-    permission_classes = [IsAuthenticated]
+# class GeckoConfigsView(generics.RetrieveUpdateAPIView):
+#     serializer_class = serializers.GeckoConfigsSerializer
+#     permission_classes = [IsAuthenticated]
 
-    def get_object(self):
-        obj, created = models.GeckoConfigs.objects.get_or_create(user=self.request.user)
-        return obj
+#     def get_object(self):
+#         obj, created = models.GeckoConfigs.objects.get_or_create(user=self.request.user)
+#         return obj
 
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        local_hour_str = self.request.query_params.get("local_hour")
-        local_hour = None
-        if local_hour_str is not None:
-            try:
-                parsed = int(local_hour_str)
-                if 0 <= parsed <= 23:
-                    local_hour = parsed
-            except (TypeError, ValueError):
-                local_hour = None
-        if local_hour is None:
-            local_hour = timezone.now().hour
-        context["local_hour"] = local_hour
-        return context
+#     def get_serializer_context(self):
+#         context = super().get_serializer_context()
+#         local_hour_str = self.request.query_params.get("local_hour")
+#         local_hour = None
+#         if local_hour_str is not None:
+#             try:
+#                 parsed = int(local_hour_str)
+#                 if 0 <= parsed <= 23:
+#                     local_hour = parsed
+#             except (TypeError, ValueError):
+#                 local_hour = None
+#         if local_hour is None:
+#             local_hour = timezone.now().hour
+#         context["local_hour"] = local_hour
+#         return context
 
 
 class GeckoScoreStateConfigsView(generics.RetrieveUpdateAPIView):
@@ -610,6 +610,7 @@ class GeckoScoreStateConfigsView(generics.RetrieveUpdateAPIView):
         obj, _ = models.GeckoScoreState.objects.get_or_create(user=self.request.user)
         return obj
 
+    # not doing anything?
     def get_serializer_context(self):
         context = super().get_serializer_context()
         local_hour_str = self.request.query_params.get("local_hour")

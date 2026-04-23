@@ -591,8 +591,7 @@ class GeckoScoreState(models.Model):
     surplus_energy = models.FloatField(default=0.0)
     energy_updated_at = models.DateTimeField(default=timezone.now)
     revives_at = models.DateTimeField(null=True, blank=True)
-
-    # Mirrored from GeckoConfigs — synced on config save
+ 
     personality_type = models.IntegerField(choices=Personality.choices, default=Personality.CURIOUS)
     memory_type = models.IntegerField(choices=Memory.choices, default=Memory.AMNESIAC)
     active_hours_type = models.IntegerField(choices=ActivityHours.choices, default=ActivityHours.DAY)
@@ -665,9 +664,6 @@ class GeckoScoreState(models.Model):
         ):
             self.multiplier = self.base_multiplier
 
-
-        # configs = getattr(self.user, 'geckoconfigs', None)
-        # revival_seconds = getattr(configs, 'max_duration_till_revival', 60) if configs else 60
 
         if self.energy <= 0.0 and self.surplus_energy <= 0.0:
             if self.revives_at and now >= self.revives_at:
@@ -878,116 +874,6 @@ class GeckoEnergyLog(models.Model):
         ).delete()
 
 
-class GeckoConfigs(models.Model):
-    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='geckoconfigs')
-    
-    
-    
-    personality_type = models.IntegerField(choices=Personality.choices, default=Personality.CURIOUS)
-    memory_type = models.IntegerField(choices=Memory.choices, default=Memory.AMNESIAC)
-    active_hours_type = models.IntegerField(choices=ActivityHours.choices, default=ActivityHours.DAY)
-    story_type = models.IntegerField(choices=Story.choices, default=Story.LEARNER)
-
-    stamina = models.FloatField(default=1.0)  # 0.5 = low stamina, 1.0 = normal, 2.0 = high
-
-
-
-    # I would prefer this. it only works with postgres so won't work in local
-    # active_hours = ArrayField(
-    #     models.SmallIntegerField(validators=[MinValueValidator(0), MaxValueValidator(23)]),
-    #     size=24,
-    #     default=list,
-    #     blank=True,
-    #     )
-
-    max_active_hours = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)], default=(16))
-    
-    
-    max_duration_till_revival = models.PositiveIntegerField(default=60)  # seconds at 0 energy before auto-revival
-    max_score_multiplier = models.PositiveIntegerField(default=3)
-    max_streak_length_seconds = models.PositiveIntegerField(default=10)
-
-    active_hours = models.JSONField(default=list, blank=True)
-    created_on = models.DateTimeField(auto_now_add=True)
-    updated_on = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"Gecko configuration for {self.user.username}"
-    
-    
-    def build_default_active_hours(self):
-        n = min(max(int(self.max_active_hours), 1), 24)
-
-        if self.active_hours_type == ActivityHours.DAY:
-            start = 12 - (n // 2)
-            return [(start + i) % 24 for i in range(n)]
-
-        if self.active_hours_type == ActivityHours.NIGHT:
-            start = (0 - (n // 2)) % 24
-            return [(start + i) % 24 for i in range(n)]
-
-        if self.active_hours_type == ActivityHours.RANDOM:
-            step = 24 / n
-            hours = []
-            seen = set()
-
-            for i in range(n):
-                hour = int(round(i * step)) % 24
-                if hour not in seen:
-                    seen.add(hour)
-                    hours.append(hour)
-
-            if len(hours) < n:
-                for hour in range(24):
-                    if hour not in seen:
-                        seen.add(hour)
-                        hours.append(hour)
-                    if len(hours) == n:
-                        break
-
-            return hours
-
-        start = 12 - (n // 2)
-        return [(start + i) % 24 for i in range(n)]
-
-    def save(self, *args, **kwargs):
-        is_create = self.pk is None
-
-        if is_create and not self.active_hours:
-            self.active_hours = self.build_default_active_hours()
-
-        # old_active_hours_type = None
-        # old_max_active_hours = None
-        # old_active_hours = None
-
-        # if not is_create:
-        #     old = GeckoConfigs.objects.get(pk=self.pk)
-        #     old_active_hours_type = old.active_hours_type
-        #     old_max_active_hours = old.max_active_hours
-        #     old_active_hours = old.active_hours
-
-        super().save(*args, **kwargs)
-
-        # Sync config fields to GeckoScoreState
-        score_state = self.user.geckoscorestate
-        score_state.personality_type = self.personality_type
-        score_state.memory_type = self.memory_type
-        score_state.active_hours_type = self.active_hours_type
-        score_state.story_type = self.story_type
-        score_state.stamina = self.stamina
-        score_state.max_active_hours = self.max_active_hours
-        score_state.max_duration_till_revival = self.max_duration_till_revival
-        score_state.max_score_multiplier = self.max_score_multiplier
-        score_state.max_streak_length_seconds = self.max_streak_length_seconds
-        score_state.active_hours = self.active_hours
-        if is_create:
-            score_state.gecko_created_on = self.created_on
-        score_state.save(update_fields=[
-            'personality_type', 'memory_type', 'active_hours_type', 'story_type',
-            'stamina', 'max_active_hours', 'max_duration_till_revival',
-            'max_score_multiplier', 'max_streak_length_seconds', 'active_hours',
-        ] + (['gecko_created_on'] if is_create else []))
-        score_state.recompute_energy()
 
 
 
