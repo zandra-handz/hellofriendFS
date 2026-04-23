@@ -738,7 +738,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 self.gecko_message = "Still have some to read..."
              
             elif message_code == 2:
-                self.gecko_message = "Hi! I'm going to start reading this, if ya don't mind!"
+                self.gecko_message = "Read em all!"
               
             else:
                 self.gecko_message = "Hrrrrrmmm hmmmmmmmm"
