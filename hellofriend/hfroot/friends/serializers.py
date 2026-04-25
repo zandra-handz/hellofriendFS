@@ -34,6 +34,12 @@ class FriendCreateSerializer(serializers.ModelSerializer):
         ]
 
 
+class CapsuleDraftSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.CapsuleDraft
+        fields = ['id', 'user', 'capsule', 'created_on', 'updated_on']
+        read_only_fields = ['id', 'user', 'created_on', 'updated_on']
+    
 
 class ThoughtCapsuleSerializer(serializers.ModelSerializer):
     user_category_name = serializers.CharField(source='user_category.name', read_only=True)
@@ -104,47 +110,7 @@ class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
         ]
 
 
-# class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):
-#     capsule_count = serializers.SerializerMethodField()
-#     capsule_summary = serializers.SerializerMethodField()
-
-#     class Meta:
-#         model = models.Friend
-#         fields = '__all__'
-
-#     # ----------------------------------------------------------
-#     # INTERNAL CACHE: shared per-object so both fields reuse it
-#     # ----------------------------------------------------------
-#     def _get_capsules(self, obj):
-#         if not hasattr(obj, "_cached_capsules"):
-#             obj._cached_capsules = list(
-#                 models.ThoughtCapsulez.objects
-#                 .filter(friend=obj)
-#                 .select_related("user_category")
-#             )
-#         return obj._cached_capsules
-
-#     # ----------------------------------------------------------
-#     # FIELDS
-#     # ----------------------------------------------------------
-#     def get_capsule_count(self, obj):
-#         capsules = self._get_capsules(obj)
-#         return len(capsules)
-
-#     def get_capsule_summary(self, obj):
-#         capsules = self._get_capsules(obj)
-
-#         summary = {}
-#         for cap in capsules:
-#             cat = cap.user_category.name if cap.user_category else "Uncategorized"
-#             summary[cat] = summary.get(cat, 0) + 1
-
-#         return [
-#             {"user_category_name": name, "count": count}
-#             for name, count in summary.items()
-#         ]
-
-
+ 
 class FriendWithCapsuleSummarySerializer(serializers.ModelSerializer):
     capsule_count = serializers.IntegerField(read_only=True)
     capsule_summary = serializers.SerializerMethodField()
@@ -319,7 +285,8 @@ class FriendDashboardSerializer(serializers.ModelSerializer):
         model = models.Friend
         fields = ['id', 'name', 'linked_user', 'first_meet_entered', 'date', 'days_since', 
                   'days_since_words', 'time_score', 'future_date_in_words',
-                  'suggestion_settings', 'friend_faves', 'gecko_data']
+                  'suggestion_settings', 'friend_faves', 'gecko_data',
+                  'hidden_game_options_unlocked_on']
 
 class UpcomingMeetsSerializer(serializers.ModelSerializer):
 
@@ -372,8 +339,7 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
     user_category_name = serializers.CharField(source='user_category.name', read_only=True)
     class Meta:
         model = models.ThoughtCapsulez
-        fields = ['id', 'friend', 'user', 'user_category', 'user_category_name', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello', 'screen_x', 'screen_y', 'stored_index',
-                  'easy_score', 'hard_score', 'quick_score', 'long_score', 'relevant_score', 'random_score', 'unique_score', 'generic_score']
+        fields = ['id', 'friend', 'user', 'user_category', 'user_category_name', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello', 'screen_x', 'screen_y', 'stored_index']
     
     # may not need (?)
     def __init__(self, *args, **kwargs):
@@ -383,8 +349,7 @@ class ThoughtCapsuleGeckoReadSerializer(serializers.ModelSerializer):
     user_category_name = serializers.CharField(source='user_category.name', read_only=True)
     class Meta:
         model = models.ThoughtCapsulez
-        fields = [ 'id', 'user_category_name', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello', 'screen_x', 'screen_y',
-                  'easy_score', 'hard_score', 'quick_score', 'long_score', 'relevant_score', 'random_score', 'unique_score', 'generic_score']
+        fields = [ 'id', 'user_category_name', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello', 'screen_x', 'screen_y']
     
     # may not need (?)
     def __init__(self, *args, **kwargs):

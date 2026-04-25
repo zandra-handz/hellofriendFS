@@ -584,6 +584,7 @@ class GeckoScoreState(models.Model):
     base_multiplier = models.PositiveIntegerField(default=1)
     multiplier = models.PositiveIntegerField(default=1)
 
+    # when streak expires
     expires_at = models.DateTimeField(default=timezone.now)
 
 

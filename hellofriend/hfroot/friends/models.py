@@ -64,13 +64,58 @@ phone_regex = RegexValidator(
     message="Phone number must be entered in the format: '+123456789'. Up to 15 digits allowed."
 )
 
- 
+
+
+class GeckoGameType(models.IntegerChoices):
+    NONE = 1, "Not gameable",
+    COMPLIMENT = 2, "A compliment",
+    IMPRESSED = 3, "You impressed me when...",
+    JEALOUS = 4, "I was jealous of you when...",
+    HAPPY_FOR = 5, "I was happy for you when...",
+    HAPPY = 6, "You made me happy when...",
+    FUNNY = 7, "It was really funny that time you...",
+    INTERESTS = 8, "I don't like this thing but you do: ",
+    SHARED_INTEREST = 9, "A shared interest",
+    PERSONAL_FACT = 10, "Something about me you might not know",
+    LOCKED_APOLOGY = 11, "I have always wanted to apologize for..."
+
+
+GECKO_GAME_TYPE_FLAGS = {     
+      GeckoGameType.NONE:            {"hidden": False, "match_only": False},                                                                                                                  
+      GeckoGameType.COMPLIMENT:      {"hidden": False, "match_only": False},                                                                                                                  
+      GeckoGameType.IMPRESSED:       {"hidden": False, "match_only": False},                                                                                                                  
+      GeckoGameType.JEALOUS:         {"hidden": False, "match_only": True},                                                                                                                  
+      GeckoGameType.HAPPY_FOR:       {"hidden": False, "match_only": False},
+      GeckoGameType.HAPPY:           {"hidden": False, "match_only": False},
+      GeckoGameType.FUNNY:           {"hidden": False, "match_only": False},
+      GeckoGameType.INTERESTS:       {"hidden": False, "match_only": False},
+      GeckoGameType.SHARED_INTEREST: {"hidden": False, "match_only": False},
+      GeckoGameType.PERSONAL_FACT:   {"hidden": False, "match_only": False},
+      GeckoGameType.LOCKED_APOLOGY:  {"hidden": True, "match_only": True},
+  }
+
+
+# Static catalog served to the frontend (via UserSettingsSerializer). Built once
+# at import time — to change it, edit GeckoGameType / GECKO_GAME_TYPE_FLAGS and
+# restart the server.
+GECKO_GAME_TYPE_CATALOG = [
+    {
+        'value': v,
+        'label': l,
+        'hidden': GECKO_GAME_TYPE_FLAGS[GeckoGameType(v)]['hidden'],
+        'match_only': GECKO_GAME_TYPE_FLAGS[GeckoGameType(v)]['match_only'],
+    }
+    for v, l in GeckoGameType.choices
+]
+
 
 class Friend(models.Model):
 
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     name = models.CharField(max_length=64, null=False, blank=False)
- 
+
+
+    hidden_game_options_unlocked_on = models.DateTimeField(null=True, blank=True)
 
     linked_user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.SET_NULL, null=True, blank=True, related_name="linked_friend_records")
     first_name = models.CharField(max_length=64, null=True, blank=True)
@@ -117,6 +162,18 @@ class Friend(models.Model):
             ),
         ]
 
+    # on thoughtcapsules model as well but not using there 
+    def get_available_game_types(self): 
+        choices = models.GeckoGameType.choices
+        if not self.hidden_game_options_unlocked_on:
+            choices = [
+                (v, l) for v, l in choices
+                if not models.GeckoGameType(v).name.startswith('LOCKED_')
+            ]
+        return {'gecko_game_types': [{'value': v, 'label': l} for v, l in choices]}
+
+
+
     @property
     def first_meet_entered_in_words(self):
         date = self.first_meet_entered
@@ -130,13 +187,15 @@ class Friend(models.Model):
 
         if not self.pk:
 
-            existing_friends_count = Friend.objects.filter(user=self.user).count()
-            
-            if existing_friends_count >= 20:
-                raise ValidationError("Cannot have more than 20 friends. Please delete one to add a new one. (Hint: Are there any you can keep in touch with regularly now without the app's assistance? :))")
-            
-
             with transaction.atomic():
+                # FIX #2: lock the user row + run count check INSIDE transaction
+                # so two concurrent creates can't both pass the 20-friend gate.
+                users.models.BadRainbowzUser.objects.select_for_update().get(pk=self.user_id)
+
+                existing_friends_count = Friend.objects.filter(user=self.user).count()
+                if existing_friends_count >= 20:
+                    raise ValidationError("Cannot have more than 20 friends. Please delete one to add a new one. (Hint: Are there any you can keep in touch with regularly now without the app's assistance? :))")
+
                 super().save(*args, **kwargs)  # Save the Friend instance first
 
                 # Create and save FriendSuggestionSettings
@@ -170,10 +229,10 @@ class Friend(models.Model):
                     # You might want to set other fields here
                 )
                 past_meet.save()
-            
+
 
                 # Create and save NextMeet
-                
+
                 next_meet = NextMeet(
                     friend=self,
                     friend_suggestion_settings=suggestion_settings,
@@ -181,13 +240,15 @@ class Friend(models.Model):
                 )
                 next_meet.save()
 
-                # To test
+                # FIX #3: include the actual exception + traceback so failures
+                # don't disappear into a generic message.
                 try:
                     next_meet.create_new_date_clean()
                     next_meet.save()
                 except Exception as e:
-                    print("Error creating new date for friend") 
-                
+                    print(f"Error creating new date for friend {self.pk}: {e}")
+                    traceback.print_exc()
+
 
                 self.suggestion_settings = suggestion_settings
                 self.next_meet = next_meet
@@ -195,13 +256,17 @@ class Friend(models.Model):
 
 
 
-                # Save the updated Friend instance
-                self.save()
+                # FIX #4: was `self.save()` re-entering this method. Use
+                # super().save(update_fields=...) — no recursion, no re-running
+                # the count check.
+                super().save(update_fields=['suggestion_settings', 'next_meet', 'gecko_data'])
 
-                # Update user settings with new friend
+                # FIX #1: settings.save was previously dedented one level,
+                # running AFTER the transaction committed. Now inside the `with`
+                # so a failure rolls back the whole friend creation.
                 settings = self.user.settings
                 settings.new_friend = self
-            settings.save(update_fields=['new_friend'])
+                settings.save(update_fields=['new_friend'])
 
 
             
@@ -827,6 +892,34 @@ class FriendFaves(models.Model):
 
 
 
+
+class CapsuleDraft(models.Model):
+    user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
+    capsule = models.CharField(max_length=10000)
+
+    created_on = models.DateTimeField(auto_now_add=True) 
+    updated_on = models.DateTimeField(auto_now=True)
+
+
+    class Meta: 
+        ordering = ['-updated_on']
+
+
+
+    def save(self, *args, **kwargs):
+        is_new = self._state.adding
+        with transaction.atomic():
+            if is_new:
+                # lock the user row to serialize concurrent draft creates
+                users.BadRainbowzUser.objects.select_for_update().get(pk=self.user_id)
+                count = CapsuleDraft.objects.filter(user=self.user).count()
+                if count >= 10:
+                    raise ValidationError(
+                        "Cannot have more than 10 drafts at a time, for your own sanity :) "
+                        "Please assign one to a friend or delete one to add a new one"
+                    )
+            super().save(*args, **kwargs)
+
 class ThoughtCapsulez(models.Model):
 
     id = models.UUIDField(primary_key = True, default = uuid.uuid4, editable = False)
@@ -834,9 +927,11 @@ class ThoughtCapsulez(models.Model):
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     # OBSOLETE FIELD:
     typed_category = models.CharField(max_length=50, null=True, blank=True)
-    # OBSOLETE FIELD:
-    # category = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True, blank=True)
+
     capsule = models.CharField(max_length=10000)
+    gecko_game_type = models.IntegerField(choices=GeckoGameType.choices, default=GeckoGameType.NONE)
+    match_only = models.BooleanField(default=False) # depends on the type
+
     # Connect an image (won't get saved in PastMeet, this is not a scrapbook) via the image model thought_capsule field
     created_on = models.DateTimeField(auto_now_add=True) 
     updated_on = models.DateTimeField(auto_now=True)
@@ -861,40 +956,6 @@ class ThoughtCapsulez(models.Model):
     # front end will decide if need to be unique, and how to handle from there
     stored_index = models.PositiveIntegerField(blank=True, null=True)
 
-    # USE TOGETHER ON FE
-    easy_score = models.PositiveIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
-    )
-    hard_score = models.PositiveIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
-    )
-    ###
-
-    # USE TOGETHER ON FE
-    quick_score = models.PositiveIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
-    )
-    long_score = models.PositiveIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
-    )
-    ###
-
-    # USE TOGETHER ON FE
-    relevant_score = models.PositiveIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
-    )
-    random_score = models.PositiveIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
-    )
-    ###
-
-    # USE TOGETHER ON FE
-    unique_score = models.PositiveIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
-    )
-    generic_score = models.PositiveIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)], default=2
-    ) 
 
 
 
@@ -912,6 +973,17 @@ class ThoughtCapsulez(models.Model):
           #  models.Index(fields=['friend']),
             models.Index(fields=['user', 'friend']),
         ]
+
+    # not sure whether to use
+    def get_available_game_types(self, obj):
+        unlocked = bool(obj.friend and obj.friend.hidden_game_options_unlocked_on)
+        choices = models.GeckoGameType.choices
+        if not unlocked:
+            choices = [
+                (v, l) for v, l in choices
+                if not models.GeckoGameType(v).name.startswith('LOCKED_')
+            ]
+        return {'gecko_game_types': [{'value': v, 'label': l} for v, l in choices]}
 
 
 

@@ -79,6 +79,8 @@ class UpdateAppSetupComplete(APIView):
 
 
 class FriendCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
     
     def post(self, request):
         user = request.user
@@ -824,7 +826,7 @@ class UpcomingMeetsQuickView(generics.ListCreateAPIView):
  
         return models.NextMeet.objects.filter(user=user).select_related('friend', 'previous')
 
-
+# THIS IS THE ONE CURRENTLY USING 4/25/2026
 class CombinedFriendsUpcomingView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -890,62 +892,7 @@ class CombinedFriendsUpcomingView(APIView):
         })
 
 
-# class CombinedFriendsUpcomingView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def get(self, request, *args, **kwargs):
-#         user = request.user
-#         today = timezone.now().date()
  
-#         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
-#         if update_tracker.last_upcoming_update != today:
-#             expired_meets = models.NextMeet.objects.user_expired_dates(user)
-#             for meet in expired_meets:
-#                 meet.save()
-#             update_tracker.upcoming_updated()
- 
-#         upcoming_qs = (
-#             models.NextMeet.objects
-#             .filter(user=user)
-#             .select_related("friend", "previous")
-#             .order_by("date")
-#         )
-#         upcoming_data = serializers.UpcomingMeetsLightSerializer(
-#             upcoming_qs, many=True
-#         ).data
- 
-#         next_meet = upcoming_qs.first()
-#         if next_meet:
-#             users.models.UserSettings.objects.filter(user=user).update(
-#                 upcoming_friend=next_meet.friend
-#             )
- 
-#         friends_qs = (
-#             models.Friend.objects
-#             .filter(user=user)
-#         )
-
-        
- 
-#         user_capsules = list(
-#             models.ThoughtCapsulez.objects
-#             .filter(user=user)
-#             .select_related("friend", "user_category")
-#         )
- 
-#         friends_data = serializers.FriendAndCapsuleSummarySerializer(
-#             friends_qs,
-#             many=True,
-#             context={"user_capsules": user_capsules}
-#         ).data
-
-#         return response.Response({
-#             "user": user.id,
-#             "friends": friends_data,
-#             "upcoming": upcoming_data,
-#             "capsule_summaries": friends_data,
-#             "next": None
-#         })
  
 
 class UpcomingMeetsAll48(generics.ListCreateAPIView):
@@ -1213,6 +1160,35 @@ class ThoughtCapsulesAll(generics.ListAPIView):
         )
  
 
+
+class CapsuleDraftsView(generics.ListAPIView):
+    serializer_class = serializers.CapsuleDraftSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return models.CapsuleDraft.objects.filter(user=user)
+
+
+class CapsuleDraftDetail(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = serializers.CapsuleDraftSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        return models.CapsuleDraft.objects.filter(user=user)
+    
+
+class CapsuleDraftCreate(generics.CreateAPIView):
+    serializer_class = serializers.CapsuleDraftSerializer
+    permission_classes = [IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+        
+    
+ 
+
 class ThoughtCapsuleCreate(generics.ListCreateAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer
     permission_classes = [IsAuthenticated]
@@ -1378,14 +1354,14 @@ class ThoughtCapsulesUpdateMultiple(APIView):
                 'screen_x',
                 'screen_y',
                 'stored_index',
-                'easy_score',
-                'hard_score',
-                'quick_score',
-                'long_score',
-                'relevant_score',
-                'random_score',
-                'unique_score',
-                'generic_score',
+                # 'easy_score',
+                # 'hard_score',
+                # 'quick_score',
+                # 'long_score',
+                # 'relevant_score',
+                # 'random_score',
+                # 'unique_score',
+                # 'generic_score',
             }
 
             invalid_fields = set(fields_to_update.keys()) - ALLOWED_FIELDS
@@ -1643,6 +1619,8 @@ class HelloDetail(generics.RetrieveUpdateDestroyAPIView):
             return response.Response({
                 "message": str(e),
             }, status=status.HTTP_400_BAD_REQUEST)
+
+
 
 
 class HelloTypeChoices(APIView):

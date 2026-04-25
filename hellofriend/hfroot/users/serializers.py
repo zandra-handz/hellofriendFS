@@ -426,11 +426,12 @@ class UserCategoriesHistoryCapsuleIdsSerializer(serializers.ModelSerializer):
 
         return [c.id for c in capsules]
 
-class UserSettingsSerializer(serializers.ModelSerializer): 
+class UserSettingsSerializer(serializers.ModelSerializer):
     pinned_friend_name = serializers.SerializerMethodField()
     upcoming_friend_name = serializers.SerializerMethodField()
 
     new_friend_name = serializers.SerializerMethodField()
+    gecko_game_types = serializers.SerializerMethodField()
 
     def get_pinned_friend_name(self, obj):
         return obj.pinned_friend.name if obj.pinned_friend else None
@@ -440,6 +441,11 @@ class UserSettingsSerializer(serializers.ModelSerializer):
 
     def get_new_friend_name(self, obj):
         return obj.new_friend.name if obj.new_friend else None
+
+    def get_gecko_game_types(self, obj):
+        # static catalog built once at import; in-function import to avoid circular import with friends.models
+        from friends.models import GECKO_GAME_TYPE_CATALOG
+        return GECKO_GAME_TYPE_CATALOG
 
     def validate_user_default_category(self, value): 
         if value and value.user != self.context['request'].user:
@@ -470,9 +476,10 @@ class UserSettingsSerializer(serializers.ModelSerializer):
             'new_friend',
             'new_friend_name',
             'created_on',
-            'updated_on'
+            'updated_on',
+            'gecko_game_types',
         ]
-        read_only_fields = ['id', 'user', 'updated_on', 'created_on', 'pinned_friend_name', 'upcoming_friend_name', 'new_friend_name']
+        read_only_fields = ['id', 'user', 'updated_on', 'created_on', 'pinned_friend_name', 'upcoming_friend_name', 'new_friend_name', 'gecko_game_types']
     # class Meta:
     #     model = models.UserSettings
     #     fields = [

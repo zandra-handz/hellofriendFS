@@ -10,6 +10,8 @@ urlpatterns = [
     path('upcoming/', views.UpcomingMeetsQuickView.as_view()), # swapping this to test speed; just returns all next meets after checking if they'be been updated for the day
     path('upcoming/comprehensive/', views.UpcomingMeetsView.as_view()),
     path('all/', views.FriendsView.as_view()),
+
+    # THIS IS THE ONE CURRENTLY USING 4/25/2026
     path('upcoming/friends-included/', views.CombinedFriendsUpcomingView.as_view()),
     path('create/', views.FriendCreateView.as_view()),
     path('update-app-setup/', views.UpdateAppSetupComplete.as_view()),
@@ -42,6 +44,11 @@ urlpatterns = [
     path('<int:friend_id>/thoughtcapsules/coords-update/', views.ThoughtCapsuleBatchUpdateCoords.as_view()),
     path('<int:friend_id>/thoughtcapsules/batch-update/', views.ThoughtCapsulesUpdateMultiple.as_view()),
     path('<int:friend_id>/thoughtcapsules/completed/', views.CompletedThoughtCapsulesAll.as_view()),
+    
+    path('thoughtcapsules/drafts/', views.CapsuleDraftsView.as_view()),
+    path('thoughtcapsules/draft/<int:pk>/', views.CapsuleDraftDetail.as_view()),
+    path('thoughtcapsules/draft/add/', views.CapsuleDraftCreate.as_view()),
+    
     path('<int:friend_id>/images/', views.ImagesAll.as_view()),
     path('<int:friend_id>/images/by-category/', views.ImagesByCategoryView.as_view()),
     path('<int:friend_id>/images/add/', views.ImageCreate.as_view()),
