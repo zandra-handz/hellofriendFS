@@ -40,28 +40,7 @@ class CapsuleDraftSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'capsule', 'created_on', 'updated_on']
         read_only_fields = ['id', 'user', 'created_on', 'updated_on']
     
-
-class ThoughtCapsuleSerializer(serializers.ModelSerializer):
-    user_category_name = serializers.CharField(source='user_category.name', read_only=True)
-
-    class Meta:
-        model = models.ThoughtCapsulez
-        fields = [
-            'id',
-            'friend',
-            'user',
-            'user_category',
-            'user_category_name',
-            'capsule',
-            'created_on',
-            'updated_on',
-            'pre_added_to_hello',
-            'screen_x',
-            'screen_y',
-            'gecko_game_type',
-            'match_only'
-        ]
-
+ 
 
 class GeckoDataSerializer(serializers.ModelSerializer):
     class Meta():
@@ -342,7 +321,7 @@ class ThoughtCapsuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.ThoughtCapsulez
         fields = ['id', 'friend', 'user', 'user_category', 'user_category_name', 'capsule', 'created_on', 'updated_on', 'pre_added_to_hello', 'screen_x', 'screen_y', 'stored_index', 'gecko_game_type', 'match_only']
-    
+        read_only_fields = ['match_only', 'user', 'friend']
     # may not need (?)
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

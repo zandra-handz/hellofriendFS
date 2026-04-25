@@ -1213,10 +1213,12 @@ class ThoughtCapsuleDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = serializers.ThoughtCapsuleSerializer
     permission_classes = [IsAuthenticated]
 
-    # Returns only user's thought capsules
+    # Returns only user's thought capsules, scoped to the friend in the URL
     def get_queryset(self):
-        user = self.request.user
-        return models.ThoughtCapsulez.objects.filter(user=user)
+        return models.ThoughtCapsulez.objects.filter(
+            user=self.request.user,
+            friend_id=self.kwargs['friend_id'],
+        )
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()

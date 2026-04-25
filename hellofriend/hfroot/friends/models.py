@@ -973,28 +973,9 @@ class ThoughtCapsulez(models.Model):
           #  models.Index(fields=['friend']),
             models.Index(fields=['user', 'friend']),
         ]
+ 
 
-    # not sure whether to use
-    def get_available_game_types(self, obj):
-        unlocked = bool(obj.friend and obj.friend.hidden_game_options_unlocked_on)
-        choices = models.GeckoGameType.choices
-        if not unlocked:
-            choices = [
-                (v, l) for v, l in choices
-                if not models.GeckoGameType(v).name.startswith('LOCKED_')
-            ]
-        return {'gecko_game_types': [{'value': v, 'label': l} for v, l in choices]}
-
-
-
-# check if can remove safely
-    # def get_existing_categories(self): 
-
-    #     existing_categories = Category.objects.filter(
-    #         friend=self.friend,
-    #         user=self.user
-    #     )
-    #     return existing_categories
+ 
     
         
     def delete(self, *args, **kwargs): 
@@ -1003,18 +984,44 @@ class ThoughtCapsulez(models.Model):
         super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs): 
- 
-        if not self.user_category:
+
+        gecko_game_type = self.gecko_game_type
+
+
+        if gecko_game_type != GeckoGameType.NONE:
+            flags = GECKO_GAME_TYPE_FLAGS.get(gecko_game_type, {})
+            self.match_only = flags.get('match_only', False)
+        else:
+            self.match_only = False  # explicitly clear when type is NONE
+
+
+
+        # overwrite category if a gecko game type was entered
+        if gecko_game_type != GeckoGameType.NONE:
             try:
                 from users.models import UserCategory
-                
-                grab_bag, __created = UserCategory.get_or_create_grab_bag_category(self.user)
-                self.user_category = grab_bag
+
+                gecko_game, __created = UserCategory.get_or_create_gecko_game_category(self.user)
+                self.user_category = gecko_game
             except Exception as e:
-                import traceback  
-                print("⚠️ Error creating grab bag category:", e)
-                print(traceback.format_exc())   
-                raise   
+                import traceback
+                print(traceback.format_exc())
+                raise
+
+        else:
+            # gecko_game_type == NONE: revert auto-assigned gecko category back
+            # to grab bag, but preserve a custom category if the user picked one.
+            try:
+                from users.models import UserCategory
+
+                gecko_game, __created = UserCategory.get_or_create_gecko_game_category(self.user)
+                if not self.user_category or self.user_category_id == gecko_game.id:
+                    grab_bag, __created = UserCategory.get_or_create_grab_bag_category(self.user)
+                    self.user_category = grab_bag
+            except Exception as e:
+                import traceback
+                print(traceback.format_exc())
+                raise
 
  
         super().save(*args, **kwargs)

@@ -368,6 +368,18 @@ class UserCategory(models.Model):
                 'is_in_top_five': False,
             }
         )
+    
+    @classmethod
+    def get_or_create_gecko_game_category(cls, user):
+        return cls.objects.get_or_create(
+            user=user,
+            name='Gecko game',
+            defaults={
+                'is_deletable': False,
+                'is_active': True,
+                'is_in_top_five': False,
+            }
+        )
  
 
     def clean(self): 
