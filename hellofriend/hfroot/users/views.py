@@ -1329,3 +1329,29 @@ def decline_live_sesh_invite(request, invite_id):
     })
 
     return response.Response({'status': 'declined'}, status=status.HTTP_200_OK)
+
+
+class GeckoGameWinsList(generics.ListAPIView):
+    """Capsules the requesting user has won."""
+    serializer_class = serializers.GeckoGameWinSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            models.GeckoGameWin.objects
+            .filter(user=self.request.user)
+            .select_related('user_won_from', 'friend')
+        )
+
+
+class GeckoGameWinsGivenList(generics.ListAPIView):
+    """Capsules others have won FROM the requesting user."""
+    serializer_class = serializers.GeckoGameWinSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            models.GeckoGameWin.objects
+            .filter(user_won_from=self.request.user)
+            .select_related('user', 'friend')
+        )

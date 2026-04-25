@@ -72,7 +72,8 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
             'stamina', 'max_active_hours', 'max_duration_till_revival',
             'max_score_multiplier', 'max_streak_length_seconds',
             'active_hours', 'gecko_created_on',
-            'available_choices', 'thresholds',
+            'available_choices', 'thresholds', 'use_game_type_capsules_only',
+
         ]
         read_only_fields = [
             'base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at', 'revives_at',
@@ -159,7 +160,9 @@ class GeckoScoreStateConfigsSerializer(serializers.ModelSerializer):
             'thresholds',
             'local_hour',
             'max_duration_till_revival',
+            'use_game_type_capsules_only',
             'created_on', 'updated_on',
+          
         ]
         read_only_fields = ['created_on', 'stamina', 'updated_on']
 
@@ -822,4 +825,37 @@ class UserFriendLiveSeshLogSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'host', 'guest', 'host_username', 'guest_username',
             'start', 'end', 'created_on', 'updated_on',
+        ]
+
+
+class GeckoGameWinSerializer(serializers.ModelSerializer):
+    user_won_from_username = serializers.CharField(source='user_won_from.username', read_only=True, default=None)
+    friend_name = serializers.CharField(source='friend.name', read_only=True, default=None)
+
+    class Meta:
+        model = models.GeckoGameWin
+        fields = [
+            'id',
+            'user',
+            'user_won_from',
+            'user_won_from_username',
+            'friend',
+            'friend_name',
+            'original_capsule_id',
+            'capsule',
+            'gecko_game_type',
+            'gecko_game_type_label',
+            'won_by_matching',
+            'matched_capsule_id',
+            'created_on',
+            'updated_on',
+        ]
+        read_only_fields = [
+            'id',
+            'user',
+            'user_won_from_username',
+            'friend_name',
+            'gecko_game_type_label',
+            'created_on',
+            'updated_on',
         ]

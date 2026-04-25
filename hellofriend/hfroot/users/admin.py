@@ -19,3 +19,4 @@ admin.site.register(models.GeckoEnergySyncSample) #fpr debugging/analytics
 admin.site.register(models.UserFriendCurrentLiveSesh)
 admin.site.register(models.UserFriendLiveSeshInvite)
 admin.site.register(models.UserFriendLiveSeshLog)
+admin.site.register(models.GeckoGameWin)

@@ -621,6 +621,9 @@ class GeckoScoreState(models.Model):
 
     gecko_created_on = models.DateTimeField(null=True, blank=True)
 
+    # setting for the gecko game to filter out non-game type capsules on front end
+    use_game_type_capsules_only = models.BooleanField(default=False)
+
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 
@@ -789,6 +792,126 @@ class GeckoScoreState(models.Model):
 
 
 
+class GeckoGameWin(models.Model):
+    user = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name='gecko_game_wins',
+    )
+    user_won_from = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='gecko_game_wins_from',
+    )
+
+    # the friend belonging to use with linked_user matching user_won_from
+    # can be null
+    friend = models.ForeignKey(
+        'friends.Friend',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+
+    # original ThoughtCapsulez.id (UUID); kept as a plain UUIDField rather than
+    # an FK so the archive survives the source capsule being deleted
+    original_capsule_id = models.UUIDField(null=True, blank=True)
+
+    capsule = models.CharField(max_length=10000)
+    # raw int (no choices=) + frozen label so the archive survives any future
+    # changes to the GeckoGameType enum
+    gecko_game_type = models.PositiveSmallIntegerField()
+    gecko_game_type_label = models.CharField(max_length=64)
+    won_by_matching = models.BooleanField(default=False)  # frozen at write time
+    matched_capsule_id = models.UUIDField(null=True, blank=True)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def create_from_capsule(cls, *, winner, source_capsule_id, won_by_matching=False, matched_capsule_id=None):
+        """
+        Archive a ThoughtCapsulez as a win for `winner`. Returns the new
+        GeckoGameWin, or None if the source capsule is already gone.
+        Caller is responsible for validation AND for deleting the source
+        capsule afterward (when appropriate).
+        """
+        from friends.models import ThoughtCapsulez, Friend, GeckoGameType
+
+        with transaction.atomic():
+            source = ThoughtCapsulez.objects.filter(id=source_capsule_id).first()
+            if source is None:
+                return None  # already archived/deleted, no-op
+
+            friend = Friend.objects.filter(
+                user=winner,
+                linked_user=source.user,
+            ).first()
+
+            return cls.objects.create(
+                user=winner,
+                user_won_from=source.user,
+                friend=friend,
+                original_capsule_id=source.id,
+                capsule=source.capsule,
+                gecko_game_type=source.gecko_game_type,
+                gecko_game_type_label=GeckoGameType(source.gecko_game_type).label,
+                won_by_matching=won_by_matching,
+                matched_capsule_id=matched_capsule_id,
+            )
+
+    @classmethod
+    def create_match(cls, *, capsule_a_id, capsule_b_id):
+        """
+        Two users matched on the same gecko_game_type — each archives the
+        other's capsule. Returns (win_for_a_user, win_for_b_user). If either
+        source capsule is already gone, returns (None, None) and creates
+        nothing — a one-sided match isn't a match.
+
+        Locks both source capsules with select_for_update before doing any
+        writes, so a concurrent delete can't leave us with a half-built match.
+        """
+        from friends.models import ThoughtCapsulez, Friend, GeckoGameType
+
+        # lock in a deterministic order to avoid deadlocks when two matches
+        # involving the same capsules race
+        first_id, second_id = sorted([capsule_a_id, capsule_b_id], key=str)
+
+        with transaction.atomic():
+            locked = list(
+                ThoughtCapsulez.objects
+                .select_for_update()
+                .filter(id__in=[first_id, second_id])
+            )
+            by_id = {c.id: c for c in locked}
+            capsule_a = by_id.get(capsule_a_id)
+            capsule_b = by_id.get(capsule_b_id)
+            if capsule_a is None or capsule_b is None:
+                return (None, None)
+
+            def _archive(*, winner_capsule, source_capsule):
+                friend = Friend.objects.filter(
+                    user=winner_capsule.user,
+                    linked_user=source_capsule.user,
+                ).first()
+                return cls.objects.create(
+                    user=winner_capsule.user,
+                    user_won_from=source_capsule.user,
+                    friend=friend,
+                    original_capsule_id=source_capsule.id,
+                    capsule=source_capsule.capsule,
+                    gecko_game_type=source_capsule.gecko_game_type,
+                    gecko_game_type_label=GeckoGameType(source_capsule.gecko_game_type).label,
+                    won_by_matching=True,
+                    matched_capsule_id=winner_capsule.id,
+                )
+
+            # capsule_a's owner wins capsule_b; capsule_b's owner wins capsule_a
+            win_for_a = _archive(winner_capsule=capsule_a, source_capsule=capsule_b)
+            win_for_b = _archive(winner_capsule=capsule_b, source_capsule=capsule_a)
+            return (win_for_a, win_for_b)
 
 
 class GeckoEnergySyncSample(models.Model):
