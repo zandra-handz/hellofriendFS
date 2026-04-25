@@ -1354,6 +1354,8 @@ class ThoughtCapsulesUpdateMultiple(APIView):
                 'screen_x',
                 'screen_y',
                 'stored_index',
+                'gecko_game_type',
+                'match_only'
                 # 'easy_score',
                 # 'hard_score',
                 # 'quick_score',
