@@ -1355,3 +1355,65 @@ class GeckoGameWinsGivenList(generics.ListAPIView):
             .filter(user_won_from=self.request.user)
             .select_related('user', 'friend')
         )
+
+
+class GeckoGameWinPendingDetail(APIView):
+    """
+    GET    -> fetch the requesting user's pending proposal (if any, not expired).
+    POST   -> body { "decision": "accept" | "decline" }.
+              On accept: stamps accepted_on (record + downstream socket flow handles the rest).
+              On decline: deletes the pending row.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _get_pending(self, user):
+        return (
+            models.GeckoGameWinPending.objects
+            .select_related('sender', 'sender_capsule')
+            .filter(user=user)
+            .first()
+        )
+
+    def get(self, request):
+        pending = self._get_pending(request.user)
+        if pending is None:
+            return response.Response({'detail': 'no_pending'}, status=status.HTTP_404_NOT_FOUND)
+        if pending.expires_at and pending.expires_at <= timezone.now():
+            return response.Response({'detail': 'expired'}, status=status.HTTP_410_GONE)
+        return response.Response(
+            serializers.GeckoGameWinPendingSerializer(pending).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request):
+        decision = request.data.get('decision')
+        if decision not in ('accept', 'decline'):
+            return response.Response(
+                {'detail': 'decision must be "accept" or "decline"'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        pending = self._get_pending(request.user)
+        if pending is None:
+            return response.Response({'detail': 'no_pending'}, status=status.HTTP_404_NOT_FOUND)
+        if pending.expires_at and pending.expires_at <= timezone.now():
+            return response.Response({'detail': 'expired'}, status=status.HTTP_410_GONE)
+        if pending.accepted_on is not None:
+            return response.Response({'detail': 'already_accepted'}, status=status.HTTP_409_CONFLICT)
+
+        if decision == 'decline':
+            pending.sender = None
+            pending.sender_capsule = None
+            pending.expires_at = None
+            pending.accepted_on = None
+            pending.save(update_fields=[
+                'sender', 'sender_capsule', 'expires_at', 'accepted_on', 'updated_on',
+            ])
+            return response.Response({'detail': 'declined'}, status=status.HTTP_200_OK)
+
+        pending.accepted_on = timezone.now()
+        pending.save(update_fields=['accepted_on', 'updated_on'])
+        return response.Response(
+            serializers.GeckoGameWinPendingSerializer(pending).data,
+            status=status.HTTP_200_OK,
+        )

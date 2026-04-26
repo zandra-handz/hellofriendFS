@@ -174,6 +174,7 @@ class BadRainbowzUser(AbstractUser):
                 )
                 UserFriendCurrentLiveSesh.objects.create(user=self)
                 UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
+                GeckoGameWinPending.objects.create(user=self)
                 
 
 
@@ -790,6 +791,57 @@ class GeckoScoreState(models.Model):
             self.active_hours = self.build_default_active_hours()
         super().save(*args, **kwargs)
 
+class GeckoGameWinPending(models.Model):
+    user = models.OneToOneField('users.BadRainbowzUser', on_delete=models.CASCADE)
+    sender = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='gecko_game_pending_win_from',
+    )
+    sender_capsule = models.ForeignKey(
+        'friends.ThoughtCapsulez',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='+',
+    )
+
+    accepted_on = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+
+
+    EXPIRY_MINUTES = 5
+
+    def save(self, *args, **kwargs):
+        if (
+            self._state.adding
+            and self.expires_at is None
+            and self.sender_id is not None
+        ):
+            self.expires_at = timezone.now() + timedelta(minutes=self.EXPIRY_MINUTES)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def propose(cls, *, target_user, sender, sender_capsule):
+        """Create or replace target_user's pending proposal with a fresh one."""
+        obj, _ = cls.objects.update_or_create(
+            user=target_user,
+            defaults={
+                'sender': sender,
+                'sender_capsule': sender_capsule,
+                'accepted_on': None,
+                'expires_at': timezone.now() + timedelta(minutes=cls.EXPIRY_MINUTES),
+            },
+        )
+        return obj
+
+    
 
 
 class GeckoGameWin(models.Model):

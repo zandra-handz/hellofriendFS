@@ -823,6 +823,55 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             
 
 
+        elif action == 'propose_gecko_win':
+            payload = data.get('data', {}) or {}
+            capsule_id = payload.get('capsule_id')
+            if not capsule_id:
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_win_failed',
+                    'data': {'reason': 'missing_capsule_id'},
+                }))
+                return
+
+            partner_id = await self._get_active_live_sesh_partner_id()
+            if partner_id is None:
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_win_failed',
+                    'data': {'reason': 'no_active_sesh'},
+                }))
+                return
+
+            result = await self._propose_gecko_win_db(capsule_id, partner_id)
+            if not result['ok']:
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_win_failed',
+                    'data': {'reason': result['reason']},
+                }))
+                return
+
+            logger.info(
+                f'[propose_gecko_win] user={self.user.id} -> partner={partner_id} '
+                f'capsule={capsule_id} pending_id={result["pending_id"]}'
+            )
+
+            await self.channel_layer.group_send(
+                f'gecko_energy_{partner_id}',
+                {
+                    'type': 'gecko_win_proposed',
+                    'sender_user_id': self.user.id,
+                    'pending_id': result['pending_id'],
+                },
+            )
+
+            await self.send(text_data=json.dumps({
+                'action': 'propose_gecko_win_ok',
+                'data': {
+                    'partner_id': partner_id,
+                    'pending_id': result['pending_id'],
+                    'capsule_id': str(capsule_id),
+                },
+            }))
+
         elif action == 'send_match_request':
             payload = data.get('data', {}) or {}
             try:
@@ -1888,6 +1937,39 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'matches': self.capsule_matches,
             },
         )
+
+    async def gecko_win_proposed(self, event):
+        await self.send(text_data=json.dumps({
+            'action': 'gecko_win_proposed',
+            'data': {
+                'sender_user_id': event.get('sender_user_id'),
+                'pending_id': event.get('pending_id'),
+            },
+        }))
+
+    @database_sync_to_async
+    def _propose_gecko_win_db(self, capsule_id, partner_user_id):
+        from friends.models import ThoughtCapsulez
+        from users.models import GeckoGameWinPending, BadRainbowzUser
+
+        capsule = (
+            ThoughtCapsulez.objects
+            .filter(id=capsule_id, user_id=self.user.id)
+            .first()
+        )
+        if capsule is None:
+            return {'ok': False, 'reason': 'capsule_not_found_or_not_owner'}
+
+        target_user = BadRainbowzUser.objects.filter(id=partner_user_id).first()
+        if target_user is None:
+            return {'ok': False, 'reason': 'partner_not_found'}
+
+        pending = GeckoGameWinPending.propose(
+            target_user=target_user,
+            sender=self.user,
+            sender_capsule=capsule,
+        )
+        return {'ok': True, 'pending_id': pending.id}
 
     async def match_request_result(self, event):
         await self.send(text_data=json.dumps({

@@ -79,5 +79,6 @@ urlpatterns = [
 
     path('gecko/game-wins/', views.GeckoGameWinsList.as_view(), name='gecko-game-wins-list'),
     path('gecko/game-wins/given/', views.GeckoGameWinsGivenList.as_view(), name='gecko-game-wins-given-list'),
+    path('gecko/game-wins/pending/', views.GeckoGameWinPendingDetail.as_view(), name='gecko-game-win-pending'),
 
 ]

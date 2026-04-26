@@ -859,3 +859,19 @@ class GeckoGameWinSerializer(serializers.ModelSerializer):
             'created_on',
             'updated_on',
         ]
+
+
+class GeckoGameWinPendingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.GeckoGameWinPending
+        fields = [
+            'id',
+            'user',
+            'sender',
+            'sender_capsule',
+            'accepted_on',
+            'expires_at',
+            'created_on',
+            'updated_on',
+        ]
+        read_only_fields = fields
