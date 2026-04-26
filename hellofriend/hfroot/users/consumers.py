@@ -735,8 +735,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
             await self.send(text_data=json.dumps({
                 'action': 'join_live_sesh_ok',
-                'data': {'partner_id': partner_id},
-
+                'data': {
+                    'partner_id': partner_id,
+                    'partner_username': getattr(self, 'partner_username', None),
+                },
             }))
 
             await self.channel_layer.group_send(
@@ -1708,7 +1710,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
     #     other connections while your coroutine sleeps.
     @database_sync_to_async
     def _get_active_live_sesh_partner_id(self):
-        from users.models import UserFriendCurrentLiveSesh
+        from users.models import UserFriendCurrentLiveSesh, BadRainbowzUser
         sesh = UserFriendCurrentLiveSesh.objects.filter(
             user_id=self.user.id,
             expires_at__gt=timezone.now(),
@@ -1716,9 +1718,15 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         if not sesh:
             self.is_host = False
             self.sesh_friend_id = None
+            self.partner_username = None
             return None
         self.is_host = sesh.is_host
         self.sesh_friend_id = sesh.friend_id
+        self.partner_username = (
+            BadRainbowzUser.objects.filter(id=sesh.other_user_id)
+            .values_list('username', flat=True)
+            .first()
+        )
         return sesh.other_user_id
 
     @database_sync_to_async
