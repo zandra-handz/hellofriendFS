@@ -733,11 +733,17 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 f'[join_live_sesh] user={self.user.id} joined partner group={new_group}'
             )
 
+            # partner_username / partner_friend_id / partner_friend_name are
+            # included for FE convenience. If we ever want to slim this payload,
+            # the FE can drop these and look them up itself using partner_id
+            # (e.g. /users/{partner_id} + the existing friends list cache).
             await self.send(text_data=json.dumps({
                 'action': 'join_live_sesh_ok',
                 'data': {
                     'partner_id': partner_id,
                     'partner_username': getattr(self, 'partner_username', None),
+                    'partner_friend_id': getattr(self, 'partner_friend_id', None),
+                    'partner_friend_name': getattr(self, 'partner_friend_name', None),
                 },
             }))
 
@@ -1711,6 +1717,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def _get_active_live_sesh_partner_id(self):
         from users.models import UserFriendCurrentLiveSesh, BadRainbowzUser
+        from friends.models import Friend
         sesh = UserFriendCurrentLiveSesh.objects.filter(
             user_id=self.user.id,
             expires_at__gt=timezone.now(),
@@ -1719,14 +1726,34 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             self.is_host = False
             self.sesh_friend_id = None
             self.partner_username = None
+            self.partner_friend_id = None
+            self.partner_friend_name = None
             return None
         self.is_host = sesh.is_host
         self.sesh_friend_id = sesh.friend_id
+        # Partner display data (username + the user's Friend record that
+        # represents the partner). Resolved here so join_live_sesh_ok can
+        # ship it in one payload — but this could also be looked up on the
+        # FE from existing user/friend HTTP endpoints using partner_id.
+        # Doing it here trades two cheap indexed queries for zero extra
+        # round-trips on the FE.
         self.partner_username = (
             BadRainbowzUser.objects.filter(id=sesh.other_user_id)
             .values_list('username', flat=True)
             .first()
         )
+        friend_record = (
+            Friend.objects
+            .filter(user_id=self.user.id, linked_user_id=sesh.other_user_id)
+            .values('id', 'name')
+            .first()
+        )
+        if friend_record:
+            self.partner_friend_id = friend_record['id']
+            self.partner_friend_name = friend_record['name']
+        else:
+            self.partner_friend_id = None
+            self.partner_friend_name = None
         return sesh.other_user_id
 
     @database_sync_to_async
