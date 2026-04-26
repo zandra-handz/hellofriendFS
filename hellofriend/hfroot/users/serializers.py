@@ -861,7 +861,18 @@ class GeckoGameWinSerializer(serializers.ModelSerializer):
         ]
 
 
+class GeckoGameWinPendingCapsuleSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    capsule = serializers.CharField()
+    gecko_game_type = serializers.IntegerField()
+    user_category_name = serializers.CharField(
+        source='user_category.name', allow_null=True, default=None,
+    )
+
+
 class GeckoGameWinPendingSerializer(serializers.ModelSerializer):
+    sender_capsule = GeckoGameWinPendingCapsuleSerializer(read_only=True)
+
     class Meta:
         model = models.GeckoGameWinPending
         fields = [
