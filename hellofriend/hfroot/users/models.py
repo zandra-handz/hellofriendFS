@@ -808,6 +808,8 @@ class GeckoGameWinPending(models.Model):
         related_name='+',
     )
 
+    match_key = models.CharField(max_length=255, blank=True)
+
     accepted_on = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
 

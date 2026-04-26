@@ -823,6 +823,69 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             
 
 
+        elif action == 'propose_gecko_match_win':
+            payload = data.get('data', {}) or {}
+            my_capsule_id = payload.get('my_capsule_id')
+            partner_capsule_id = payload.get('partner_capsule_id')
+            if not my_capsule_id or not partner_capsule_id:
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_match_win_failed',
+                    'data': {'reason': 'missing_capsule_ids'},
+                }))
+                return
+
+            partner_id = await self._get_active_live_sesh_partner_id()
+            if partner_id is None:
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_match_win_failed',
+                    'data': {'reason': 'no_active_sesh'},
+                }))
+                return
+
+            result = await self._propose_gecko_match_win_db(
+                my_capsule_id, partner_capsule_id, partner_id,
+            )
+            if not result['ok']:
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_match_win_failed',
+                    'data': {'reason': result['reason']},
+                }))
+                return
+
+            logger.info(
+                f'[propose_gecko_match_win] user={self.user.id} -> partner={partner_id} '
+                f'match_key={result["match_key"]}'
+            )
+
+            # Both pending rows are written. Notify BOTH peers via the same
+            # `gecko_win_proposed` event so the FE has one navigation trigger.
+            await self.channel_layer.group_send(
+                f'gecko_energy_{partner_id}',
+                {
+                    'type': 'gecko_win_proposed',
+                    'sender_user_id': self.user.id,
+                    # 'pending_id': result['partner_pending_id'],
+                },
+            )
+            await self.channel_layer.group_send(
+                f'gecko_energy_{self.user.id}',
+                {
+                    'type': 'gecko_win_proposed',
+                    'sender_user_id': partner_id,
+                    # 'pending_id': result['my_pending_id'],
+                },
+            )
+
+            await self.send(text_data=json.dumps({
+                'action': 'propose_gecko_match_win_ok',
+                'data': {
+                    'partner_id': partner_id,
+                    # 'my_pending_id': result['my_pending_id'],
+                    # 'partner_pending_id': result['partner_pending_id'],
+                    'match_key': result['match_key'],
+                },
+            }))
+
         elif action == 'propose_gecko_win':
             payload = data.get('data', {}) or {}
             capsule_id = payload.get('capsule_id')
@@ -851,7 +914,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
             logger.info(
                 f'[propose_gecko_win] user={self.user.id} -> partner={partner_id} '
-                f'capsule={capsule_id} pending_id={result["pending_id"]}'
+                f'capsule={capsule_id}'
             )
 
             await self.channel_layer.group_send(
@@ -859,7 +922,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 {
                     'type': 'gecko_win_proposed',
                     'sender_user_id': self.user.id,
-                    'pending_id': result['pending_id'],
+                    # 'pending_id': result['pending_id'],
                 },
             )
 
@@ -867,7 +930,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'action': 'propose_gecko_win_ok',
                 'data': {
                     'partner_id': partner_id,
-                    'pending_id': result['pending_id'],
+                    # 'pending_id': result['pending_id'],
                     'capsule_id': str(capsule_id),
                 },
             }))
@@ -1943,9 +2006,79 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             'action': 'gecko_win_proposed',
             'data': {
                 'sender_user_id': event.get('sender_user_id'),
-                'pending_id': event.get('pending_id'),
+                # 'pending_id': event.get('pending_id'),
             },
         }))
+
+    async def gecko_win_match_pending_accept_partner(self, event):
+        await self.send(text_data=json.dumps({
+            'action': 'gecko_win_match_pending_accept_partner',
+            'data': {
+                # 'pending_id': event.get('pending_id'),
+                'match_key': event.get('match_key'),
+                'accepted_by_user_id': event.get('accepted_by_user_id'),
+            },
+        }))
+
+    async def gecko_win_match_finalized(self, event):
+        await self.send(text_data=json.dumps({
+            'action': 'gecko_win_match_finalized',
+            'data': {
+                'match_key': event.get('match_key'),
+                'partner_user_id': event.get('partner_user_id'),
+            },
+        }))
+
+    @database_sync_to_async
+    def _propose_gecko_match_win_db(self, my_capsule_id, partner_capsule_id, partner_user_id):
+        from friends.models import ThoughtCapsulez
+        from users.models import GeckoGameWinPending, BadRainbowzUser
+
+        my_capsule = (
+            ThoughtCapsulez.objects
+            .filter(id=my_capsule_id, user_id=self.user.id)
+            .first()
+        )
+        if my_capsule is None:
+            return {'ok': False, 'reason': 'my_capsule_not_found_or_not_owner'}
+
+        partner_capsule = (
+            ThoughtCapsulez.objects
+            .filter(id=partner_capsule_id, user_id=partner_user_id)
+            .first()
+        )
+        if partner_capsule is None:
+            return {'ok': False, 'reason': 'partner_capsule_not_found_or_not_owner'}
+
+        partner_user = BadRainbowzUser.objects.filter(id=partner_user_id).first()
+        if partner_user is None:
+            return {'ok': False, 'reason': 'partner_not_found'}
+
+        # Build a stable match_key from the two capsule UUIDs (sorted so both
+        # sides produce the same string regardless of who proposes).
+        ids_sorted = sorted([str(my_capsule.id), str(partner_capsule.id)])
+        match_key = f'{ids_sorted[0]}:{ids_sorted[1]}'
+
+        # The partner WOULD win MY capsule from me; I would win partner's.
+        partner_pending = GeckoGameWinPending.propose(
+            target_user=partner_user,
+            sender=self.user,
+            sender_capsule=my_capsule,
+            match_key=match_key,
+        )
+        my_pending = GeckoGameWinPending.propose(
+            target_user=self.user,
+            sender=partner_user,
+            sender_capsule=partner_capsule,
+            match_key=match_key,
+        )
+
+        return {
+            'ok': True,
+            # 'my_pending_id': my_pending.id,
+            # 'partner_pending_id': partner_pending.id,
+            'match_key': match_key,
+        }
 
     @database_sync_to_async
     def _propose_gecko_win_db(self, capsule_id, partner_user_id):
@@ -1969,7 +2102,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             sender=self.user,
             sender_capsule=capsule,
         )
-        return {'ok': True, 'pending_id': pending.id}
+        return {'ok': True, 
+                # 'pending_id': pending.id
+                }
 
     async def match_request_result(self, event):
         await self.send(text_data=json.dumps({
