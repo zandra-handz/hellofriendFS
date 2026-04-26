@@ -1,6 +1,6 @@
 """
 Helper for pushing real-time notifications to a user's websocket channel
-(see NotificationsConsumer in users/consumers.py).
+(see NotificationsConsumer in users/notifications_consumer.py).
 """
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer

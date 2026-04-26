@@ -429,6 +429,82 @@
 
 #         self.pending_data.clear()
 
+# =============================================================================
+#  GeckoEnergyConsumer
+# =============================================================================
+#
+#  KEY: routine match resync = partner's reply to peer_presence_request.
+#       One presence ping → presence + matches refreshed on both peers.
+#       Other paths (request/repull/match_request fallback) = edge cases.
+#
+#  Channels: BE→FE push = method name == event['type'].
+#
+#  Groups joined on connect():
+#    gecko_energy_{uid}                 own
+#    gecko_shared_with_friend_{uid}     own
+#    gecko_shared_with_friend_{partner} partner (self.joined_sesh_group)
+#
+#  Cache rule: every read checks `if not self.capsule_matches` →
+#              fallback to _check_host_link_and_load (DB + broadcast).
+#
+# -----------------------------------------------------------------------------
+#  FLOW 1 — INITIAL JOIN
+# -----------------------------------------------------------------------------
+#  GUEST FE          GUEST consumer              HOST consumer        HOST FE
+#     │ ws            │ connect                     │                    │
+#     ├──────────────▶│ groups, accept              │                    │
+#     │               │ _check_host_link_and_load   │                    │
+#     │               │  └─ DB → broadcast ────────▶│                    │
+#     │ capsule_matches_ready  ◀──── both ────▶ ────┤                    │
+#     │◀──────────────│                             ├───────────────────▶│
+#     │ set_friend / join_live_sesh → repeats broadcast                  │
+#
+#  After join:  guest.capsule_matches=[…]   host.capsule_matches=[]
+#               (host cache fills on first resync trigger; FE OK either way)
+#
+# -----------------------------------------------------------------------------
+#  FLOW 2 — RESYNC TRIGGERS
+# -----------------------------------------------------------------------------
+#  A) PRESENCE PING  (focus / foreground)
+#     FE A → request_peer_presence → A → ping partner group →
+#       B's peer_presence_request handler:
+#         - peer_presence(online) → A
+#         - cached?  broadcast matches      else _check_host_link_and_load
+#     ⇒ both peers get peer_presence + capsule_matches_ready
+#
+#  B) EXPLICIT RE-FETCH
+#     FE A → request_capsule_matches → ping partner →
+#       B's capsule_matches_request handler:
+#         - cached?  reply to A only        else _check_host_link_and_load (both)
+#     no sesh → request_capsule_matches_failed (requester only)
+#
+#  C) FULL DB REPULL  (after local capsule edit)
+#     FE → repull_capsule_matches → _check_host_link_and_load → both peers
+#
+#  D) send_match_request {gecko_game_type}
+#     cached for type? → pick guest_ids[0] + host_ids[0] → match_request_result (both)
+#     not cached?      → _check_host_link_and_load → look again
+#     still not?       → send_match_request_failed (requester only)
+#
+# -----------------------------------------------------------------------------
+#  ACTION / HANDLER REFERENCE
+# -----------------------------------------------------------------------------
+#  FE→BE actions:
+#    set_friend, get_score_state, get_gecko_message, get_gecko_screen_position,
+#    join_live_sesh, leave_live_sesh, request_peer_presence,
+#    update_gecko_position, update_host_gecko_position, update_guest_gecko_position,
+#    update_gecko_data, flush, send_front_end_text_to_gecko,
+#    send_read_status_to_gecko, send_validate_win_request,
+#    send_validate_match_win_request, send_match_request,
+#    request_capsule_matches, repull_capsule_matches
+#
+#  BE→FE handlers (type=method name):
+#    peer_presence, peer_presence_request, energy_update, live_sesh_cancelled,
+#    sesh_context_refresh, gecko_position_broadcast, host_gecko_position_broadcast,
+#    guest_gecko_position_broadcast, capsule_matches_ready, capsule_matches_request,
+#    match_request_result, validate_win
+# =============================================================================
+
 import asyncio
 import json
 import logging
@@ -692,14 +768,111 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             
 
 
-        elif action == 'resync_capsule_matches':
+        elif action == 'send_match_request':
+            payload = data.get('data', {}) or {}
+            try:
+                requested_type = int(payload.get('gecko_game_type'))
+            except (TypeError, ValueError):
+                logger.warning(
+                    f'[send_match_request] user={self.user.id} '
+                    f'invalid gecko_game_type={payload.get("gecko_game_type")!r}'
+                )
+                await self.send(text_data=json.dumps({
+                    'action': 'send_match_request_failed',
+                    'data': {'reason': 'invalid_gecko_game_type'},
+                }))
+                return
+
+            def _find(matches, t):
+                for m in matches:
+                    if m.get('gecko_game_type') == t:
+                        return m
+                return None
+
+            match = _find(self.capsule_matches, requested_type)
+
+            if match is None:
+                partner_id = await self._get_active_live_sesh_partner_id()
+                if partner_id is None:
+                    await self.send(text_data=json.dumps({
+                        'action': 'send_match_request_failed',
+                        'data': {'reason': 'no_active_sesh'},
+                    }))
+                    return
+                await self._check_host_link_and_load(partner_id)
+                match = _find(self.capsule_matches, requested_type)
+
+            if match is None:
+                await self.send(text_data=json.dumps({
+                    'action': 'send_match_request_failed',
+                    'data': {
+                        'reason': 'no_match_for_type',
+                        'gecko_game_type': requested_type,
+                    },
+                }))
+                return
+
+            guest_ids = match.get('guest_capsule_ids') or []
+            host_ids = match.get('host_capsule_ids') or []
+            if not guest_ids or not host_ids:
+                await self.send(text_data=json.dumps({
+                    'action': 'send_match_request_failed',
+                    'data': {
+                        'reason': 'no_match_for_type',
+                        'gecko_game_type': requested_type,
+                    },
+                }))
+                return
+
+            picked_guest = guest_ids[0]
+            picked_host = host_ids[0]
+
+            target_group = (
+                getattr(self, 'joined_sesh_group', None)
+                or self.shared_with_friend_group_name
+            )
+            await self.channel_layer.group_send(
+                target_group,
+                {
+                    'type': 'match_request_result',
+                    'requested_by_user_id': self.user.id,
+                    'gecko_game_type': requested_type,
+                    'guest_capsule_id': picked_guest,
+                    'host_capsule_id': picked_host,
+                },
+            )
+
+        elif action == 'request_capsule_matches':
+            partner_group = getattr(self, 'joined_sesh_group', None)
+            if not partner_group:
+                partner_id = await self._get_active_live_sesh_partner_id()
+                if partner_id is None:
+                    logger.info(
+                        f'[request_capsule_matches] user={self.user.id} no active sesh partner'
+                    )
+                    return
+                partner_group = f'gecko_shared_with_friend_{partner_id}'
+
+            logger.info(
+                f'[request_capsule_matches] user={self.user.id} '
+                f'pinging partner_group={partner_group}'
+            )
+            await self.channel_layer.group_send(
+                partner_group,
+                {
+                    'type': 'capsule_matches_request',
+                    'requester_user_id': self.user.id,
+                },
+            )
+
+        elif action == 'repull_capsule_matches':
             partner_id = await self._get_active_live_sesh_partner_id()
             if partner_id is None:
                 logger.info(
-                    f'[resync_capsule_matches] user={self.user.id} no active sesh — refusing'
+                    f'[repull_capsule_matches] user={self.user.id} no active sesh — refusing'
                 )
                 await self.send(text_data=json.dumps({
-                    'action': 'resync_capsule_matches_failed',
+                    'action': 'repull_capsule_matches_failed',
                     'data': {'reason': 'no_active_sesh'},
                 }))
                 return
@@ -973,6 +1146,61 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_send(
             f'gecko_shared_with_friend_{requester_id}',
             {'type': 'peer_presence', 'user_id': self.user.id, 'online': True},
+        )
+
+        if not self.capsule_matches:
+            await self._check_host_link_and_load(requester_id)
+            return
+
+        if getattr(self, 'is_host', False):
+            host_user_id = self.user.id
+            guest_user_id = requester_id
+        else:
+            host_user_id = requester_id
+            guest_user_id = self.user.id
+
+        target_group = (
+            getattr(self, 'joined_sesh_group', None)
+            or self.shared_with_friend_group_name
+        )
+        await self.channel_layer.group_send(
+            target_group,
+            {
+                'type': 'capsule_matches_ready',
+                'is_linked': self.host_is_linked,
+                'host_user_id': host_user_id,
+                'guest_user_id': guest_user_id,
+                'friend_id': self.host_linked_friend_id,
+                'matches': self.capsule_matches,
+            },
+        )
+
+    async def capsule_matches_request(self, event):
+        requester_id = event.get('requester_user_id')
+        if requester_id == self.user.id:
+            return
+
+        if not self.capsule_matches:
+            await self._check_host_link_and_load(requester_id)
+            return
+
+        if getattr(self, 'is_host', False):
+            host_user_id = self.user.id
+            guest_user_id = requester_id
+        else:
+            host_user_id = requester_id
+            guest_user_id = self.user.id
+
+        await self.channel_layer.group_send(
+            f'gecko_shared_with_friend_{requester_id}',
+            {
+                'type': 'capsule_matches_ready',
+                'is_linked': self.host_is_linked,
+                'host_user_id': host_user_id,
+                'guest_user_id': guest_user_id,
+                'friend_id': self.host_linked_friend_id,
+                'matches': self.capsule_matches,
+            },
         )
         
     async def energy_update(self, event):
@@ -1579,6 +1807,17 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             },
         )
 
+    async def match_request_result(self, event):
+        await self.send(text_data=json.dumps({
+            'action': 'match_request_result',
+            'data': {
+                'requested_by_user_id': event['requested_by_user_id'],
+                'gecko_game_type': event['gecko_game_type'],
+                'guest_capsule_id': event['guest_capsule_id'],
+                'host_capsule_id': event['host_capsule_id'],
+            },
+        }))
+
     async def capsule_matches_ready(self, event):
         await self.send(text_data=json.dumps({
             'action': 'capsule_matches_ready',
@@ -1785,56 +2024,3 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.pending_data.clear()
 
         logger.info(f'[flush_db] complete user={self.user.id}')
-
-
-class NotificationsConsumer(AsyncWebsocketConsumer):
-    """
-    Lightweight per-user channel for real-time notifications
-    (live sesh invites, accepts, session end, etc). Does not load
-    any heavy state on connect — pure fan-out.
-    """
-
-    async def connect(self):
-        user = self.scope['user']
-        if user.is_anonymous:
-            logger.warning('[notifications connect] anonymous user rejected')
-            await self.close()
-            return
-
-        self.user = user
-        self.group_name = f'notifications_{self.user.id}'
-        logger.info(f'[notifications connect] user={self.user.id} group={self.group_name}')
-
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-
-
-
-        await self.accept()
-
-    async def disconnect(self, close_code):
-        logger.info(
-            f'[notifications disconnect] user={getattr(self, "user", None)} code={close_code}'
-        )
-        if hasattr(self, 'group_name'):
-
-            await self.channel_layer.group_discard(self.group_name, self.channel_name)
-
-    # --- event handlers (invoked via channel_layer.group_send with matching type) ---
-
-    async def live_sesh_invite(self, event):
-        await self.send(text_data=json.dumps({
-            'action': 'live_sesh_invite',
-            'data': event.get('data', {}),
-        }))
-
-    async def live_sesh_invite_accepted(self, event):
-        await self.send(text_data=json.dumps({
-            'action': 'live_sesh_invite_accepted',
-            'data': event.get('data', {}),
-        }))
-
-    async def live_sesh_ended(self, event):
-        await self.send(text_data=json.dumps({
-            'action': 'live_sesh_ended',
-            'data': event.get('data', {}),
-        }))
