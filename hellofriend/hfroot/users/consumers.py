@@ -506,7 +506,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.gecko_screen_position = [] # on FE:  this.lead = [lead0, lead1];
         self.host_gecko_screen_position = [] # on FE:  this.lead = [lead0, lead1];
         self.guest_gecko_screen_position = [] # on FE:  this.lead = [lead0, lead1];
-        
+        self.host_is_linked = False
+        self.host_linked_friend_id = None
+        self.capsule_matches = []
 
         logger.info(
             f'[connect] loaded score_state user={self.user.id} '
@@ -520,6 +522,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             'action': 'score_state',
             'data': self._serialize_score_state(),
         }))
+
+        if partner_id is not None and not self.is_host:
+            await self._check_host_link_and_load(partner_id)
 
     async def disconnect(self, close_code):
         logger.info(f'[disconnect] user={getattr(self, "user", None)} code={close_code}')
@@ -662,7 +667,12 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 self.shared_with_friend_group_name,
                 {'type': 'peer_presence', 'user_id': self.user.id, 'online': True}
             )
-        
+
+            if not self.is_host:
+                await self._check_host_link_and_load(partner_id)
+
+
+
         elif action == 'leave_live_sesh':
             old = getattr(self, 'joined_sesh_group', None)
             if old:
@@ -681,6 +691,19 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
             
 
+
+        elif action == 'resync_capsule_matches':
+            partner_id = await self._get_active_live_sesh_partner_id()
+            if partner_id is None:
+                logger.info(
+                    f'[resync_capsule_matches] user={self.user.id} no active sesh — refusing'
+                )
+                await self.send(text_data=json.dumps({
+                    'action': 'resync_capsule_matches_failed',
+                    'data': {'reason': 'no_active_sesh'},
+                }))
+                return
+            await self._check_host_link_and_load(partner_id)
 
         elif action == 'request_peer_presence':
             partner_group = getattr(self, 'joined_sesh_group', None)
@@ -743,7 +766,31 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 },
             }))
             return
-                
+
+
+        elif action == 'send_validate_win_request':
+            payload = data.get('data', {})
+            validate = payload.get('validate')
+
+            if validate:
+                return
+
+
+            return
+
+
+        # this one needs both players to accept
+        elif action == 'send_validate_match_win_request':
+            payload = data.get('data', {})
+            validate = payload.get('validate')
+
+            if validate:
+                return
+
+
+            return 
+
+                  
 
     
         elif action == 'send_read_status_to_gecko':
@@ -904,6 +951,12 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         else:
             logger.warning(f'[receive] unknown action user={self.user.id} action={action}')
+
+
+    # TO FINISH
+    async def validate_win(self, event):
+        if event['user_id'] == self.user.id:
+            return
 
     async def peer_presence(self, event):
         if event['user_id'] == self.user.id:
@@ -1439,6 +1492,105 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.is_host = sesh.is_host
         self.sesh_friend_id = sesh.friend_id
         return sesh.other_user_id
+
+    @database_sync_to_async
+    def _compute_capsule_matches_db(self, guest_user_id, host_user_id):
+        from friends.models import Friend, ThoughtCapsulez
+
+        guest_friend = Friend.objects.filter(
+            user_id=guest_user_id,
+            linked_user_id=host_user_id,
+        ).only('id').first()
+        if not guest_friend:
+            return {'is_linked': False, 'friend_id': None, 'matches': []}
+
+        host_friend = Friend.objects.filter(
+            user_id=host_user_id,
+            linked_user_id=guest_user_id,
+        ).only('id').first()
+        if not host_friend:
+            return {'is_linked': False, 'friend_id': guest_friend.id, 'matches': []}
+
+        guest_caps = ThoughtCapsulez.objects.filter(
+            user_id=guest_user_id,
+            friend_id=guest_friend.id,
+            match_only=True,
+        ).values('id', 'gecko_game_type')
+
+        host_caps = ThoughtCapsulez.objects.filter(
+            user_id=host_user_id,
+            friend_id=host_friend.id,
+            match_only=True,
+        ).values('id', 'gecko_game_type')
+
+        guest_by_type = {}
+        for c in guest_caps:
+            guest_by_type.setdefault(c['gecko_game_type'], []).append(str(c['id']))
+
+        host_by_type = {}
+        for c in host_caps:
+            host_by_type.setdefault(c['gecko_game_type'], []).append(str(c['id']))
+
+        matches = []
+        for game_type, guest_ids in guest_by_type.items():
+            host_ids = host_by_type.get(game_type)
+            if not host_ids:
+                continue
+            matches.append({
+                'gecko_game_type': game_type,
+                'guest_capsule_ids': guest_ids,
+                'host_capsule_ids': host_ids,
+            })
+
+        return {'is_linked': True, 'friend_id': guest_friend.id, 'matches': matches}
+
+    async def _check_host_link_and_load(self, partner_user_id):
+        if getattr(self, 'is_host', False):
+            guest_user_id = partner_user_id
+            host_user_id = self.user.id
+        else:
+            guest_user_id = self.user.id
+            host_user_id = partner_user_id
+
+        result = await self._compute_capsule_matches_db(guest_user_id, host_user_id)
+        self.host_is_linked = result['is_linked']
+        self.host_linked_friend_id = result['friend_id']
+        self.capsule_matches = result['matches']
+
+        logger.info(
+            f'[host_link_check] user={self.user.id} partner={partner_user_id} '
+            f'is_linked={self.host_is_linked} friend_id={self.host_linked_friend_id} '
+            f'matches={len(self.capsule_matches)}'
+        )
+
+        target_group = (
+            getattr(self, 'joined_sesh_group', None)
+            or self.shared_with_friend_group_name
+        )
+        await self.channel_layer.group_send(
+            target_group,
+            {
+                'type': 'capsule_matches_ready',
+                'is_linked': self.host_is_linked,
+                'host_user_id': host_user_id,
+                'guest_user_id': guest_user_id,
+                'friend_id': self.host_linked_friend_id,
+                'matches': self.capsule_matches,
+            },
+        )
+
+    async def capsule_matches_ready(self, event):
+        await self.send(text_data=json.dumps({
+            'action': 'capsule_matches_ready',
+            'data': {
+                'completed': True,
+                'is_linked': event['is_linked'],
+                'host_user_id': event['host_user_id'],
+                'guest_user_id': event['guest_user_id'],
+                'friend_id': event['friend_id'],
+                'matches': event['matches'],
+            },
+        }))
 
     @database_sync_to_async
     def _write_sync_sample(
