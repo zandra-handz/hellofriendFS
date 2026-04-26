@@ -1374,12 +1374,21 @@ class GeckoGameWinPendingDetail(APIView):
             .first()
         )
 
+    def _clear_if_expired(self, pending):
+        if pending and pending.expires_at and pending.expires_at <= timezone.now():
+            pending.sender = None
+            pending.sender_capsule = None
+            pending.expires_at = None
+            pending.accepted_on = None
+            pending.save(update_fields=[
+                'sender', 'sender_capsule', 'expires_at', 'accepted_on', 'updated_on',
+            ])
+
     def get(self, request):
         pending = self._get_pending(request.user)
         if pending is None:
             return response.Response({'detail': 'no_pending'}, status=status.HTTP_404_NOT_FOUND)
-        if pending.expires_at and pending.expires_at <= timezone.now():
-            return response.Response({'detail': 'expired'}, status=status.HTTP_410_GONE)
+        self._clear_if_expired(pending)
         return response.Response(
             serializers.GeckoGameWinPendingSerializer(pending).data,
             status=status.HTTP_200_OK,
@@ -1396,8 +1405,9 @@ class GeckoGameWinPendingDetail(APIView):
         pending = self._get_pending(request.user)
         if pending is None:
             return response.Response({'detail': 'no_pending'}, status=status.HTTP_404_NOT_FOUND)
-        if pending.expires_at and pending.expires_at <= timezone.now():
-            return response.Response({'detail': 'expired'}, status=status.HTTP_410_GONE)
+        self._clear_if_expired(pending)
+        if pending.sender_id is None:
+            return response.Response({'detail': 'no_pending'}, status=status.HTTP_404_NOT_FOUND)
         if pending.accepted_on is not None:
             return response.Response({'detail': 'already_accepted'}, status=status.HTTP_409_CONFLICT)
 
