@@ -532,8 +532,25 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.room_group_name = f'gecko_energy_{self.user.id}'
         self.shared_with_friend_group_name = f'gecko_shared_with_friend_{self.user.id}'
         self.gecko_message = None
-        
-        
+
+        active_channel_key = f'gecko_active_channel:{self.user.id}'
+        old_channel = await self._cache_get(active_channel_key)
+        if old_channel and old_channel != self.channel_name:
+            try:
+                await self.channel_layer.send(
+                    old_channel,
+                    {'type': 'force_disconnect'},
+                )
+                logger.info(
+                    f'[connect] user={self.user.id} kicked old channel={old_channel}'
+                )
+            except Exception:
+                logger.exception(
+                    f'[connect] failed to kick old channel user={self.user.id}'
+                )
+        await self._cache_set(active_channel_key, self.channel_name)
+        self._active_channel_key = active_channel_key
+
         logger.info(
             f'[connect] user={self.user.id} '
             f'group={self.room_group_name} '
@@ -634,6 +651,36 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 self.channel_name,
             )
             self.joined_sesh_group = None
+
+        # Clear the active-channel cache entry only if it still points to us;
+        # otherwise a newer connection has already claimed the slot.
+        active_channel_key = getattr(self, '_active_channel_key', None)
+        if active_channel_key:
+            current = await self._cache_get(active_channel_key)
+            if current == self.channel_name:
+                await self._cache_delete(active_channel_key)
+
+    async def force_disconnect(self, event):
+        logger.info(
+            f'[force_disconnect] user={getattr(self, "user", None)} '
+            f'channel={self.channel_name}'
+        )
+        await self.close(code=4000)
+
+    @database_sync_to_async
+    def _cache_get(self, key):
+        from django.core.cache import cache
+        return cache.get(key)
+
+    @database_sync_to_async
+    def _cache_set(self, key, value, timeout=None):
+        from django.core.cache import cache
+        cache.set(key, value, timeout=timeout)
+
+    @database_sync_to_async
+    def _cache_delete(self, key):
+        from django.core.cache import cache
+        cache.delete(key)
 
     async def receive(self, text_data=None, bytes_data=None):
         if bytes_data is not None:
