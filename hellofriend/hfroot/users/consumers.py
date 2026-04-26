@@ -998,8 +998,6 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         #         },
         #     }))
 
-
-
         elif action == 'propose_gecko_match_win':
             payload = data.get('data', {}) or {}
 
@@ -1017,24 +1015,32 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 return
 
             def _find(matches, t):
-                for m in matches:
+                for m in matches or []:
                     if m.get('gecko_game_type') == t:
                         return m
                 return None
 
             match = _find(self.capsule_matches, requested_type)
 
-            partner_id = await self._get_active_live_sesh_partner_id()
-            if partner_id is None:
-                await self.send(text_data=json.dumps({
-                    'action': 'propose_gecko_win_failed',
-                    'data': {'reason': 'no_active_sesh'},
-                }))
-                return
-
             if match is None:
+                partner_id = await self._get_active_live_sesh_partner_id()
+                if partner_id is None:
+                    await self.send(text_data=json.dumps({
+                        'action': 'propose_gecko_win_failed',
+                        'data': {'reason': 'no_active_sesh'},
+                    }))
+                    return
+
                 await self._check_host_link_and_load(partner_id)
                 match = _find(self.capsule_matches, requested_type)
+            else:
+                partner_id = await self._get_active_live_sesh_partner_id()
+                if partner_id is None:
+                    await self.send(text_data=json.dumps({
+                        'action': 'propose_gecko_win_failed',
+                        'data': {'reason': 'no_active_sesh'},
+                    }))
+                    return
 
             if match is None:
                 await self.send(text_data=json.dumps({
@@ -1059,21 +1065,12 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 }))
                 return
 
-            guest_capsule_id = guest_ids[0]
-            host_capsule_id = host_ids[0]
-
-            # Host proposes with host capsule as mine, guest capsule as partner's.
-            # Guest proposes with guest capsule as mine, host capsule as partner's.
-            if getattr(self, 'is_host', False):
-                my_capsule_id = host_capsule_id
-                partner_capsule_id = guest_capsule_id
-            else:
-                my_capsule_id = guest_capsule_id
-                partner_capsule_id = host_capsule_id
+            picked_guest = guest_ids[0]
+            picked_host = host_ids[0]
 
             result = await self._propose_gecko_match_win_db(
-                my_capsule_id,
-                partner_capsule_id,
+                picked_guest,
+                picked_host,
                 partner_id,
             )
 
@@ -1109,7 +1106,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'action': 'propose_gecko_win_ok',
                 'data': {
                     'partner_id': partner_id,
-                    'capsule_id': str(my_capsule_id),
+                    'capsule_id': str(picked_guest),
                     'match_key': result['match_key'],
                     'gecko_game_type': requested_type,
                 },
