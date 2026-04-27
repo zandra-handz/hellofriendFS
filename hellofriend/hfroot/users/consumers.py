@@ -822,6 +822,90 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             }))
 
 
+        elif action == 'propose_gecko_win':
+            payload = data.get('data', {}) or {}
+
+            try:
+                requested_type = int(payload.get('gecko_game_type'))
+            except (TypeError, ValueError):
+                logger.warning(
+                    f'[propose_gecko_match_win] user={self.user.id} '
+                    f'invalid gecko_game_type={payload.get("gecko_game_type")!r}'
+                )
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_match_win_failed',
+                    'data': {'reason': 'invalid_gecko_game_type'},
+                }))
+                return
+            
+            partner_id = await self._get_active_live_sesh_partner_id()
+            if partner_id is None:
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_win_failed',
+                    'data': {'reason': 'no_active_sesh'},
+                }))
+                return
+
+            capsule_id = payload.get('capsule_id')
+            if not capsule_id:
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_win_failed',
+                    'data': {'reason': 'missing_capsule_id'},
+                }))
+                return
+
+            try:
+                result = await self._propose_gecko_win_db(capsule_id, partner_id)
+            except Exception:
+                logger.exception(
+                    f'[propose_gecko_win] db error user={self.user.id} '
+                    f'gecko_game_type={requested_type} '
+                    f'capsule_id={capsule_id}'
+                )
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_win_failed',
+                    'data': {'reason': 'db_error'},
+                }))
+                return
+
+            if not result['ok']:
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_win_failed',
+                    'data': {'reason': result['reason']},
+                }))
+                return
+
+            logger.info(
+                f'[propose_gecko_win] user={self.user.id} -> partner={partner_id} '
+                f'gecko_game_type={requested_type} '
+                f'capsule_id={capsule_id} '
+                f'pending_id={result["pending_id"]}'
+            )
+
+            await self.channel_layer.group_send(
+                f'gecko_energy_{partner_id}',
+                {
+                    'type': 'gecko_win_proposed',
+                    'sender_user_id': self.user.id,
+                    'gecko_game_type': requested_type,
+                    'pending_id': result['pending_id'],
+                    'my_capsule_id': None,
+                    'partner_capsule_id': str(capsule_id),
+                },
+            )
+
+            await self.channel_layer.group_send(
+                f'gecko_energy_{self.user.id}',
+                {
+                    'type': 'gecko_win_proposed',
+                    'sender_user_id': partner_id,
+                    'gecko_game_type': requested_type,
+                    'pending_id': result['pending_id'],
+                    'my_capsule_id': str(capsule_id),
+                    'partner_capsule_id': None,
+                },
+            )
+
 
 
         elif action == 'propose_gecko_match_win':
@@ -2270,7 +2354,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             'ok': True,
             'gecko_game_type': gecko_game_type,
             'gecko_game_type_label': gecko_game_type_label,
-            # 'pending_id': pending.id,
+            'pending_id': pending.id,
         }
 
     # @database_sync_to_async
