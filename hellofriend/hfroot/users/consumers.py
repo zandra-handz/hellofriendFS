@@ -1988,6 +1988,16 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             },
         }))
 
+    async def propose_gecko_match_win_ok(self, event):
+        await self.send(text_data=json.dumps({
+            'action': 'propose_gecko_match_win_ok',
+            'data': {
+                'other_user_id': event.get('other_user_id'),
+                'gecko_game_type': event.get('gecko_game_type'),
+                'capsule_id': event.get('capsule_id'),
+            },
+        }))
+
     async def gecko_win_match_pending_accept_partner(self, event):
         await self.send(text_data=json.dumps({
             'action': 'gecko_win_match_pending_accept_partner',
