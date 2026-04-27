@@ -1773,6 +1773,20 @@ class GeckoGameMatchWinPendingDetail(APIView):
         else:
             sender_capsule = pending.host_capsule
 
+        if sender_capsule is None:
+            sender_capsule_data = None
+        else:
+            sender_capsule_data = {
+                'id': str(sender_capsule.id),
+                'capsule': sender_capsule.capsule,
+                'gecko_game_type': sender_capsule.gecko_game_type,
+                'user_category_name': (
+                    sender_capsule.user_category.name
+                    if sender_capsule.user_category_id
+                    else 'Gecko game'
+                ),
+            }
+
         return response.Response(
             {
                 'id': pending.id,
@@ -1785,16 +1799,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                 'finalized_on': pending.finalized_on,
                 'declined_on': pending.declined_on,
                 'expires_at': pending.expires_at,
-                'sender_capsule': {
-                    'id': str(sender_capsule.id),
-                    'capsule': sender_capsule.capsule,
-                    'gecko_game_type': sender_capsule.gecko_game_type,
-                    'user_category_name': (
-                        sender_capsule.user_category.name
-                        if sender_capsule.user_category_id
-                        else 'Gecko game'
-                    ),
-                },
+                'sender_capsule': sender_capsule_data,
             },
             status=status.HTTP_200_OK,
         )
@@ -2024,12 +2029,12 @@ class GeckoGameMatchWinPendingDetail(APIView):
             matched_capsule_id=guest_capsule.id,
         )
 
+        pending.finalized_on = timezone.now()
+        pending.save(update_fields=['finalized_on', 'updated_on'])
+
         ThoughtCapsulez.objects.filter(
             id__in=[host_capsule.id, guest_capsule.id]
         ).delete()
-
-        pending.finalized_on = timezone.now()
-        pending.save(update_fields=['finalized_on', 'updated_on'])
 
         return None
 
