@@ -891,12 +891,24 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             else:
                 my_capsule_id = picked_guest
                 partner_capsule_id = picked_host
-
-            result = await self._propose_gecko_match_win_db(
-                my_capsule_id,
-                partner_capsule_id,
-                partner_id,
-            )
+            try:
+                result = await self._propose_gecko_match_win_db(
+                    my_capsule_id,
+                    partner_capsule_id,
+                    partner_id,
+                )
+            except Exception as e:
+                logger.exception(
+                    f'[propose_gecko_match_win] db error user={self.user.id} '
+                    f'gecko_game_type={requested_type} '
+                    f'my_capsule_id={my_capsule_id} '
+                    f'partner_capsule_id={partner_capsule_id}'
+                )
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_match_win_failed',
+                    'data': {'reason': 'db_error'},
+                }))
+                return
 
             if not result['ok']:
                 await self.send(text_data=json.dumps({
