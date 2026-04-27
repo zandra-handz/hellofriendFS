@@ -602,6 +602,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.host_is_linked = False
         self.host_linked_friend_id = None
         self.capsule_matches = []
+        self.capsule_matches_loaded = False
 
         logger.info(
             f'[connect] loaded score_state user={self.user.id} '
@@ -840,7 +841,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 return
 
             def _find(matches, t):
-                for m in matches:
+                for m in matches or []:
                     if m.get('gecko_game_type') == t:
                         return m
                 return None
@@ -855,7 +856,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
             match = _find(self.capsule_matches, requested_type)
 
-            if match is None:
+            if match is None and not getattr(self, 'capsule_matches_loaded', False):
                 await self._check_host_link_and_load(partner_id)
                 match = _find(self.capsule_matches, requested_type)
 
@@ -891,13 +892,14 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             else:
                 my_capsule_id = picked_guest
                 partner_capsule_id = picked_host
+
             try:
                 result = await self._propose_gecko_match_win_db(
                     my_capsule_id,
                     partner_capsule_id,
                     partner_id,
                 )
-            except Exception as e:
+            except Exception:
                 logger.exception(
                     f'[propose_gecko_match_win] db error user={self.user.id} '
                     f'gecko_game_type={requested_type} '
@@ -959,194 +961,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'partner_capsule_id': str(partner_capsule_id),
                 },
             }))
-            
 
 
-        # elif action == 'propose_gecko_match_win':
-        #     payload = data.get('data', {}) or {}
-        #     my_capsule_id = payload.get('my_capsule_id')
-        #     partner_capsule_id = payload.get('partner_capsule_id')
-        #     if not my_capsule_id or not partner_capsule_id:
-        #         await self.send(text_data=json.dumps({
-        #             'action': 'propose_gecko_match_win_failed',
-        #             'data': {'reason': 'missing_capsule_ids'},
-        #         }))
-        #         return
-
-        #     partner_id = await self._get_active_live_sesh_partner_id()
-        #     if partner_id is None:
-        #         await self.send(text_data=json.dumps({
-        #             'action': 'propose_gecko_match_win_failed',
-        #             'data': {'reason': 'no_active_sesh'},
-        #         }))
-        #         return
-
-        #     result = await self._propose_gecko_match_win_db(
-        #         my_capsule_id, partner_capsule_id, partner_id,
-        #     )
-        #     if not result['ok']:
-        #         await self.send(text_data=json.dumps({
-        #             'action': 'propose_gecko_match_win_failed',
-        #             'data': {'reason': result['reason']},
-        #         }))
-        #         return
-
-        #     logger.info(
-        #         f'[propose_gecko_match_win] user={self.user.id} -> partner={partner_id} '
-        #         f'match_key={result["match_key"]}'
-        #     )
-
-        #     # Both pending rows are written. Notify BOTH peers via the same
-        #     # `gecko_win_proposed` event so the FE has one navigation trigger.
-        #     await self.channel_layer.group_send(
-        #         f'gecko_energy_{partner_id}',
-        #         {
-        #             'type': 'gecko_win_proposed',
-        #             'sender_user_id': self.user.id,
-        #             # 'pending_id': result['partner_pending_id'],
-        #         },
-        #     )
-        #     await self.channel_layer.group_send(
-        #         f'gecko_energy_{self.user.id}',
-        #         {
-        #             'type': 'gecko_win_proposed',
-        #             'sender_user_id': partner_id,
-        #             # 'pending_id': result['my_pending_id'],
-        #         },
-        #     )
-
-        #     await self.send(text_data=json.dumps({
-        #         'action': 'propose_gecko_match_win_ok',
-        #         'data': {
-        #             'partner_id': partner_id,
-        #             # 'my_pending_id': result['my_pending_id'],
-        #             # 'partner_pending_id': result['partner_pending_id'],
-        #             'match_key': result['match_key'],
-        #         },
-        #     }))
-
-        # elif action == 'propose_gecko_win':
-        #     payload = data.get('data', {}) or {}
-        #     capsule_id = payload.get('capsule_id')
-        #     if not capsule_id:
-        #         await self.send(text_data=json.dumps({
-        #             'action': 'propose_gecko_win_failed',
-        #             'data': {'reason': 'missing_capsule_id'},
-        #         }))
-        #         return
-
-        #     partner_id = await self._get_active_live_sesh_partner_id()
-        #     if partner_id is None:
-        #         await self.send(text_data=json.dumps({
-        #             'action': 'propose_gecko_win_failed',
-        #             'data': {'reason': 'no_active_sesh'},
-        #         }))
-        #         return
-
-        #     result = await self._propose_gecko_win_db(capsule_id, partner_id)
-        #     if not result['ok']:
-        #         await self.send(text_data=json.dumps({
-        #             'action': 'propose_gecko_win_failed',
-        #             'data': {'reason': result['reason']},
-        #         }))
-        #         return
-
-        #     logger.info(
-        #         f'[propose_gecko_win] user={self.user.id} -> partner={partner_id} '
-        #         f'capsule={capsule_id}'
-        #     )
-
-        #     await self.channel_layer.group_send(
-        #         f'gecko_energy_{partner_id}',
-        #         {
-        #             'type': 'gecko_win_proposed',
-        #             'sender_user_id': self.user.id,
-        #             # 'pending_id': result['pending_id'],
-        #         },
-        #     )
-
-        #     await self.send(text_data=json.dumps({
-        #         'action': 'propose_gecko_win_ok',
-        #         'data': {
-        #             'partner_id': partner_id,
-        #             # 'pending_id': result['pending_id'],
-        #             'capsule_id': str(capsule_id),
-        #         },
-        #     }))
-
-        # elif action == 'send_match_request':
-        #     payload = data.get('data', {}) or {}
-        #     try:
-        #         requested_type = int(payload.get('gecko_game_type'))
-        #     except (TypeError, ValueError):
-        #         logger.warning(
-        #             f'[send_match_request] user={self.user.id} '
-        #             f'invalid gecko_game_type={payload.get("gecko_game_type")!r}'
-        #         )
-        #         await self.send(text_data=json.dumps({
-        #             'action': 'send_match_request_failed',
-        #             'data': {'reason': 'invalid_gecko_game_type'},
-        #         }))
-        #         return
-
-        #     def _find(matches, t):
-        #         for m in matches:
-        #             if m.get('gecko_game_type') == t:
-        #                 return m
-        #         return None
-
-        #     match = _find(self.capsule_matches, requested_type)
-
-        #     if match is None:
-        #         partner_id = await self._get_active_live_sesh_partner_id()
-        #         if partner_id is None:
-        #             await self.send(text_data=json.dumps({
-        #                 'action': 'send_match_request_failed',
-        #                 'data': {'reason': 'no_active_sesh'},
-        #             }))
-        #             return
-        #         await self._check_host_link_and_load(partner_id)
-        #         match = _find(self.capsule_matches, requested_type)
-
-        #     if match is None:
-        #         await self.send(text_data=json.dumps({
-        #             'action': 'send_match_request_failed',
-        #             'data': {
-        #                 'reason': 'no_match_for_type',
-        #                 'gecko_game_type': requested_type,
-        #             },
-        #         }))
-        #         return
-
-        #     guest_ids = match.get('guest_capsule_ids') or []
-        #     host_ids = match.get('host_capsule_ids') or []
-        #     if not guest_ids or not host_ids:
-        #         await self.send(text_data=json.dumps({
-        #             'action': 'send_match_request_failed',
-        #             'data': {
-        #                 'reason': 'no_match_for_type',
-        #                 'gecko_game_type': requested_type,
-        #             },
-        #         }))
-        #         return
-
-        #     picked_guest = guest_ids[0]
-        #     picked_host = host_ids[0]
-
-        #     target_group = (
-        #         getattr(self, 'joined_sesh_group', None)
-        #         or self.shared_with_friend_group_name
-        #     )
-        #     await self.channel_layer.group_send(
-        #         target_group,
-        #         {
-        #             'type': 'match_request_result',
-        #             'requested_by_user_id': self.user.id,
-        #             'gecko_game_type': requested_type,
-        #             'guest_capsule_id': picked_guest,
-        #             'host_capsule_id': picked_host,
-        #         },
-        #     )
 
         elif action == 'request_capsule_matches':
             partner_group = getattr(self, 'joined_sesh_group', None)
@@ -2117,6 +1933,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.host_is_linked = result['is_linked']
         self.host_linked_friend_id = result['friend_id']
         self.capsule_matches = result['matches']
+        self.capsule_matches_loaded = True
 
         logger.info(
             f'[host_link_check] user={self.user.id} partner={partner_user_id} '
@@ -2462,3 +2279,208 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.pending_data.clear()
 
         logger.info(f'[flush_db] complete user={self.user.id}')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
+        # elif action == 'propose_gecko_match_win':
+        #     payload = data.get('data', {}) or {}
+        #     my_capsule_id = payload.get('my_capsule_id')
+        #     partner_capsule_id = payload.get('partner_capsule_id')
+        #     if not my_capsule_id or not partner_capsule_id:
+        #         await self.send(text_data=json.dumps({
+        #             'action': 'propose_gecko_match_win_failed',
+        #             'data': {'reason': 'missing_capsule_ids'},
+        #         }))
+        #         return
+
+        #     partner_id = await self._get_active_live_sesh_partner_id()
+        #     if partner_id is None:
+        #         await self.send(text_data=json.dumps({
+        #             'action': 'propose_gecko_match_win_failed',
+        #             'data': {'reason': 'no_active_sesh'},
+        #         }))
+        #         return
+
+        #     result = await self._propose_gecko_match_win_db(
+        #         my_capsule_id, partner_capsule_id, partner_id,
+        #     )
+        #     if not result['ok']:
+        #         await self.send(text_data=json.dumps({
+        #             'action': 'propose_gecko_match_win_failed',
+        #             'data': {'reason': result['reason']},
+        #         }))
+        #         return
+
+        #     logger.info(
+        #         f'[propose_gecko_match_win] user={self.user.id} -> partner={partner_id} '
+        #         f'match_key={result["match_key"]}'
+        #     )
+
+        #     # Both pending rows are written. Notify BOTH peers via the same
+        #     # `gecko_win_proposed` event so the FE has one navigation trigger.
+        #     await self.channel_layer.group_send(
+        #         f'gecko_energy_{partner_id}',
+        #         {
+        #             'type': 'gecko_win_proposed',
+        #             'sender_user_id': self.user.id,
+        #             # 'pending_id': result['partner_pending_id'],
+        #         },
+        #     )
+        #     await self.channel_layer.group_send(
+        #         f'gecko_energy_{self.user.id}',
+        #         {
+        #             'type': 'gecko_win_proposed',
+        #             'sender_user_id': partner_id,
+        #             # 'pending_id': result['my_pending_id'],
+        #         },
+        #     )
+
+        #     await self.send(text_data=json.dumps({
+        #         'action': 'propose_gecko_match_win_ok',
+        #         'data': {
+        #             'partner_id': partner_id,
+        #             # 'my_pending_id': result['my_pending_id'],
+        #             # 'partner_pending_id': result['partner_pending_id'],
+        #             'match_key': result['match_key'],
+        #         },
+        #     }))
+
+        # elif action == 'propose_gecko_win':
+        #     payload = data.get('data', {}) or {}
+        #     capsule_id = payload.get('capsule_id')
+        #     if not capsule_id:
+        #         await self.send(text_data=json.dumps({
+        #             'action': 'propose_gecko_win_failed',
+        #             'data': {'reason': 'missing_capsule_id'},
+        #         }))
+        #         return
+
+        #     partner_id = await self._get_active_live_sesh_partner_id()
+        #     if partner_id is None:
+        #         await self.send(text_data=json.dumps({
+        #             'action': 'propose_gecko_win_failed',
+        #             'data': {'reason': 'no_active_sesh'},
+        #         }))
+        #         return
+
+        #     result = await self._propose_gecko_win_db(capsule_id, partner_id)
+        #     if not result['ok']:
+        #         await self.send(text_data=json.dumps({
+        #             'action': 'propose_gecko_win_failed',
+        #             'data': {'reason': result['reason']},
+        #         }))
+        #         return
+
+        #     logger.info(
+        #         f'[propose_gecko_win] user={self.user.id} -> partner={partner_id} '
+        #         f'capsule={capsule_id}'
+        #     )
+
+        #     await self.channel_layer.group_send(
+        #         f'gecko_energy_{partner_id}',
+        #         {
+        #             'type': 'gecko_win_proposed',
+        #             'sender_user_id': self.user.id,
+        #             # 'pending_id': result['pending_id'],
+        #         },
+        #     )
+
+        #     await self.send(text_data=json.dumps({
+        #         'action': 'propose_gecko_win_ok',
+        #         'data': {
+        #             'partner_id': partner_id,
+        #             # 'pending_id': result['pending_id'],
+        #             'capsule_id': str(capsule_id),
+        #         },
+        #     }))
+
+        # elif action == 'send_match_request':
+        #     payload = data.get('data', {}) or {}
+        #     try:
+        #         requested_type = int(payload.get('gecko_game_type'))
+        #     except (TypeError, ValueError):
+        #         logger.warning(
+        #             f'[send_match_request] user={self.user.id} '
+        #             f'invalid gecko_game_type={payload.get("gecko_game_type")!r}'
+        #         )
+        #         await self.send(text_data=json.dumps({
+        #             'action': 'send_match_request_failed',
+        #             'data': {'reason': 'invalid_gecko_game_type'},
+        #         }))
+        #         return
+
+        #     def _find(matches, t):
+        #         for m in matches:
+        #             if m.get('gecko_game_type') == t:
+        #                 return m
+        #         return None
+
+        #     match = _find(self.capsule_matches, requested_type)
+
+        #     if match is None:
+        #         partner_id = await self._get_active_live_sesh_partner_id()
+        #         if partner_id is None:
+        #             await self.send(text_data=json.dumps({
+        #                 'action': 'send_match_request_failed',
+        #                 'data': {'reason': 'no_active_sesh'},
+        #             }))
+        #             return
+        #         await self._check_host_link_and_load(partner_id)
+        #         match = _find(self.capsule_matches, requested_type)
+
+        #     if match is None:
+        #         await self.send(text_data=json.dumps({
+        #             'action': 'send_match_request_failed',
+        #             'data': {
+        #                 'reason': 'no_match_for_type',
+        #                 'gecko_game_type': requested_type,
+        #             },
+        #         }))
+        #         return
+
+        #     guest_ids = match.get('guest_capsule_ids') or []
+        #     host_ids = match.get('host_capsule_ids') or []
+        #     if not guest_ids or not host_ids:
+        #         await self.send(text_data=json.dumps({
+        #             'action': 'send_match_request_failed',
+        #             'data': {
+        #                 'reason': 'no_match_for_type',
+        #                 'gecko_game_type': requested_type,
+        #             },
+        #         }))
+        #         return
+
+        #     picked_guest = guest_ids[0]
+        #     picked_host = host_ids[0]
+
+        #     target_group = (
+        #         getattr(self, 'joined_sesh_group', None)
+        #         or self.shared_with_friend_group_name
+        #     )
+        #     await self.channel_layer.group_send(
+        #         target_group,
+        #         {
+        #             'type': 'match_request_result',
+        #             'requested_by_user_id': self.user.id,
+        #             'gecko_game_type': requested_type,
+        #             'guest_capsule_id': picked_guest,
+        #             'host_capsule_id': picked_host,
+        #         },
+        #     )
