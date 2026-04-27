@@ -897,7 +897,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 result = await self._propose_gecko_match_win_db(
                     my_capsule_id,
                     partner_capsule_id,
-                    partner_id,
+                    partner_id, 
                 )
             except Exception:
                 logger.exception(
@@ -2021,6 +2021,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
     def _propose_gecko_match_win_db(self, my_capsule_id, partner_capsule_id, partner_user_id):
         from friends.models import ThoughtCapsulez
         from users.models import GeckoGameWinPending, BadRainbowzUser
+        from friends.models import GeckoGameType
+ 
+   
 
         my_capsule = (
             ThoughtCapsulez.objects
@@ -2029,6 +2032,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         )
         if my_capsule is None:
             return {'ok': False, 'reason': 'my_capsule_not_found_or_not_owner'}
+        
+        gecko_game_type = my_capsule.gecko_game_type
+        label = GeckoGameType(gecko_game_type).label
 
         partner_capsule = (
             ThoughtCapsulez.objects
@@ -2053,12 +2059,16 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             sender=self.user,
             sender_capsule=my_capsule,
             match_key=match_key,
+            gecko_game_type=my_capsule.gecko_game_type,
+            gecko_game_type_label=label,
         )
         my_pending = GeckoGameWinPending.propose(
             target_user=self.user,
             sender=partner_user,
             sender_capsule=partner_capsule,
             match_key=match_key,
+            gecko_game_type=my_capsule.gecko_game_type,
+            gecko_game_type_label=label,
         )
 
         return {
@@ -2067,10 +2077,11 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             # 'partner_pending_id': partner_pending.id,
             'match_key': match_key,
         }
+    
 
     @database_sync_to_async
     def _propose_gecko_win_db(self, capsule_id, partner_user_id):
-        from friends.models import ThoughtCapsulez
+        from friends.models import ThoughtCapsulez, GeckoGameType
         from users.models import GeckoGameWinPending, BadRainbowzUser
 
         capsule = (
@@ -2085,14 +2096,49 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         if target_user is None:
             return {'ok': False, 'reason': 'partner_not_found'}
 
+        gecko_game_type = capsule.gecko_game_type
+        gecko_game_type_label = GeckoGameType(gecko_game_type).label
+
         pending = GeckoGameWinPending.propose(
             target_user=target_user,
             sender=self.user,
             sender_capsule=capsule,
+            gecko_game_type=gecko_game_type,
+            gecko_game_type_label=gecko_game_type_label,
         )
-        return {'ok': True, 
-                # 'pending_id': pending.id
-                }
+
+        return {
+            'ok': True,
+            'gecko_game_type': gecko_game_type,
+            'gecko_game_type_label': gecko_game_type_label,
+            # 'pending_id': pending.id,
+        }
+
+    # @database_sync_to_async
+    # def _propose_gecko_win_db(self, capsule_id, partner_user_id):
+    #     from friends.models import ThoughtCapsulez
+    #     from users.models import GeckoGameWinPending, BadRainbowzUser
+
+    #     capsule = (
+    #         ThoughtCapsulez.objects
+    #         .filter(id=capsule_id, user_id=self.user.id)
+    #         .first()
+    #     )
+    #     if capsule is None:
+    #         return {'ok': False, 'reason': 'capsule_not_found_or_not_owner'}
+
+    #     target_user = BadRainbowzUser.objects.filter(id=partner_user_id).first()
+    #     if target_user is None:
+    #         return {'ok': False, 'reason': 'partner_not_found'}
+
+    #     pending = GeckoGameWinPending.propose(
+    #         target_user=target_user,
+    #         sender=self.user,
+    #         sender_capsule=capsule,
+    #     )
+    #     return {'ok': True, 
+    #             # 'pending_id': pending.id
+    #             }
 
     async def match_request_result(self, event):
         await self.send(text_data=json.dumps({
