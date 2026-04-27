@@ -1726,26 +1726,304 @@ class GeckoGameWinPendingDetail(APIView):
 
 
 
+class GeckoGameWinPendingDetail(APIView):
+    """
+    Single win pending only.
+
+    Match wins are handled by GeckoGameMatchWinPendingDetail.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _get_pending(self, user):
+        return (
+            models.GeckoGameWinPending.objects
+            .filter(user=user)
+            .first()
+        )
+
+    def _clear_locked(self, pending):
+        pending.sender = None
+        pending.sender_capsule = None
+        pending.expires_at = None
+        pending.accepted_on = None
+        pending.match_key = ''
+
+        pending.save(update_fields=[
+            'sender',
+            'sender_capsule',
+            'expires_at',
+            'accepted_on',
+            'match_key',
+            'updated_on',
+        ])
+
+    def _clear_if_expired(self, pending):
+        if pending and pending.expires_at and pending.expires_at <= timezone.now():
+            self._clear_locked(pending)
+
+    def get(self, request):
+        pending = self._get_pending(request.user)
+
+        if pending is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        self._clear_if_expired(pending)
+
+        if pending.sender_id is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return response.Response(
+            serializers.GeckoGameWinPendingSerializer(pending).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request):
+        decision = request.data.get('decision')
+
+        if decision not in ('accept', 'decline'):
+            return response.Response(
+                {'detail': 'decision must be "accept" or "decline"'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        pending = self._get_pending(request.user)
+
+        if pending is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        self._clear_if_expired(pending)
+
+        if pending.sender_id is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if pending.sender_capsule_id is None:
+            return response.Response(
+                {'detail': 'no_capsule_to_accept'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if pending.accepted_on is not None:
+            return response.Response(
+                {'detail': 'already_accepted'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if decision == 'decline':
+            self._clear_locked(pending)
+            return response.Response(
+                {'detail': 'declined'},
+                status=status.HTTP_200_OK,
+            )
+
+        pending.accepted_on = timezone.now()
+        pending.save(update_fields=['accepted_on', 'updated_on'])
+
+        return response.Response(
+            serializers.GeckoGameWinPendingSerializer(pending).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+
+
+
+
+class GeckoGameWinPendingDetail(APIView):
+    """
+    Single win pending only.
+
+    Match wins are handled by GeckoGameMatchWinPendingDetail.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def _get_pending(self, user):
+        return (
+            models.GeckoGameWinPending.objects
+            .filter(user=user)
+            .first()
+        )
+
+    def _clear_locked(self, pending):
+        pending.sender = None
+        pending.sender_capsule = None
+        pending.expires_at = None
+        pending.accepted_on = None
+        pending.match_key = ''
+
+        pending.save(update_fields=[
+            'sender',
+            'sender_capsule',
+            'expires_at',
+            'accepted_on',
+            'match_key',
+            'updated_on',
+        ])
+
+    def _clear_if_expired(self, pending):
+        if pending and pending.expires_at and pending.expires_at <= timezone.now():
+            self._clear_locked(pending)
+
+    def get(self, request):
+        pending = self._get_pending(request.user)
+
+        if pending is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        self._clear_if_expired(pending)
+
+        if pending.sender_id is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return response.Response(
+            serializers.GeckoGameWinPendingSerializer(pending).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request):
+        decision = request.data.get('decision')
+
+        if decision not in ('accept', 'decline'):
+            return response.Response(
+                {'detail': 'decision must be "accept" or "decline"'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        pending = self._get_pending(request.user)
+
+        if pending is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        self._clear_if_expired(pending)
+
+        if pending.sender_id is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if pending.sender_capsule_id is None:
+            return response.Response(
+                {'detail': 'no_capsule_to_accept'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if pending.accepted_on is not None:
+            return response.Response(
+                {'detail': 'already_accepted'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if decision == 'decline':
+            self._clear_locked(pending)
+            return response.Response(
+                {'detail': 'declined'},
+                status=status.HTTP_200_OK,
+            )
+
+        pending.accepted_on = timezone.now()
+        pending.save(update_fields=['accepted_on', 'updated_on'])
+
+        return response.Response(
+            serializers.GeckoGameWinPendingSerializer(pending).data,
+            status=status.HTTP_200_OK,
+        )
+
+
 class GeckoGameMatchWinPendingDetail(APIView):
     """
     Match win pending.
 
-    POST body:
+    GET:
+      /users/gecko/game-match-wins/pending/?pending_id=123
+
+    POST:
       {
         "pending_id": 123,
         "decision": "accept" | "decline"
       }
-
-    Flow:
-      - lock one GeckoGameMatchWinPending row
-      - mark host or guest accepted
-      - if both accepted:
-          create both GeckoGameWin rows
-          delete both source capsules
-          mark pending finalized
-          notify both users
     """
     permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        pending_id = request.query_params.get('pending_id')
+
+        try:
+            pending_id = int(pending_id)
+        except (TypeError, ValueError):
+            return response.Response(
+                {'detail': 'invalid_pending_id'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        pending = (
+            models.GeckoGameMatchWinPending.objects
+            .filter(id=pending_id)
+            .first()
+        )
+
+        if pending is None:
+            return response.Response(
+                {'detail': 'pending_not_found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if request.user.id not in (pending.host_id, pending.guest_id):
+            return response.Response(
+                {'detail': 'not_participant'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if request.user.id == pending.host_id:
+            sender_capsule = pending.guest_capsule
+        else:
+            sender_capsule = pending.host_capsule
+
+        return response.Response(
+            {
+                'id': pending.id,
+                'pending_id': pending.id,
+                'host': pending.host_id,
+                'guest': pending.guest_id,
+                'initiator': pending.initiator_id,
+                'host_accepted_on': pending.host_accepted_on,
+                'guest_accepted_on': pending.guest_accepted_on,
+                'finalized_on': pending.finalized_on,
+                'declined_on': pending.declined_on,
+                'expires_at': pending.expires_at,
+                'sender_capsule': {
+                    'id': str(sender_capsule.id),
+                    'capsule': sender_capsule.capsule,
+                    'gecko_game_type': sender_capsule.gecko_game_type,
+                    'user_category_name': (
+                        sender_capsule.user_category.name
+                        if sender_capsule.user_category_id
+                        else 'Gecko game'
+                    ),
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
 
     def post(self, request):
         pending_id = request.data.get('pending_id')
@@ -1828,7 +2106,10 @@ class GeckoGameMatchWinPendingDetail(APIView):
                 )
 
                 return response.Response(
-                    {'detail': 'declined', 'pending_id': pending.id},
+                    {
+                        'detail': 'declined',
+                        'pending_id': pending.id,
+                    },
                     status=status.HTTP_200_OK,
                 )
 
@@ -1915,6 +2196,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
         )
 
         by_id = {c.id: c for c in locked_capsules}
+
         host_capsule = by_id.get(pending.host_capsule_id)
         guest_capsule = by_id.get(pending.guest_capsule_id)
 
@@ -1944,7 +2226,9 @@ class GeckoGameMatchWinPendingDetail(APIView):
             original_capsule_id=guest_capsule.id,
             capsule=guest_capsule.capsule,
             gecko_game_type=guest_capsule.gecko_game_type,
-            gecko_game_type_label=GeckoGameType(guest_capsule.gecko_game_type).label,
+            gecko_game_type_label=GeckoGameType(
+                guest_capsule.gecko_game_type
+            ).label,
             won_by_matching=True,
             matched_capsule_id=host_capsule.id,
         )
@@ -1956,7 +2240,9 @@ class GeckoGameMatchWinPendingDetail(APIView):
             original_capsule_id=host_capsule.id,
             capsule=host_capsule.capsule,
             gecko_game_type=host_capsule.gecko_game_type,
-            gecko_game_type_label=GeckoGameType(host_capsule.gecko_game_type).label,
+            gecko_game_type_label=GeckoGameType(
+                host_capsule.gecko_game_type
+            ).label,
             won_by_matching=True,
             matched_capsule_id=guest_capsule.id,
         )
