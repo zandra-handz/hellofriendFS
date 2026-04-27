@@ -830,13 +830,14 @@ class GeckoGameWinPending(models.Model):
         super().save(*args, **kwargs)
 
     @classmethod
-    def propose(cls, *, target_user, sender, sender_capsule):
+    def propose(cls, *, target_user, sender, sender_capsule, match_key=''):
         """Create or replace target_user's pending proposal with a fresh one."""
         obj, _ = cls.objects.update_or_create(
             user=target_user,
             defaults={
                 'sender': sender,
                 'sender_capsule': sender_capsule,
+                'match_key': match_key or '',
                 'accepted_on': None,
                 'expires_at': timezone.now() + timedelta(minutes=cls.EXPIRY_MINUTES),
             },
