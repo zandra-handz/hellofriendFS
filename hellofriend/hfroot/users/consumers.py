@@ -956,7 +956,21 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                         return m
                 return None
 
-            match = _find(self.capsule_matches, requested_type)
+            partner_id = await self._get_active_live_sesh_partner_id()
+            if partner_id is None:
+                await self.send(text_data=json.dumps({
+                    'action': 'propose_gecko_match_win_failed',
+                    'data': {'reason': 'no_active_sesh'},
+                }))
+                return
+
+            matches = self.capsule_matches or []
+
+            if not matches:
+                await self._check_host_link_and_load(partner_id)
+                matches = self.capsule_matches or []
+
+            match = _find(matches, requested_type)
 
             if match is None:
                 partner_id = await self._get_active_live_sesh_partner_id()
