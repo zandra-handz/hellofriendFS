@@ -1613,413 +1613,413 @@ class GeckoGameWinsGivenList(generics.ListAPIView):
 
 
 
-    class GeckoGameWinPendingDetail(APIView):
-        """
-        Decision order:
+class GeckoGameWinPendingDetail(APIView):
+    """
+    Decision order:
 
-        POST
-        validate decision
+    POST
+      validate decision
 
-        fetch pending row only
+      fetch pending row only
+        no select_related
+
+      if no pending:
+        404 no_pending
+
+      clear if expired
+
+      if sender_id is None:
+        404 no_pending
+
+      if sender_capsule_id is None:
+        409 capsule_missing / no_capsule_to_accept
+
+      if accepted_on exists:
+        409 already_accepted
+
+      if decline:
+        clear row
+
+      if accept and no match_key:
+        stamp accepted_on
+
+      if accept and match_key:
+        enter transaction
+
+          lock both pending rows only
             no select_related
 
-        if no pending:
-            404 no_pending
+          re-check mine exists
+          re-check theirs exists
 
-        clear if expired
+          re-check mine sender_id
+          re-check mine sender_capsule_id
+          re-check mine match_key
+          re-check mine not expired
+          re-check mine not already accepted
 
-        if sender_id is None:
-            404 no_pending
+          re-check theirs sender_id
+          re-check theirs sender_capsule_id
+          re-check theirs match_key matches
+          re-check theirs not expired
 
-        if sender_capsule_id is None:
-            409 capsule_missing / no_capsule_to_accept
+          if theirs not accepted:
+            stamp mine accepted_on
+            notify partner awaiting accept
 
-        if accepted_on exists:
-            409 already_accepted
+          else:
+            stamp mine accepted_on
 
-        if decline:
-            clear row
+            now and only now:
+              load both capsules by id
 
-        if accept and no match_key:
-            stamp accepted_on
+            if either capsule does not exist:
+              return capsule_missing
 
-        if accept and match_key:
-            enter transaction
+            create win rows
+            delete capsules
+            clear pending rows
+            notify both finalized
+    """
+    permission_classes = [IsAuthenticated]
 
-            lock both pending rows only
-                no select_related
+    def _get_pending(self, user):
+        return (
+            models.GeckoGameWinPending.objects
+            .filter(user=user)
+            .first()
+        )
 
-            re-check mine exists
-            re-check theirs exists
+    def _clear_if_expired(self, pending):
+        if pending and pending.expires_at and pending.expires_at <= timezone.now():
+            self._clear_locked(pending)
 
-            re-check mine sender_id
-            re-check mine sender_capsule_id
-            re-check mine match_key
-            re-check mine not expired
-            re-check mine not already accepted
-
-            re-check theirs sender_id
-            re-check theirs sender_capsule_id
-            re-check theirs match_key matches
-            re-check theirs not expired
-
-            if theirs not accepted:
-                stamp mine accepted_on
-                notify partner awaiting accept
-
-            else:
-                stamp mine accepted_on
-
-                now and only now:
-                load both capsules by id
-
-                if either capsule does not exist:
-                return capsule_missing
-
-                create win rows
-                delete capsules
-                clear pending rows
-                notify both finalized
-        """
-        permission_classes = [IsAuthenticated]
-
-        def _get_pending(self, user):
-            return (
-                models.GeckoGameWinPending.objects
-                .filter(user=user)
-                .first()
+    def get(self, request):
+        pending = self._get_pending(request.user)
+        if pending is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        def _clear_if_expired(self, pending):
-            if pending and pending.expires_at and pending.expires_at <= timezone.now():
-                self._clear_locked(pending)
+        self._clear_if_expired(pending)
 
-        def get(self, request):
-            pending = self._get_pending(request.user)
-            if pending is None:
-                return response.Response(
-                    {'detail': 'no_pending'},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+        if pending.sender_id is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-            self._clear_if_expired(pending)
+        return response.Response(
+            serializers.GeckoGameWinPendingSerializer(pending).data,
+            status=status.HTTP_200_OK,
+        )
 
-            if pending.sender_id is None:
-                return response.Response(
-                    {'detail': 'no_pending'},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+    def post(self, request):
+        decision = request.data.get('decision')
+
+        if decision not in ('accept', 'decline'):
+            return response.Response(
+                {'detail': 'decision must be "accept" or "decline"'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        pending = self._get_pending(request.user)
+
+        if pending is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        self._clear_if_expired(pending)
+
+        if pending.sender_id is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if pending.sender_capsule_id is None:
+            return response.Response(
+                {'detail': 'no_capsule_to_accept'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if pending.accepted_on is not None:
+            return response.Response(
+                {'detail': 'already_accepted'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if decision == 'decline':
+            return self._decline(pending, request.user)
+
+        return self._accept(pending, request.user)
+
+    def _decline(self, pending, user):
+        self._clear_locked(pending)
+        return response.Response(
+            {'detail': 'declined'},
+            status=status.HTTP_200_OK,
+        )
+
+    def _accept(self, pending, user):
+        if not pending.match_key:
+            pending.accepted_on = timezone.now()
+            pending.save(update_fields=['accepted_on', 'updated_on'])
 
             return response.Response(
                 serializers.GeckoGameWinPendingSerializer(pending).data,
                 status=status.HTTP_200_OK,
             )
 
-        def post(self, request):
-            decision = request.data.get('decision')
+        return self._accept_match(pending, user)
 
-            if decision not in ('accept', 'decline'):
-                return response.Response(
-                    {'detail': 'decision must be "accept" or "decline"'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+    @transaction.atomic
+    def _accept_match(self, pending, user):
+        my_user_id = user.id
+        partner_user_id = pending.sender_id
 
-            pending = self._get_pending(request.user)
-
-            if pending is None:
-                return response.Response(
-                    {'detail': 'no_pending'},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            self._clear_if_expired(pending)
-
-            if pending.sender_id is None:
-                return response.Response(
-                    {'detail': 'no_pending'},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            if pending.sender_capsule_id is None:
-                return response.Response(
-                    {'detail': 'no_capsule_to_accept'},
-                    status=status.HTTP_409_CONFLICT,
-                )
-
-            if pending.accepted_on is not None:
-                return response.Response(
-                    {'detail': 'already_accepted'},
-                    status=status.HTTP_409_CONFLICT,
-                )
-
-            if decision == 'decline':
-                return self._decline(pending, request.user)
-
-            return self._accept(pending, request.user)
-
-        def _decline(self, pending, user):
-            self._clear_locked(pending)
+        if partner_user_id is None:
             return response.Response(
-                {'detail': 'declined'},
-                status=status.HTTP_200_OK,
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        def _accept(self, pending, user):
-            if not pending.match_key:
-                pending.accepted_on = timezone.now()
-                pending.save(update_fields=['accepted_on', 'updated_on'])
+        ids_sorted = sorted([my_user_id, partner_user_id])
 
-                return response.Response(
-                    serializers.GeckoGameWinPendingSerializer(pending).data,
-                    status=status.HTTP_200_OK,
-                )
+        locked = list(
+            models.GeckoGameWinPending.objects
+            .select_for_update()
+            .filter(user_id__in=ids_sorted)
+            .order_by('user_id')
+        )
 
-            return self._accept_match(pending, user)
+        by_user = {p.user_id: p for p in locked}
+        mine = by_user.get(my_user_id)
+        theirs = by_user.get(partner_user_id)
 
-        @transaction.atomic
-        def _accept_match(self, pending, user):
-            my_user_id = user.id
-            partner_user_id = pending.sender_id
-
-            if partner_user_id is None:
-                return response.Response(
-                    {'detail': 'no_pending'},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
-
-            ids_sorted = sorted([my_user_id, partner_user_id])
-
-            locked = list(
-                models.GeckoGameWinPending.objects
-                .select_for_update()
-                .filter(user_id__in=ids_sorted)
-                .order_by('user_id')
+        if mine is None or theirs is None:
+            return response.Response(
+                {'detail': 'partner_pending_missing'},
+                status=status.HTTP_409_CONFLICT,
             )
 
-            by_user = {p.user_id: p for p in locked}
-            mine = by_user.get(my_user_id)
-            theirs = by_user.get(partner_user_id)
+        now = timezone.now()
 
-            if mine is None or theirs is None:
-                return response.Response(
-                    {'detail': 'partner_pending_missing'},
-                    status=status.HTTP_409_CONFLICT,
-                )
+        if mine.expires_at and mine.expires_at <= now:
+            self._clear_locked(mine)
+            return response.Response(
+                {'detail': 'expired'},
+                status=status.HTTP_410_GONE,
+            )
 
-            now = timezone.now()
+        if mine.sender_id is None:
+            return response.Response(
+                {'detail': 'no_pending'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-            if mine.expires_at and mine.expires_at <= now:
-                self._clear_locked(mine)
-                return response.Response(
-                    {'detail': 'expired'},
-                    status=status.HTTP_410_GONE,
-                )
+        if mine.sender_capsule_id is None:
+            return response.Response(
+                {'detail': 'no_capsule_to_accept'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-            if mine.sender_id is None:
-                return response.Response(
-                    {'detail': 'no_pending'},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+        if mine.match_key is None:
+            return response.Response(
+                {'detail': 'no_match_key'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-            if mine.sender_capsule_id is None:
-                return response.Response(
-                    {'detail': 'no_capsule_to_accept'},
-                    status=status.HTTP_409_CONFLICT,
-                )
+        if mine.accepted_on is not None:
+            return response.Response(
+                {'detail': 'already_accepted'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-            if mine.match_key is None:
-                return response.Response(
-                    {'detail': 'no_match_key'},
-                    status=status.HTTP_409_CONFLICT,
-                )
+        if theirs.expires_at and theirs.expires_at <= now:
+            self._clear_locked(theirs)
+            self._clear_locked(mine)
+            return response.Response(
+                {'detail': 'partner_match_expired'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-            if mine.accepted_on is not None:
-                return response.Response(
-                    {'detail': 'already_accepted'},
-                    status=status.HTTP_409_CONFLICT,
-                )
+        if theirs.sender_id is None:
+            self._clear_locked(mine)
+            return response.Response(
+                {'detail': 'partner_match_invalid'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-            if theirs.expires_at and theirs.expires_at <= now:
-                self._clear_locked(theirs)
-                self._clear_locked(mine)
-                return response.Response(
-                    {'detail': 'partner_match_expired'},
-                    status=status.HTTP_409_CONFLICT,
-                )
+        if theirs.sender_capsule_id is None:
+            self._clear_locked(mine)
+            return response.Response(
+                {'detail': 'partner_capsule_missing'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-            if theirs.sender_id is None:
-                self._clear_locked(mine)
-                return response.Response(
-                    {'detail': 'partner_match_invalid'},
-                    status=status.HTTP_409_CONFLICT,
-                )
+        if theirs.match_key != mine.match_key:
+            self._clear_locked(mine)
+            return response.Response(
+                {'detail': 'partner_match_invalid'},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-            if theirs.sender_capsule_id is None:
-                self._clear_locked(mine)
-                return response.Response(
-                    {'detail': 'partner_capsule_missing'},
-                    status=status.HTTP_409_CONFLICT,
-                )
-
-            if theirs.match_key != mine.match_key:
-                self._clear_locked(mine)
-                return response.Response(
-                    {'detail': 'partner_match_invalid'},
-                    status=status.HTTP_409_CONFLICT,
-                )
-
-            if theirs.accepted_on is None:
-                mine.accepted_on = now
-                mine.save(update_fields=['accepted_on', 'updated_on'])
-
-                self._notify_user(
-                    partner_user_id,
-                    'gecko_win_match_pending_accept_partner',
-                    {
-                        'pending_id': theirs.id,
-                        'match_key': mine.match_key,
-                        'accepted_by_user_id': my_user_id,
-                    },
-                )
-
-                return response.Response(
-                    {
-                        'detail': 'awaiting_partner',
-                        **serializers.GeckoGameWinPendingSerializer(mine).data,
-                    },
-                    status=status.HTTP_200_OK,
-                )
-
+        if theirs.accepted_on is None:
             mine.accepted_on = now
             mine.save(update_fields=['accepted_on', 'updated_on'])
 
-            finalize_result = self._finalize_match(mine, theirs)
-
-            if finalize_result is not None:
-                return finalize_result
-
-            self._notify_user(
-                my_user_id,
-                'gecko_win_match_finalized',
-                {
-                    'match_key': mine.match_key,
-                    'partner_user_id': partner_user_id,
-                },
-            )
-
             self._notify_user(
                 partner_user_id,
-                'gecko_win_match_finalized',
+                'gecko_win_match_pending_accept_partner',
                 {
+                    'pending_id': theirs.id,
                     'match_key': mine.match_key,
-                    'partner_user_id': my_user_id,
+                    'accepted_by_user_id': my_user_id,
                 },
             )
 
             return response.Response(
                 {
-                    'detail': 'match_finalized',
-                    'match_key': mine.match_key,
+                    'detail': 'awaiting_partner',
+                    **serializers.GeckoGameWinPendingSerializer(mine).data,
                 },
                 status=status.HTTP_200_OK,
             )
 
-        def _finalize_match(self, mine, theirs):
-            """
-            Both pending rows are already locked here.
+        mine.accepted_on = now
+        mine.save(update_fields=['accepted_on', 'updated_on'])
 
-            Do not touch sender_capsule before this point.
-            We first checked sender_capsule_id on both pending rows.
-            Only now do we load the actual ThoughtCapsulez rows.
-            """
-            from friends.models import ThoughtCapsulez
+        finalize_result = self._finalize_match(mine, theirs)
 
-            my_capsule = (
-                ThoughtCapsulez.objects
-                .filter(id=mine.sender_capsule_id)
-                .first()
+        if finalize_result is not None:
+            return finalize_result
+
+        self._notify_user(
+            my_user_id,
+            'gecko_win_match_finalized',
+            {
+                'match_key': mine.match_key,
+                'partner_user_id': partner_user_id,
+            },
+        )
+
+        self._notify_user(
+            partner_user_id,
+            'gecko_win_match_finalized',
+            {
+                'match_key': mine.match_key,
+                'partner_user_id': my_user_id,
+            },
+        )
+
+        return response.Response(
+            {
+                'detail': 'match_finalized',
+                'match_key': mine.match_key,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def _finalize_match(self, mine, theirs):
+        """
+        Both pending rows are already locked here.
+
+        Do not touch sender_capsule before this point.
+        We first checked sender_capsule_id on both pending rows.
+        Only now do we load the actual ThoughtCapsulez rows.
+        """
+        from friends.models import ThoughtCapsulez
+
+        my_capsule = (
+            ThoughtCapsulez.objects
+            .filter(id=mine.sender_capsule_id)
+            .first()
+        )
+
+        their_capsule = (
+            ThoughtCapsulez.objects
+            .filter(id=theirs.sender_capsule_id)
+            .first()
+        )
+
+        if my_capsule is None or their_capsule is None:
+            return response.Response(
+                {'detail': 'capsule_missing'},
+                status=status.HTTP_409_CONFLICT,
             )
 
-            their_capsule = (
-                ThoughtCapsulez.objects
-                .filter(id=theirs.sender_capsule_id)
-                .first()
+        models.GeckoGameWin.objects.create(
+            user=mine.user,
+            user_won_from_id=mine.sender_id,
+            friend=None,
+            original_capsule_id=my_capsule.id,
+            capsule=my_capsule.capsule,
+            gecko_game_type=my_capsule.gecko_game_type,
+            gecko_game_type_label=str(my_capsule.gecko_game_type),
+            won_by_matching=True,
+            matched_capsule_id=their_capsule.id,
+        )
+
+        models.GeckoGameWin.objects.create(
+            user=theirs.user,
+            user_won_from_id=theirs.sender_id,
+            friend=None,
+            original_capsule_id=their_capsule.id,
+            capsule=their_capsule.capsule,
+            gecko_game_type=their_capsule.gecko_game_type,
+            gecko_game_type_label=str(their_capsule.gecko_game_type),
+            won_by_matching=True,
+            matched_capsule_id=my_capsule.id,
+        )
+
+        ThoughtCapsulez.objects.filter(
+            id__in=[my_capsule.id, their_capsule.id]
+        ).delete()
+
+        self._clear_locked(mine)
+        self._clear_locked(theirs)
+
+        return None
+
+    def _clear_locked(self, pending):
+        pending.sender = None
+        pending.sender_capsule = None
+        pending.expires_at = None
+        pending.accepted_on = None
+        pending.match_key = None
+
+        pending.save(update_fields=[
+            'sender',
+            'sender_capsule',
+            'expires_at',
+            'accepted_on',
+            'match_key',
+            'updated_on',
+        ])
+
+    def _notify_user(self, user_id, event_type, data):
+        """
+        Push websocket event after transaction commits, so peers do not see
+        a notification for state that gets rolled back.
+        """
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            return
+
+        def _send():
+            async_to_sync(channel_layer.group_send)(
+                f'gecko_energy_{user_id}',
+                {
+                    'type': event_type,
+                    **data,
+                },
             )
 
-            if my_capsule is None or their_capsule is None:
-                return response.Response(
-                    {'detail': 'capsule_missing'},
-                    status=status.HTTP_409_CONFLICT,
-                )
-
-            models.GeckoGameWin.objects.create(
-                user=mine.user,
-                user_won_from_id=mine.sender_id,
-                friend=None,
-                original_capsule_id=my_capsule.id,
-                capsule=my_capsule.capsule,
-                gecko_game_type=my_capsule.gecko_game_type,
-                gecko_game_type_label=str(my_capsule.gecko_game_type),
-                won_by_matching=True,
-                matched_capsule_id=their_capsule.id,
-            )
-
-            models.GeckoGameWin.objects.create(
-                user=theirs.user,
-                user_won_from_id=theirs.sender_id,
-                friend=None,
-                original_capsule_id=their_capsule.id,
-                capsule=their_capsule.capsule,
-                gecko_game_type=their_capsule.gecko_game_type,
-                gecko_game_type_label=str(their_capsule.gecko_game_type),
-                won_by_matching=True,
-                matched_capsule_id=my_capsule.id,
-            )
-
-            ThoughtCapsulez.objects.filter(
-                id__in=[my_capsule.id, their_capsule.id]
-            ).delete()
-
-            self._clear_locked(mine)
-            self._clear_locked(theirs)
-
-            return None
-
-        def _clear_locked(self, pending):
-            pending.sender = None
-            pending.sender_capsule = None
-            pending.expires_at = None
-            pending.accepted_on = None
-            pending.match_key = None
-
-            pending.save(update_fields=[
-                'sender',
-                'sender_capsule',
-                'expires_at',
-                'accepted_on',
-                'match_key',
-                'updated_on',
-            ])
-
-        def _notify_user(self, user_id, event_type, data):
-            """
-            Push websocket event after transaction commits, so peers do not see
-            a notification for state that gets rolled back.
-            """
-            from channels.layers import get_channel_layer
-            from asgiref.sync import async_to_sync
-
-            channel_layer = get_channel_layer()
-            if channel_layer is None:
-                return
-
-            def _send():
-                async_to_sync(channel_layer.group_send)(
-                    f'gecko_energy_{user_id}',
-                    {
-                        'type': event_type,
-                        **data,
-                    },
-                )
-
-            transaction.on_commit(_send)
+        transaction.on_commit(_send)
