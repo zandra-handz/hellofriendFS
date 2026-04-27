@@ -2109,6 +2109,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                     {
                         'detail': 'declined',
                         'pending_id': pending.id,
+                        'accepted': False,
                     },
                     status=status.HTTP_200_OK,
                 )
@@ -2148,6 +2149,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                         'pending_id': pending.id,
                         'host_accepted_on': pending.host_accepted_on,
                         'guest_accepted_on': pending.guest_accepted_on,
+                        'accepted': True,
                     },
                     status=status.HTTP_200_OK,
                 )
@@ -2179,6 +2181,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                 {
                     'detail': 'match_finalized',
                     'pending_id': pending.id,
+                    'accepted': True,
                 },
                 status=status.HTTP_200_OK,
             )
