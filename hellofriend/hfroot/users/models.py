@@ -857,6 +857,57 @@ class GeckoGameWinPending(models.Model):
         )
         return obj
         
+class GeckoGameMatchWinPending(models.Model):
+    initiator = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='gecko_game_match_pending_initiated')
+    host = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='gecko_game_match_pending_host')
+    guest = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='gecko_game_match_pending_guest')
+
+    host_capsule = models.ForeignKey('friends.ThoughtCapsulez', on_delete=models.CASCADE, related_name='+')
+    guest_capsule = models.ForeignKey('friends.ThoughtCapsulez', on_delete=models.CASCADE, related_name='+')
+
+    gecko_game_type = models.PositiveSmallIntegerField(null=True, blank=True)
+    gecko_game_type_label = models.CharField(max_length=64, blank=True)
+
+    host_accepted_on = models.DateTimeField(null=True, blank=True)
+    guest_accepted_on = models.DateTimeField(null=True, blank=True)
+
+    finalized_on = models.DateTimeField(null=True, blank=True)
+    declined_on = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    EXPIRY_MINUTES = 5
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and self.expires_at is None:
+            self.expires_at = timezone.now() + timedelta(minutes=self.EXPIRY_MINUTES)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def propose(cls, *, initiator, host, guest, host_capsule, guest_capsule, gecko_game_type=None, gecko_game_type_label=''):
+        now = timezone.now()
+
+        cls.objects.filter(
+            host=host,
+            guest=guest,
+            finalized_on__isnull=True,
+            declined_on__isnull=True,
+        ).update(declined_on=now)
+
+        obj = cls.objects.create(
+            initiator=initiator,
+            host=host,
+            guest=guest,
+            host_capsule=host_capsule,
+            guest_capsule=guest_capsule,
+            gecko_game_type=gecko_game_type,
+            gecko_game_type_label=gecko_game_type_label or '',
+            expires_at=now + timedelta(minutes=cls.EXPIRY_MINUTES),
+        )
+
+        return obj
 
 
 class GeckoGameWin(models.Model):
