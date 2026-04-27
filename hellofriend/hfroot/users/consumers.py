@@ -951,16 +951,38 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 },
             )
 
-            await self.send(text_data=json.dumps({
-                'action': 'propose_gecko_match_win_ok',
-                'data': {
-                    'partner_id': partner_id,
+            # await self.send(text_data=json.dumps({
+            #     'action': 'propose_gecko_match_win_ok',
+            #     'data': {
+            #         'partner_id': partner_id,
+            #         'gecko_game_type': requested_type,
+            #         'match_key': result['match_key'],
+            #         'my_capsule_id': str(my_capsule_id),
+            #         'partner_capsule_id': str(partner_capsule_id),
+            #     },
+            # })
+
+            await self.channel_layer.group_send(
+                f'gecko_energy_{self.user.id}',
+                {
+                    'type': 'propose_gecko_match_win_ok',
+                    'other_user_id': partner_id,
                     'gecko_game_type': requested_type,
-                    'match_key': result['match_key'],
-                    'my_capsule_id': str(my_capsule_id),
-                    'partner_capsule_id': str(partner_capsule_id),
+                    'capsule_id': str(partner_capsule_id),
                 },
-            }))
+            )
+
+            await self.channel_layer.group_send(
+                f'gecko_energy_{partner_id}',
+                {
+                    'type': 'propose_gecko_match_win_ok',
+                    'other_user_id': self.user.id,
+                    'gecko_game_type': requested_type,
+                    'capsule_id': str(my_capsule_id),
+                },
+            )
+            
+             
 
 
 
