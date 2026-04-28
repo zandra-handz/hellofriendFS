@@ -945,6 +945,10 @@ class GeckoGameWin(models.Model):
     won_by_matching = models.BooleanField(default=False)  # frozen at write time
     matched_capsule_id = models.UUIDField(null=True, blank=True)
 
+
+    pinned = models.BooleanField(default=False)
+    pin_priority = models.PositiveIntegerField(null=True, blank=True)
+
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
 

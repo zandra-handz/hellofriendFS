@@ -78,6 +78,7 @@ urlpatterns = [
     path('live-sesh/invites/<int:invite_id>/decline/', views.decline_live_sesh_invite, name='live-sesh-invite-decline'),
 
     path('gecko/game-wins/', views.GeckoGameWinsList.as_view(), name='gecko-game-wins-list'),
+    path('gecko/game-wins/<int:pk>/pin/', views.GeckoGameWinPinDetail.as_view(), name='gecko-game-win-pin'),
     path('gecko/game-wins/given/', views.GeckoGameWinsGivenList.as_view(), name='gecko-game-wins-given-list'),
     path('gecko/game-wins/pending/', views.GeckoGameWinPendingDetail.as_view(), name='gecko-game-win-pending'),
     path('gecko/game-wins/match/pending/', views.GeckoGameMatchWinPendingDetail.as_view(), name='gecko-game-match-win-pending'),

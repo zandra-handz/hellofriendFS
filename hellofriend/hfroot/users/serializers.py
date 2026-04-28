@@ -847,6 +847,8 @@ class GeckoGameWinSerializer(serializers.ModelSerializer):
             'gecko_game_type_label',
             'won_by_matching',
             'matched_capsule_id',
+            'pinned',
+            'pin_priority',
             'created_on',
             'updated_on',
         ]
@@ -856,6 +858,7 @@ class GeckoGameWinSerializer(serializers.ModelSerializer):
             'user_won_from_username',
             'friend_name',
             'gecko_game_type_label',
+            'pin_priority',
             'created_on',
             'updated_on',
         ]

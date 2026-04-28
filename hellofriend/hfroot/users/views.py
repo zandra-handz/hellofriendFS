@@ -7,7 +7,7 @@ from django.apps import apps
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Count, Sum, Prefetch, Q, F
+from django.db.models import Count, Sum, Prefetch, Q, F, Max
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.shortcuts import get_object_or_404
@@ -1342,7 +1342,59 @@ class GeckoGameWinsList(generics.ListAPIView):
             models.GeckoGameWin.objects
             .filter(user=self.request.user)
             .select_related('user_won_from', 'friend')
-            .order_by('-id')
+            .order_by('-pinned', '-pin_priority', '-id')
+        )
+
+
+class GeckoGameWinPinDetail(APIView):
+    """
+    PATCH /users/gecko/game-wins/<pk>/pin/
+      body: { "pinned": true | false }
+
+    Toggles pin on a win the requesting user owns.
+    Pinning bumps pin_priority to max(existing)+1 so the newest pin sits on top.
+    Unpinning leaves pin_priority untouched.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, pk):
+        pinned = request.data.get('pinned')
+        if not isinstance(pinned, bool):
+            return response.Response(
+                {'detail': 'pinned must be true or false'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            win = (
+                models.GeckoGameWin.objects
+                .select_for_update()
+                .filter(id=pk, user=request.user)
+                .first()
+            )
+            if win is None:
+                return response.Response(
+                    {'detail': 'not_found'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            update_fields = ['pinned', 'updated_on']
+            win.pinned = pinned
+
+            if pinned:
+                current_max = (
+                    models.GeckoGameWin.objects
+                    .filter(user=request.user)
+                    .aggregate(m=Max('pin_priority'))['m']
+                ) or 0
+                win.pin_priority = current_max + 1
+                update_fields.append('pin_priority')
+
+            win.save(update_fields=update_fields)
+
+        return response.Response(
+            serializers.GeckoGameWinSerializer(win).data,
+            status=status.HTTP_200_OK,
         )
 
 
