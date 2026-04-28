@@ -878,8 +878,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             logger.info(
                 f'[propose_gecko_win] user={self.user.id} -> partner={partner_id} '
                 f'gecko_game_type={requested_type} '
-                f'capsule_id={capsule_id} '
-                f'pending_id={result["pending_id"]}'
+                f'capsule_id={capsule_id} ' 
             )
 
             await self.channel_layer.group_send(
@@ -888,23 +887,24 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'type': 'gecko_win_proposed',
                     'sender_user_id': self.user.id,
                     'gecko_game_type': requested_type,
-                    'pending_id': result['pending_id'],
+                    'pending_id': None,
                     'my_capsule_id': None,
                     'partner_capsule_id': str(capsule_id),
                 },
             )
 
-            await self.channel_layer.group_send(
-                f'gecko_energy_{self.user.id}',
-                {
-                    'type': 'gecko_win_proposed',
-                    'sender_user_id': partner_id,
-                    'gecko_game_type': requested_type,
-                    'pending_id': result['pending_id'],
-                    'my_capsule_id': str(capsule_id),
-                    'partner_capsule_id': None,
-                },
-            )
+            # not sure what to send back to owner yet
+            # await self.channel_layer.group_send(
+            #     f'gecko_energy_{self.user.id}',
+            #     {
+            #         'type': 'gecko_win_proposed',
+            #         'sender_user_id': partner_id,
+            #         'gecko_game_type': requested_type,
+            #          'pending_id': None,
+            #         'my_capsule_id': str(capsule_id),
+            #         'partner_capsule_id': None,
+            #     },
+            # )
 
 
 
@@ -2342,7 +2342,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         gecko_game_type = capsule.gecko_game_type
         gecko_game_type_label = GeckoGameType(gecko_game_type).label
 
-        pending = GeckoGameWinPending.propose(
+        GeckoGameWinPending.propose(
             target_user=target_user,
             sender=self.user,
             sender_capsule=capsule,
@@ -2354,7 +2354,6 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             'ok': True,
             'gecko_game_type': gecko_game_type,
             'gecko_game_type_label': gecko_game_type_label,
-            'pending_id': pending.id,
         }
 
     # @database_sync_to_async

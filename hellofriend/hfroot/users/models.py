@@ -808,6 +808,7 @@ class GeckoGameWinPending(models.Model):
         related_name='+',
     )
 
+    # not using, pls remove when safe to
     match_key = models.CharField(max_length=255, blank=True)
 
     gecko_game_type = models.PositiveSmallIntegerField(null=True, blank=True)
