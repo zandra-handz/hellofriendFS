@@ -1514,13 +1514,13 @@ class GeckoGameWinPendingDetail(APIView):
             won_by_matching=False,
             matched_capsule_id=None,
         )
+ 
+        deleted_capsule_id = str(source_capsule.id)
 
-        # Detach the pending FK to the capsule before deleting the capsule —
-        # sender_capsule has on_delete=CASCADE, so deleting the capsule first
-        # would cascade-delete this pending row out from under us.
         self._clear_locked(pending)
         source_capsule.delete()
-        return None
+
+        return deleted_capsule_id
 
     
     def _notify_user(self, user_id, event_type, data):
@@ -1628,16 +1628,18 @@ class GeckoGameWinPendingDetail(APIView):
 
             finalize_result = self._finalize_locked(pending)
 
-            if finalize_result is not None:
-                logger.warning("[GWP.post] finalize bailed pending_id=%s", pending_id)
+            if isinstance(finalize_result, response.Response):
                 return finalize_result
 
+            deleted_capsule_id = finalize_result
             self._notify_user(
                 sender_id,
                 'gecko_win_accepted',
                 {
                     'pending_id': pending_id,
                     'accepted_by_user_id': request.user.id,
+                    'deleted_capsule_id': deleted_capsule_id,
+                    'source': 'one_sided',
                 },
             )
 
