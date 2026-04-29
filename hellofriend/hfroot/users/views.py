@@ -1475,6 +1475,77 @@ class GeckoGameWinPendingDetail(APIView):
             status=status.HTTP_200_OK,
         )
 
+    
+    def _finalize_locked(self, pending):
+        from friends.models import Friend, ThoughtCapsulez, GeckoGameType
+
+        # Lock the source capsule to prevent a concurrent delete from racing us.
+        source_capsule = (
+            ThoughtCapsulez.objects
+            .select_for_update(of=('self',))
+            .filter(id=pending.sender_capsule_id)
+            .first()
+        )
+
+        if source_capsule is None:
+            # Source is gone — clear the pending so the user can be re-proposed.
+            self._clear_locked(pending)
+            return response.Response(
+                {'detail': 'capsule_missing'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Recipient's Friend row whose linked_user matches the sender (may be None).
+        friend = Friend.objects.filter(
+            user_id=pending.user_id,
+            linked_user_id=pending.sender_id,
+        ).first()
+
+        models.GeckoGameWin.objects.create(
+            user_id=pending.user_id,
+            user_won_from_id=pending.sender_id,
+            friend=friend,
+            original_capsule_id=source_capsule.id,
+            capsule=source_capsule.capsule,
+            gecko_game_type=source_capsule.gecko_game_type,
+            gecko_game_type_label=GeckoGameType(
+                source_capsule.gecko_game_type
+            ).label,
+            won_by_matching=False,
+            matched_capsule_id=None,
+        )
+
+        # Detach the pending FK to the capsule before deleting the capsule —
+        # sender_capsule has on_delete=CASCADE, so deleting the capsule first
+        # would cascade-delete this pending row out from under us.
+        self._clear_locked(pending)
+        source_capsule.delete()
+        return None
+
+    
+    def _notify_user(self, user_id, event_type, data):
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            return
+        
+        def _send():
+            async_to_sync(channel_layer.group_send)(
+                f'gecko_energy_{user_id}',
+                {
+                    'type': event_type,
+                    **data,
+
+                },
+            )
+
+        transaction.on_commit(_send)
+
+        return
+
+
     def post(self, request):
         decision = request.data.get('decision')
         logger.warning(
@@ -1490,63 +1561,96 @@ class GeckoGameWinPendingDetail(APIView):
                 {'detail': 'decision must be "accept" or "decline"'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        
+        with transaction.atomic():
 
-        pending = self._get_pending(request.user)
-        logger.warning(
-            "[GWP.post] fetched pending=%s sender_id=%s sender_capsule_id=%s accepted_on=%s expires_at=%s",
-            getattr(pending, 'id', None),
-            getattr(pending, 'sender_id', None),
-            getattr(pending, 'sender_capsule_id', None),
-            getattr(pending, 'accepted_on', None),
-            getattr(pending, 'expires_at', None),
-        )
-
-        if pending is None:
-            logger.warning("[GWP.post] 404 no_pending (row missing) user_id=%s", request.user.id)
-            return response.Response(
-                {'detail': 'no_pending'},
-                status=status.HTTP_404_NOT_FOUND,
+            pending = self._get_pending(request.user)
+            logger.warning(
+                "[GWP.post] fetched pending=%s sender_id=%s sender_capsule_id=%s accepted_on=%s expires_at=%s",
+                getattr(pending, 'id', None),
+                getattr(pending, 'sender_id', None),
+                getattr(pending, 'sender_capsule_id', None),
+                getattr(pending, 'accepted_on', None),
+                getattr(pending, 'expires_at', None),
             )
 
-        self._clear_if_expired(pending)
+            if pending is None:
+                logger.warning("[GWP.post] 404 no_pending (row missing) user_id=%s", request.user.id)
+                return response.Response(
+                    {'detail': 'no_pending'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-        if pending.sender_id is None:
-            logger.warning("[GWP.post] 404 no_pending (sender_id None after expire-check) pending_id=%s", pending.id)
-            return response.Response(
-                {'detail': 'no_pending'},
-                status=status.HTTP_404_NOT_FOUND,
+            self._clear_if_expired(pending)
+
+            if pending.sender_id is None:
+                logger.warning("[GWP.post] 404 no_pending (sender_id None after expire-check) pending_id=%s", pending.id)
+                return response.Response(
+                    {'detail': 'no_pending'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            if pending.sender_capsule_id is None:
+                logger.warning("[GWP.post] 409 no_capsule_to_accept pending_id=%s", pending.id)
+                return response.Response(
+                    {'detail': 'no_capsule_to_accept'},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            if pending.accepted_on is not None:
+                logger.warning("[GWP.post] 409 already_accepted pending_id=%s accepted_on=%s", pending.id, pending.accepted_on)
+                return response.Response(
+                    {'detail': 'already_accepted'},
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            # Capture identifiers before _clear_locked nulls sender_id.
+            pending_id = pending.id
+            sender_id = pending.sender_id
+
+            if decision == 'decline':
+                self._clear_locked(pending)
+
+                self._notify_user(
+                    sender_id,
+                    'gecko_win_declined',
+                    {
+                        'pending_id': pending_id,
+                        'declined_by_user_id': request.user.id,
+                    },
+                )
+
+                logger.warning("[GWP.post] 200 declined pending_id=%s", pending_id)
+                return response.Response(
+                    {'detail': 'declined'},
+                    status=status.HTTP_200_OK,
+                )
+
+            finalize_result = self._finalize_locked(pending)
+
+            if finalize_result is not None:
+                logger.warning("[GWP.post] finalize bailed pending_id=%s", pending_id)
+                return finalize_result
+
+            self._notify_user(
+                sender_id,
+                'gecko_win_accepted',
+                {
+                    'pending_id': pending_id,
+                    'accepted_by_user_id': request.user.id,
+                },
             )
 
-        if pending.sender_capsule_id is None:
-            logger.warning("[GWP.post] 409 no_capsule_to_accept pending_id=%s", pending.id)
+            logger.warning("[GWP.post] 200 finalized pending_id=%s", pending_id)
             return response.Response(
-                {'detail': 'no_capsule_to_accept'},
-                status=status.HTTP_409_CONFLICT,
-            )
-
-        if pending.accepted_on is not None:
-            logger.warning("[GWP.post] 409 already_accepted pending_id=%s accepted_on=%s", pending.id, pending.accepted_on)
-            return response.Response(
-                {'detail': 'already_accepted'},
-                status=status.HTTP_409_CONFLICT,
-            )
-
-        if decision == 'decline':
-            self._clear_locked(pending)
-            logger.warning("[GWP.post] 200 declined pending_id=%s", pending.id)
-            return response.Response(
-                {'detail': 'declined'},
+                {
+                    'detail': 'finalized',
+                    'pending_id': pending_id,
+                    'accepted': True,
+                },
                 status=status.HTTP_200_OK,
             )
 
-        pending.accepted_on = timezone.now()
-        pending.save(update_fields=['accepted_on', 'updated_on'])
-        logger.warning("[GWP.post] 200 accepted pending_id=%s", pending.id)
-
-        return response.Response(
-            serializers.GeckoGameWinPendingSerializer(pending).data,
-            status=status.HTTP_200_OK,
-        )
 
 
 class GeckoGameMatchWinPendingDetail(APIView):
