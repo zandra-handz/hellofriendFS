@@ -2213,6 +2213,31 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
     #             # 'pending_id': pending.id
     #             }
 
+    async def gecko_win_accepted(self, event):
+        await self.send(text_data=json.dumps({
+            'action': 'gecko_win_accepted',
+            'data': {
+                'pending_id': event.get('pending_id'),
+                'accepted_by_user_id': event.get('accepted_by_user_id'),
+                'deleted_capsule_id': event.get('deleted_capsule_id'),
+                'source': event.get('source'),
+            },
+        }))
+
+
+    async def gecko_win_declined(self, event):
+        await self.send(text_data=json.dumps({
+            'action': 'gecko_win_declined',
+            'data': {
+                'pending_id': event.get('pending_id'),
+                'declined_by_user_id': event.get('declined_by_user_id'),
+                'source': event.get('source'),
+            },
+        }))
+
+
+
+
     async def match_request_result(self, event):
         await self.send(text_data=json.dumps({
             'action': 'match_request_result',
