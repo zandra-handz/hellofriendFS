@@ -529,6 +529,13 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         self.user = user
         self.friend_id = None
+
+        # these are to color-sync guest screen
+        self.friend_light_color = None
+        self.friend_dark_color = None
+
+
+
         self.room_group_name = f'gecko_energy_{self.user.id}'
         self.shared_with_friend_group_name = f'gecko_shared_with_friend_{self.user.id}'
         self.gecko_message = None
@@ -579,7 +586,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
             await self.channel_layer.group_send(
                 self.shared_with_friend_group_name,
-                {'type': 'peer_presence', 'user_id': self.user.id, 'online': True}
+                {'type': 'peer_presence', 'user_id': self.user.id, 'online': True, 'friend_light_color': self.friend_light_color, 'friend_dark_color': self.friend_dark_color}
             )
 
         await self.accept()
@@ -603,6 +610,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.host_linked_friend_id = None
         self.capsule_matches = []
         self.capsule_matches_loaded = False
+
+
 
         logger.info(
             f'[connect] loaded score_state user={self.user.id} '
@@ -641,7 +650,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
             await self.channel_layer.group_send(
                 self.shared_with_friend_group_name,
-                {'type': 'peer_presence', 'user_id': self.user.id, 'online': False}
+                {'type': 'peer_presence', 'user_id': self.user.id, 'online': False, 'friend_light_color': None, 'friend_dark_color': None}
             )
 
         
@@ -704,6 +713,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             payload = data.get('data', {}) or {}
             try:
                 new_fid = int(payload.get('friend_id'))
+                self.friend_light_color = payload.get('friend_light_color')
+                self.friend_dark_color = payload.get('friend_dark_color')
+
+ 
             except (TypeError, ValueError):
                 logger.warning(f'[set_friend] user={self.user.id} invalid friend_id={payload.get("friend_id")!r}')
                 await self.send(text_data=json.dumps({
@@ -797,7 +810,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
             await self.channel_layer.group_send(
                 self.shared_with_friend_group_name,
-                {'type': 'peer_presence', 'user_id': self.user.id, 'online': True}
+                {'type': 'peer_presence', 'user_id': self.user.id, 'online': True, 'friend_light_color': self.friend_light_color, 'friend_dark_color': self.friend_dark_color}
             )
 
             if not self.is_host:
@@ -810,7 +823,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             if old:
                 await self.channel_layer.group_send(
                     self.shared_with_friend_group_name,
-                    {'type': 'peer_presence', 'user_id': self.user.id, 'online': False}
+                    {'type': 'peer_presence', 'user_id': self.user.id, 'online': False, 'friend_light_color': None, 'friend_dark_color': None}
                 )
                 await self.channel_layer.group_discard(old, self.channel_name)
                 self.joined_sesh_group = None
@@ -1351,7 +1364,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             return
         await self.channel_layer.group_send(
             f'gecko_shared_with_friend_{requester_id}',
-            {'type': 'peer_presence', 'user_id': self.user.id, 'online': True},
+            {'type': 'peer_presence', 'user_id': self.user.id, 'online': True, 'friend_light_color': self.friend_light_color, 'friend_dark_color': self.friend_dark_color},
         )
 
         if not self.capsule_matches:
@@ -2081,190 +2094,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'partner_user_id': event.get('partner_user_id'),
             },
         }))
-
-    # @database_sync_to_async
-    # def _propose_gecko_match_win_db(self, my_capsule_id, partner_capsule_id, partner_user_id):
-    #     from friends.models import ThoughtCapsulez
-    #     from users.models import GeckoGameWinPending, BadRainbowzUser
-    #     from friends.models import GeckoGameType
  
-   
-
-    #     my_capsule = (
-    #         ThoughtCapsulez.objects
-    #         .filter(id=my_capsule_id, user_id=self.user.id)
-    #         .first()
-    #     )
-    #     if my_capsule is None:
-    #         return {'ok': False, 'reason': 'my_capsule_not_found_or_not_owner'}
-        
-    #     gecko_game_type = my_capsule.gecko_game_type
-    #     label = GeckoGameType(gecko_game_type).label
-
-    #     partner_capsule = (
-    #         ThoughtCapsulez.objects
-    #         .filter(id=partner_capsule_id, user_id=partner_user_id)
-    #         .first()
-    #     )
-    #     if partner_capsule is None:
-    #         return {'ok': False, 'reason': 'partner_capsule_not_found_or_not_owner'}
-
-    #     partner_user = BadRainbowzUser.objects.filter(id=partner_user_id).first()
-    #     if partner_user is None:
-    #         return {'ok': False, 'reason': 'partner_not_found'}
-
-    #     # Build a stable match_key from the two capsule UUIDs (sorted so both
-    #     # sides produce the same string regardless of who proposes).
-    #     ids_sorted = sorted([str(my_capsule.id), str(partner_capsule.id)])
-    #     match_key = f'{ids_sorted[0]}:{ids_sorted[1]}'
-
-    #     # The partner WOULD win MY capsule from me; I would win partner's.
-    #     partner_pending = GeckoGameWinPending.propose(
-    #         target_user=partner_user,
-    #         sender=self.user,
-    #         sender_capsule=my_capsule,
-    #         match_key=match_key,
-    #         gecko_game_type=my_capsule.gecko_game_type,
-    #         gecko_game_type_label=label,
-    #     )
-    #     my_pending = GeckoGameWinPending.propose(
-    #         target_user=self.user,
-    #         sender=partner_user,
-    #         sender_capsule=partner_capsule,
-    #         match_key=match_key,
-    #         gecko_game_type=my_capsule.gecko_game_type,
-    #         gecko_game_type_label=label,
-    #     )
-
-    #     return {
-    #         'ok': True,
-    #         # 'my_pending_id': my_pending.id,
-    #         # 'partner_pending_id': partner_pending.id,
-    #         'match_key': match_key,
-    #     }
-    
-    # @database_sync_to_async
-    # def _accept_gecko_match_win_db(self, pending_id):
-    #     from django.db import transaction
-    #     from django.utils import timezone
-    #     from users.models import GeckoGameMatchWinPending, GeckoGameWin
-    #     from friends.models import ThoughtCapsulez, Friend, GeckoGameType
-
-    #     now = timezone.now()
-
-    #     with transaction.atomic():
-    #         pending = (
-    #             GeckoGameMatchWinPending.objects
-    #             .select_for_update()
-    #             .filter(id=pending_id)
-    #             .first()
-    #         )
-
-    #         if pending is None:
-    #             return {'ok': False, 'reason': 'pending_not_found'}
-
-    #         if pending.finalized_on is not None:
-    #             return {'ok': False, 'reason': 'already_finalized'}
-
-    #         if pending.declined_on is not None:
-    #             return {'ok': False, 'reason': 'already_declined'}
-
-    #         if pending.expires_at and pending.expires_at <= now:
-    #             pending.declined_on = now
-    #             pending.save(update_fields=['declined_on', 'updated_on'])
-    #             return {'ok': False, 'reason': 'expired'}
-
-    #         if self.user.id not in (pending.host_id, pending.guest_id):
-    #             return {'ok': False, 'reason': 'not_participant'}
-
-    #         if self.user.id == pending.host_id:
-    #             if pending.host_accepted_on is None:
-    #                 pending.host_accepted_on = now
-    #         else:
-    #             if pending.guest_accepted_on is None:
-    #                 pending.guest_accepted_on = now
-
-    #         pending.save(update_fields=[
-    #             'host_accepted_on',
-    #             'guest_accepted_on',
-    #             'updated_on',
-    #         ])
-
-    #         if not pending.host_accepted_on or not pending.guest_accepted_on:
-    #             partner_user_id = (
-    #                 pending.guest_id
-    #                 if self.user.id == pending.host_id
-    #                 else pending.host_id
-    #             )
-    #             return {
-    #                 'ok': True,
-    #                 'status': 'awaiting_partner',
-    #                 'partner_user_id': partner_user_id,
-    #             }
-
-    #         locked_capsules = list(
-    #             ThoughtCapsulez.objects
-    #             .select_for_update()
-    #             .filter(id__in=[pending.host_capsule_id, pending.guest_capsule_id])
-    #         )
-
-    #         by_id = {c.id: c for c in locked_capsules}
-    #         host_capsule = by_id.get(pending.host_capsule_id)
-    #         guest_capsule = by_id.get(pending.guest_capsule_id)
-
-    #         if host_capsule is None or guest_capsule is None:
-    #             pending.declined_on = now
-    #             pending.save(update_fields=['declined_on', 'updated_on'])
-    #             return {'ok': False, 'reason': 'capsule_missing'}
-
-    #         host_friend = Friend.objects.filter(
-    #             user_id=pending.host_id,
-    #             linked_user_id=pending.guest_id,
-    #         ).first()
-
-    #         guest_friend = Friend.objects.filter(
-    #             user_id=pending.guest_id,
-    #             linked_user_id=pending.host_id,
-    #         ).first()
-
-    #         GeckoGameWin.objects.create(
-    #             user_id=pending.host_id,
-    #             user_won_from_id=pending.guest_id,
-    #             friend=host_friend,
-    #             original_capsule_id=guest_capsule.id,
-    #             capsule=guest_capsule.capsule,
-    #             gecko_game_type=guest_capsule.gecko_game_type,
-    #             gecko_game_type_label=GeckoGameType(guest_capsule.gecko_game_type).label,
-    #             won_by_matching=True,
-    #             matched_capsule_id=host_capsule.id,
-    #         )
-
-    #         GeckoGameWin.objects.create(
-    #             user_id=pending.guest_id,
-    #             user_won_from_id=pending.host_id,
-    #             friend=guest_friend,
-    #             original_capsule_id=host_capsule.id,
-    #             capsule=host_capsule.capsule,
-    #             gecko_game_type=host_capsule.gecko_game_type,
-    #             gecko_game_type_label=GeckoGameType(host_capsule.gecko_game_type).label,
-    #             won_by_matching=True,
-    #             matched_capsule_id=guest_capsule.id,
-    #         )
-
-    #         ThoughtCapsulez.objects.filter(
-    #             id__in=[host_capsule.id, guest_capsule.id]
-    #         ).delete()
-
-    #         pending.finalized_on = now
-    #         pending.save(update_fields=['finalized_on', 'updated_on'])
-
-    #         return {
-    #             'ok': True,
-    #             'status': 'finalized',
-    #             'host_user_id': pending.host_id,
-    #             'guest_user_id': pending.guest_id,
-    #             'user_ids': [pending.host_id, pending.guest_id],
-    #         }
+     
         
     @database_sync_to_async
     def _propose_gecko_match_win_db(self, my_capsule_id, partner_capsule_id, partner_user_id):

@@ -1439,14 +1439,13 @@ class GeckoGameWinPendingDetail(APIView):
         pending.sender_capsule = None
         pending.expires_at = None
         pending.accepted_on = None
-        pending.match_key = ''
+ 
 
         pending.save(update_fields=[
             'sender',
             'sender_capsule',
             'expires_at',
-            'accepted_on',
-            'match_key',
+            'accepted_on', 
             'updated_on',
         ])
 

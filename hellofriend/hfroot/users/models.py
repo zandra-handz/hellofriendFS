@@ -807,9 +807,7 @@ class GeckoGameWinPending(models.Model):
         blank=True,
         related_name='+',
     )
-
-    # not using, pls remove when safe to
-    match_key = models.CharField(max_length=255, blank=True)
+ 
 
     gecko_game_type = models.PositiveSmallIntegerField(null=True, blank=True)
     gecko_game_type_label = models.CharField(max_length=64, blank=True)
@@ -840,7 +838,6 @@ class GeckoGameWinPending(models.Model):
         target_user,
         sender,
         sender_capsule,
-        match_key='',
         gecko_game_type=None,
         gecko_game_type_label='',
     ):
@@ -848,8 +845,7 @@ class GeckoGameWinPending(models.Model):
             user=target_user,
             defaults={
                 'sender': sender,
-                'sender_capsule': sender_capsule,
-                'match_key': match_key or '',
+                'sender_capsule': sender_capsule, 
                 'gecko_game_type': gecko_game_type,
                 'gecko_game_type_label': gecko_game_type_label or '',
                 'accepted_on': None,
