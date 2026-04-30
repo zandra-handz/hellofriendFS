@@ -1929,21 +1929,35 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
     #     other connections while your coroutine sleeps.
     @database_sync_to_async
     def _get_active_live_sesh_partner_id(self):
-        from users.models import UserFriendCurrentLiveSesh, BadRainbowzUser
+        from users.models import UserFriendCurrentLiveSesh, BadRainbowzUser                                                                                                                                                                                                                                         
         from friends.models import Friend
-        sesh = UserFriendCurrentLiveSesh.objects.filter(
-            user_id=self.user.id,
-            expires_at__gt=timezone.now(),
-        ).only('other_user_id', 'is_host', 'friend_id').first()
+        sesh = (                                                                                                                                                                                                                                                                                                    
+            UserFriendCurrentLiveSesh.objects
+            .filter(user_id=self.user.id, expires_at__gt=timezone.now())
+            .select_related('friend')
+            .only(
+                'other_user_id', 'is_host', 'friend_id',
+                'friend__theme_light_color', 'friend__theme_dark_color',
+            )
+            .first()
+        )
         if not sesh:
             self.is_host = False
             self.sesh_friend_id = None
             self.partner_username = None
             self.partner_friend_id = None
             self.partner_friend_name = None
+            self.friend_light_color = None
+            self.friend_dark_color = None
             return None
         self.is_host = sesh.is_host
         self.sesh_friend_id = sesh.friend_id
+        if sesh.friend is not None:
+            self.friend_light_color = sesh.friend.theme_light_color
+            self.friend_dark_color = sesh.friend.theme_dark_color
+        else:
+            self.friend_light_color = None
+            self.friend_dark_color = None
         # Partner display data (username + the user's Friend record that
         # represents the partner). Resolved here so join_live_sesh_ok can
         # ship it in one payload — but this could also be looked up on the
@@ -1968,6 +1982,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             self.partner_friend_id = None
             self.partner_friend_name = None
         return sesh.other_user_id
+
+ 
 
     @database_sync_to_async
     def _compute_capsule_matches_db(self, guest_user_id, host_user_id):
