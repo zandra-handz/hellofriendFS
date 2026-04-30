@@ -1181,9 +1181,15 @@ def get_live_sesh_invites(request):
         invite_expires_on__gt=now
     ).select_related('sender', 'recipient').order_by('-created_on')
 
+    play_modes = [
+        {"value": choice.value, "label": choice.label}
+        for choice in models.GeckoPlayMode
+    ]
+
     return response.Response({
         'sent': serializers.UserFriendLiveSeshInviteSerializer(sent_qs, many=True).data,
         'pending': serializers.UserFriendLiveSeshInviteSerializer(pending_qs, many=True).data,
+        'play_modes': play_modes,
     }, status=status.HTTP_200_OK)
 
 
@@ -1191,6 +1197,10 @@ def get_live_sesh_invites(request):
 @permission_classes([IsAuthenticated])
 def accept_live_sesh_invite(request, invite_id):
     user = request.user
+    gecko_play_mode = request.data.get(
+        "gecko_play_mode",
+        models.GeckoPlayMode.DIG   
+    )
 
     try:
         invite = models.UserFriendLiveSeshInvite.objects.select_related(
@@ -1255,6 +1265,7 @@ def accept_live_sesh_invite(request, invite_id):
                 'other_user': recipient,
                 'friend': sender_friend,
                 'is_host': True,
+                'gecko_play_mode': gecko_play_mode,
                 'session_start': now,
                 'expires_at': expires_at,
                 'current_log': None,
@@ -1267,6 +1278,7 @@ def accept_live_sesh_invite(request, invite_id):
                 'other_user': sender,
                 'friend': recipient_friend,
                 'is_host': False,
+                'gecko_play_mode': gecko_play_mode,
                 'session_start': now,
                 'expires_at': expires_at,
                 'current_log': host_sesh.current_log,

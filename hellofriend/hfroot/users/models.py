@@ -239,7 +239,13 @@ class UserFriendLiveSeshInvite(models.Model):
 
     def __str__(self):
         return f"Invite from {self.sender.username} to {self.recipient.username} at {self.created_on}"
- 
+
+
+
+class GeckoPlayMode(models.IntegerChoices):
+    DIG = 1, "Dig",
+    INTUIT = 2, "Intuit"
+
 class UserFriendCurrentLiveSesh(models.Model):
 
     user = models.OneToOneField(
@@ -259,6 +265,9 @@ class UserFriendCurrentLiveSesh(models.Model):
     
     session_start = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField(default=timezone.now)
+
+    # to be chosen by guest when they accept the invite
+    gecko_play_mode = models.IntegerField(choices=GeckoPlayMode.choices, default=GeckoPlayMode.DIG)
 
     current_log = models.ForeignKey(
         'users.UserFriendLiveSeshLog',
@@ -1215,24 +1224,7 @@ class GeckoPointsLedger(models.Model):
     def __str__(self):
         return f"{self.user.username} + {self.amount})"
 
- 
-    
-
-
-# class GeckoCombinedDaily(models.Model):
-#     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
-#     date = models.DateField(default=timezone.localdate)
   
-#     steps = models.PositiveIntegerField(default=0)
-#     distance = models.PositiveIntegerField(default=0)
-#     duration = models.PositiveIntegerField(default=0)
-
-#     created_on = models.DateTimeField(auto_now_add=True)
-#     updated_on = models.DateTimeField(auto_now=True)
-
-#     class Meta:
-#         unique_together = ('user', 'date')
-#         ordering = ['-date']
 
 
 
