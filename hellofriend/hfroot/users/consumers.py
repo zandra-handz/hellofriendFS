@@ -805,6 +805,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'partner_username': getattr(self, 'partner_username', None),
                     'partner_friend_id': getattr(self, 'partner_friend_id', None),
                     'partner_friend_name': getattr(self, 'partner_friend_name', None),
+                    'friend_light_color': self.friend_light_color,
+                    'friend_dark_color': self.friend_dark_color
                 },
             }))
 
