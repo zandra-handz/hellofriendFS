@@ -827,12 +827,39 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     self.shared_with_friend_group_name,
                     {'type': 'peer_presence', 'user_id': self.user.id, 'online': False, 'friend_light_color': None, 'friend_dark_color': None}
                 )
-                await self.channel_layer.group_discard(old, self.channel_name)
-                self.joined_sesh_group = None
                 if getattr(self, 'is_host', False):
                     self.host_gecko_screen_position = []
+                    await self.channel_layer.group_send(
+                        self.shared_with_friend_group_name,
+                        {
+                            'type': 'host_gecko_position_broadcast',
+                            'from_user': self.user.id,
+                            'friend_id': self.friend_id,
+                            'position': [],
+                            'steps': [],
+                            'steps_len': 0,
+                            'first_fingers': [],
+                            'held_moments': [],
+                            'held_moments_len': 0,
+                            'moments': [],
+                            'moments_len': 0,
+                            'timestamp': None,
+                        },
+                    )
                 else:
                     self.guest_gecko_screen_position = []
+                    await self.channel_layer.group_send(
+                        self.shared_with_friend_group_name,
+                        {
+                            'type': 'guest_gecko_position_broadcast',
+                            'from_user': self.user.id,
+                            'position': [],
+                            'steps': [],
+                            'timestamp': None,
+                        },
+                    )
+                await self.channel_layer.group_discard(old, self.channel_name)
+                self.joined_sesh_group = None
                 self.is_host = False
                 logger.info(f'[leave_live_sesh] user={self.user.id} left group={old}')
 
