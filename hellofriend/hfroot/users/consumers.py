@@ -805,8 +805,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'partner_username': getattr(self, 'partner_username', None),
                     'partner_friend_id': getattr(self, 'partner_friend_id', None),
                     'partner_friend_name': getattr(self, 'partner_friend_name', None),
-                    'friend_light_color': self.friend_light_color,
-                    'friend_dark_color': self.friend_dark_color
+                    # 'friend_light_color': self.friend_light_color,
+                    # 'friend_dark_color': self.friend_dark_color
                 },
             }))
 
@@ -1357,7 +1357,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             return
         await self.send(text_data=json.dumps({
             'action': 'peer_presence',
-            'data': { 'user_id': event['user_id'], 'online': event['online']}
+            'data': { 'user_id': event['user_id'], 'online': event['online'], 'friend_light_color': event['friend_light_color'], 'friend_dark_color': event['friend_dark_color']}
         }))
 
     async def peer_presence_request(self, event):
