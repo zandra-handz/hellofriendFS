@@ -812,7 +812,7 @@ class UserFriendCurrentLiveSeshSerializer(serializers.ModelSerializer):
         model = models.UserFriendCurrentLiveSesh
         fields = [
             'id', 'user', 'is_host', 'other_user', 'other_user_username',
-            'session_start', 'expires_at', 'created_on', 'updated_on',
+            'session_start', 'expires_at', 'gecko_play_mode', 'created_on', 'updated_on'
         ]
 
 

@@ -610,6 +610,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.host_linked_friend_id = None
         self.capsule_matches = []
         self.capsule_matches_loaded = False
+        self.gecko_play_mode = None
 
 
 
@@ -2010,9 +2011,11 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             self.partner_friend_name = None
             self.friend_light_color = None
             self.friend_dark_color = None
+            self.gecko_play_mode = None
             return None
         self.is_host = sesh.is_host
         self.sesh_friend_id = sesh.friend_id
+        self.gecko_play_mode = sesh.gecko_play_mode # model ensures will always default to a valid option
         if sesh.friend is not None:
             self.friend_light_color = sesh.friend.theme_color_light
             self.friend_dark_color = sesh.friend.theme_color_dark
