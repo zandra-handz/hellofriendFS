@@ -658,13 +658,16 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         if getattr(self, 'joined_sesh_group', None):
             if hasattr(self, 'shared_with_friend_group_name'):
                 if getattr(self, 'is_host', False):
+                    last_pos = getattr(self, 'host_gecko_screen_position', None)
+                    if not (isinstance(last_pos, list) and len(last_pos) == 2):
+                        last_pos = [0, 0]
                     await self.channel_layer.group_send(
                         self.shared_with_friend_group_name,
                         {
                             'type': 'host_gecko_position_broadcast',
                             'from_user': self.user.id,
                             'friend_id': getattr(self, 'friend_id', None),
-                            'position': [],
+                            'position': last_pos,
                             'steps': [],
                             'steps_len': 0,
                             'first_fingers': [],
@@ -676,12 +679,15 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                         },
                     )
                 else:
+                    last_pos = getattr(self, 'guest_gecko_screen_position', None)
+                    if not (isinstance(last_pos, list) and len(last_pos) == 2):
+                        last_pos = [0, 0]
                     await self.channel_layer.group_send(
                         self.shared_with_friend_group_name,
                         {
                             'type': 'guest_gecko_position_broadcast',
                             'from_user': self.user.id,
-                            'position': [],
+                            'position': last_pos,
                             'steps': [],
                             'timestamp': None,
                         },
@@ -858,6 +864,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     {'type': 'peer_presence', 'user_id': self.user.id, 'online': False, 'friend_light_color': None, 'friend_dark_color': None}
                 )
                 if getattr(self, 'is_host', False):
+                    last_pos = getattr(self, 'host_gecko_screen_position', None)
+                    if not (isinstance(last_pos, list) and len(last_pos) == 2):
+                        last_pos = [0, 0]
                     self.host_gecko_screen_position = []
                     await self.channel_layer.group_send(
                         self.shared_with_friend_group_name,
@@ -865,7 +874,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                             'type': 'host_gecko_position_broadcast',
                             'from_user': self.user.id,
                             'friend_id': self.friend_id,
-                            'position': [],
+                            'position': last_pos,
                             'steps': [],
                             'steps_len': 0,
                             'first_fingers': [],
@@ -877,13 +886,16 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                         },
                     )
                 else:
+                    last_pos = getattr(self, 'guest_gecko_screen_position', None)
+                    if not (isinstance(last_pos, list) and len(last_pos) == 2):
+                        last_pos = [0, 0]
                     self.guest_gecko_screen_position = []
                     await self.channel_layer.group_send(
                         self.shared_with_friend_group_name,
                         {
                             'type': 'guest_gecko_position_broadcast',
                             'from_user': self.user.id,
-                            'position': [],
+                            'position': last_pos,
                             'steps': [],
                             'timestamp': None,
                         },
