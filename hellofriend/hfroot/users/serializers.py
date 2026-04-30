@@ -807,12 +807,13 @@ class UserFriendLiveSeshInviteSerializer(serializers.ModelSerializer):
 
 class UserFriendCurrentLiveSeshSerializer(serializers.ModelSerializer):
     other_user_username = serializers.CharField(source='other_user.username', read_only=True)
-
+                                                                                                                                              
+    gecko_play_mode_label   = serializers.CharField(source='get_role_display',   read_only=True)             
     class Meta:
         model = models.UserFriendCurrentLiveSesh
         fields = [
             'id', 'user', 'is_host', 'other_user', 'other_user_username',
-            'session_start', 'expires_at', 'gecko_play_mode', 'created_on', 'updated_on'
+            'session_start', 'expires_at', 'gecko_play_mode', 'gecko_play_mode_label', 'created_on', 'updated_on'
         ]
 
 
