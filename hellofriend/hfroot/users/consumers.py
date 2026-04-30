@@ -716,7 +716,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 self.friend_light_color = payload.get('friend_light_color')
                 self.friend_dark_color = payload.get('friend_dark_color')
 
- 
+
             except (TypeError, ValueError):
                 logger.warning(f'[set_friend] user={self.user.id} invalid friend_id={payload.get("friend_id")!r}')
                 await self.send(text_data=json.dumps({
@@ -829,6 +829,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 )
                 await self.channel_layer.group_discard(old, self.channel_name)
                 self.joined_sesh_group = None
+                if getattr(self, 'is_host', False):
+                    self.host_gecko_screen_position = []
+                else:
+                    self.guest_gecko_screen_position = []
                 self.is_host = False
                 logger.info(f'[leave_live_sesh] user={self.user.id} left group={old}')
 
