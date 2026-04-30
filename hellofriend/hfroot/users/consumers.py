@@ -1937,7 +1937,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             .select_related('friend')
             .only(
                 'other_user_id', 'is_host', 'friend_id',
-                'friend__theme_light_color', 'friend__theme_dark_color',
+                'friend__theme_color_light', 'friend__theme_color_dark',
             )
             .first()
         )
@@ -1953,8 +1953,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         self.is_host = sesh.is_host
         self.sesh_friend_id = sesh.friend_id
         if sesh.friend is not None:
-            self.friend_light_color = sesh.friend.theme_light_color
-            self.friend_dark_color = sesh.friend.theme_dark_color
+            self.friend_light_color = sesh.friend.theme_color_light
+            self.friend_dark_color = sesh.friend.theme_color_dark
         else:
             self.friend_light_color = None
             self.friend_dark_color = None
