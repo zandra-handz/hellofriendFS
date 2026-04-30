@@ -656,6 +656,36 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         
         
         if getattr(self, 'joined_sesh_group', None):
+            if hasattr(self, 'shared_with_friend_group_name'):
+                if getattr(self, 'is_host', False):
+                    await self.channel_layer.group_send(
+                        self.shared_with_friend_group_name,
+                        {
+                            'type': 'host_gecko_position_broadcast',
+                            'from_user': self.user.id,
+                            'friend_id': getattr(self, 'friend_id', None),
+                            'position': [],
+                            'steps': [],
+                            'steps_len': 0,
+                            'first_fingers': [],
+                            'held_moments': [],
+                            'held_moments_len': 0,
+                            'moments': [],
+                            'moments_len': 0,
+                            'timestamp': None,
+                        },
+                    )
+                else:
+                    await self.channel_layer.group_send(
+                        self.shared_with_friend_group_name,
+                        {
+                            'type': 'guest_gecko_position_broadcast',
+                            'from_user': self.user.id,
+                            'position': [],
+                            'steps': [],
+                            'timestamp': None,
+                        },
+                    )
             await self.channel_layer.group_discard(
                 self.joined_sesh_group,
                 self.channel_name,
