@@ -1237,9 +1237,7 @@ def accept_live_sesh_invite(request, invite_id):
     recipient_friend = Friend.objects.filter(
         user=recipient, linked_user=sender,
     ).only('id').first()
-
-    # Find any partners that will be displaced by overwriting sender/recipient
-    # rows, so their rows can be expired and their consumers refreshed below.
+ 
     existing = models.UserFriendCurrentLiveSesh.objects.filter(
         user_id__in=[sender.id, recipient.id]
     ).only('user_id', 'other_user_id')

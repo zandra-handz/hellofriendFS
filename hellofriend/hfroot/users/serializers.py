@@ -808,7 +808,9 @@ class UserFriendLiveSeshInviteSerializer(serializers.ModelSerializer):
 class UserFriendCurrentLiveSeshSerializer(serializers.ModelSerializer):
     other_user_username = serializers.CharField(source='other_user.username', read_only=True)
                                                                                                                                               
-    gecko_play_mode_label = serializers.CharField(source='get_role_display',   read_only=True)             
+    gecko_play_mode_label = serializers.CharField(
+        source='get_gecko_play_mode_display', read_only=True,
+    )          
     class Meta:
         model = models.UserFriendCurrentLiveSesh
         fields = [
