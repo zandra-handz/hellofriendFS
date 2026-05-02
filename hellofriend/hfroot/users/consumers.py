@@ -1325,6 +1325,50 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 },
             )
 
+        elif action == 'send_all_host_capsules':
+            if not getattr(self, 'is_host', False):
+                await self._get_active_live_sesh_partner_id()
+                if not getattr(self, 'is_host', False):
+                    logger.warning(
+                        f'[send_all_host_capsules] user={self.user.id} not host — ignoring'
+                    )
+                    return
+                logger.info(
+                    f'[send_all_host_capsules] user={self.user.id} cache was stale, now host'
+                )
+
+            if self.friend_id is None:
+                logger.warning(
+                    f'[send_all_host_capsules] user={self.user.id} friend_id not set — ignoring'
+                )
+                return
+
+            payload = data.get('data', {}) or {}
+            moments = payload.get('moments') or []
+            moments_len = payload.get('moments_len')
+
+            if not isinstance(moments, list):
+                logger.warning(
+                    f'[send_all_host_capsules] user={self.user.id} invalid moments={moments!r}'
+                )
+                return
+
+            if moments_len is None:
+                moments_len = len(moments)
+
+            await self.channel_layer.group_send(
+                self.shared_with_friend_group_name,
+                {
+                    'type': 'all_host_capsules_broadcast',
+                    'from_user': self.user.id,
+                    'friend_id': self.friend_id,
+                    'moments': moments,
+                    'moments_len': moments_len,
+                    'timestamp': payload.get('timestamp'),
+                },
+            )
+
+
         elif action == 'update_guest_gecko_position':
             if getattr(self, 'is_host', False):
                 await self._get_active_live_sesh_partner_id()
@@ -1357,7 +1401,7 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'timestamp': payload.get('timestamp'),
                 },
             )
-            
+
         elif action == 'update_capsule_progress':
             payload = data.get('data', {}) or {}
 
@@ -1575,6 +1619,21 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'first_fingers': event.get('first_fingers', []),
                 'held_moments': event.get('held_moments', []),
                 'held_moments_len': event.get('held_moments_len'),
+                'moments': event.get('moments', []),
+                'moments_len': event.get('moments_len'),
+                'timestamp': event.get('timestamp'),
+            },
+        }))
+
+    async def all_host_capsules_broadcast(self, event):
+        if event.get('from_user') == self.user.id:
+            return
+
+        await self.send(bytes_data=ormsgpack.packb({
+            'action': 'all_host_capsules',
+            'data': {
+                'from_user': event.get('from_user'),
+                'friend_id': event.get('friend_id'),
                 'moments': event.get('moments', []),
                 'moments_len': event.get('moments_len'),
                 'timestamp': event.get('timestamp'),
