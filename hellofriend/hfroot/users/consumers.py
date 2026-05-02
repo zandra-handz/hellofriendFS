@@ -1358,6 +1358,40 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 },
             )
 
+        elif action == 'update_capsule_progress':
+            if getattr(self, 'is_host', False):
+                await self._get_active_live_sesh_partner_id()
+                if getattr(self, 'is_host', False):
+                    logger.warning(
+                        f'[update_capsule_progress] user={self.user.id} is host — ignoring'
+                    )
+                    return
+                logger.info(
+                    f'[update_capsule_progress] user={self.user.id} cache was stale, now guest'
+                )
+            payload = data.get('data', {})
+            capsule_id = payload.get('capsule_id')
+            new_progress = payload.get('new_progress')
+ 
+
+            # if not (isinstance(pos, list) and len(pos) == 2):
+            #     logger.warning(
+            #         f'[update_guest_gecko_position] user={self.user.id} invalid position={pos!r}'
+            #     )
+            #     return
+
+            # self.guest_gecko_screen_position = pos
+            await self.channel_layer.group_send(
+                self.shared_with_friend_group_name,
+                {
+                    'type': 'capsule_progress_broadcast',
+                    'from_user': self.user.id,
+                    'capsule_id': capsule_id,
+                    'new_progress': new_progress,
+                    'timestamp': payload.get('timestamp'),
+                },
+            )
+
         elif action == 'get_score_state':
             self._recompute_energy_in_memory()
             await self._record_sync_sample('get_score_state', None)
@@ -1559,6 +1593,17 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 'from_user': event.get('from_user'),
                 'position': event.get('position'),
                 'steps': event.get('steps', []), 
+                'timestamp': event.get('timestamp'),
+            },
+        }))
+
+    async def capsule_progress_broadcast(self, event):
+        await self.send(bytes_data=ormsgpack.packb({
+            'action': 'capsule_progress',
+            'data': {
+                'from_user': event.get('from_user'),
+                'capsule_id': event.get('capsule_id'),
+                'new_progress': event.get('new_progress'),
                 'timestamp': event.get('timestamp'),
             },
         }))
