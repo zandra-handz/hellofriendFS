@@ -2350,6 +2350,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         target_user = BadRainbowzUser.objects.filter(id=partner_user_id).first()
         if target_user is None:
             return {'ok': False, 'reason': 'partner_not_found'}
+        
+        # in future might allow host to decide if they want to match this
+        if capsule.match_only:
+            return {'ok': False, 'reason': 'capsule_is_match_only'}
 
         gecko_game_type = capsule.gecko_game_type
         gecko_game_type_label = GeckoGameType(gecko_game_type).label
