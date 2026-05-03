@@ -1426,7 +1426,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'type': 'capsule_progress_broadcast',
                     'from_user': self.user.id,
                     'capsule_id': capsule_id,
-                    'new_progress': max(0, min(1, float(new_progress))),
+                    # 'new_progress': max(0, min(1, float(new_progress))),
+                    'new_progress': int(new_progress),
                     'timestamp': payload.get('timestamp'),
                 },
             )
