@@ -1289,13 +1289,20 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 return
 
             self.gecko_screen_position = pos
+            out_bytes = ormsgpack.packb({
+                'action': 'gecko_coords',
+                'data': {
+                    'from_user': self.user.id,
+                    'friend_id': self.friend_id,
+                    'position': pos,
+                },
+            })
             await self.channel_layer.group_send(
                 self.shared_with_friend_group_name,
                 {
                     'type': 'gecko_position_broadcast',
                     'from_user': self.user.id,
-                    'friend_id': self.friend_id,
-                    'position': pos,
+                    'raw': out_bytes,
                 },
             )
 
@@ -1386,10 +1393,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 return
 
             self.host_gecko_screen_position = pos
-            await self.channel_layer.group_send(
-                self.shared_with_friend_group_name,
-                {
-                    'type': 'host_gecko_position_broadcast',
+            out_bytes = ormsgpack.packb({
+                'action': 'host_gecko_coords',
+                'data': {
                     'from_user': self.user.id,
                     'friend_id': self.friend_id,
                     'position': pos,
@@ -1401,6 +1407,14 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                     'moments': moments,
                     'moments_len': moments_len,
                     'timestamp': payload.get('timestamp'),
+                },
+            })
+            await self.channel_layer.group_send(
+                self.shared_with_friend_group_name,
+                {
+                    'type': 'host_gecko_position_broadcast',
+                    'from_user': self.user.id,
+                    'raw': out_bytes,
                 },
             )
 
@@ -1470,14 +1484,21 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 return
 
             self.guest_gecko_screen_position = pos
+            out_bytes = ormsgpack.packb({
+                'action': 'guest_gecko_coords',
+                'data': {
+                    'from_user': self.user.id,
+                    'position': pos,
+                    'steps': steps,
+                    'timestamp': payload.get('timestamp'),
+                },
+            })
             await self.channel_layer.group_send(
                 self.shared_with_friend_group_name,
                 {
                     'type': 'guest_gecko_position_broadcast',
                     'from_user': self.user.id,
-                    'position': pos,
-                    'steps': steps,
-                    'timestamp': payload.get('timestamp'),
+                    'raw': out_bytes,
                 },
             )
 
@@ -1678,32 +1699,14 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             self.joined_sesh_group = new_group
 
     async def gecko_position_broadcast(self, event):
-        await self.send(bytes_data=ormsgpack.packb({
-            'action': 'gecko_coords',
-            'data': {
-                'from_user': event.get('from_user'),
-                'friend_id': event.get('friend_id'),
-                'position': event.get('position'),
-            },
-        }))
+        if event.get('from_user') == self.user.id:
+            return
+        await self.send(bytes_data=event['raw'])
 
     async def host_gecko_position_broadcast(self, event):
-        await self.send(bytes_data=ormsgpack.packb({
-            'action': 'host_gecko_coords',
-            'data': {
-                'from_user': event.get('from_user'),
-                'friend_id': event.get('friend_id'),
-                'position': event.get('position'),
-                'steps': event.get('steps', []),
-                'steps_len': event.get('steps_len'),
-                'first_fingers': event.get('first_fingers', []),
-                'held_moments': event.get('held_moments', []),
-                'held_moments_len': event.get('held_moments_len'),
-                'moments': event.get('moments', []),
-                'moments_len': event.get('moments_len'),
-                'timestamp': event.get('timestamp'),
-            },
-        }))
+        if event.get('from_user') == self.user.id:
+            return
+        await self.send(bytes_data=event['raw'])
 
     async def all_host_capsules_broadcast(self, event):
         if event.get('from_user') == self.user.id:
@@ -1721,15 +1724,9 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
         }))
 
     async def guest_gecko_position_broadcast(self, event):
-        await self.send(bytes_data=ormsgpack.packb({
-            'action': 'guest_gecko_coords',
-            'data': {
-                'from_user': event.get('from_user'),
-                'position': event.get('position'),
-                'steps': event.get('steps', []), 
-                'timestamp': event.get('timestamp'),
-            },
-        }))
+        if event.get('from_user') == self.user.id:
+            return
+        await self.send(bytes_data=event['raw'])
 
     async def capsule_progress_broadcast(self, event):
         await self.send(bytes_data=ormsgpack.packb({
@@ -2745,4 +2742,4 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
 
 
- 
+ bef
