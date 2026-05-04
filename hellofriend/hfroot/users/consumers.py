@@ -505,7 +505,7 @@
 #    match_request_result, validate_win
 # =============================================================================
 
-import asyncio
+import asyncio, time
 import json
 import logging
 import ormsgpack
@@ -520,6 +520,9 @@ logger = logging.getLogger('gecko.ws')
 
 
 class GeckoEnergyConsumer(AsyncWebsocketConsumer):
+
+    HEARTBEAT_TIMEOUT = 9
+
     async def connect(self):
         user = self.scope['user']
         if user.is_anonymous:
@@ -591,6 +594,11 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
 
+        # added heartbeat
+        self.last_seen = time.monotonic()
+        self.heartbeat_task = asyncio.create_task(self._watchdog())
+        # end add
+
         try:
             init = await self._load_initial_state()
         except Exception:
@@ -631,6 +639,11 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
             await self._check_host_link_and_load(partner_id)
 
     async def disconnect(self, close_code):
+
+        task = getattr(self, 'heartbeat_task', None)
+        if task:
+            task.cancel()
+            
         logger.info(f'[disconnect] user={getattr(self, "user", None)} code={close_code}')
 
         if hasattr(self, 'pending_data') and self.pending_data:
@@ -738,7 +751,14 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
                 return
 
         action = data.get('action')
-        logger.debug(f'[receive] user={self.user.id} action={action}')
+
+        self.last_seen = time.monotonic()
+        if action == 'ping':
+            return
+
+        _NOISY_ACTIONS = {'update_guest_gecko_position', 'update_host_gecko_position'}
+        if action not in _NOISY_ACTIONS:
+            logger.debug(f'[receive] user={self.user.id} action={action}')
 
         if action == 'set_friend':
             payload = data.get('data', {}) or {}
@@ -2077,6 +2097,19 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
     # ------------------------------------------------------------------
     # Sync telemetry
     # ------------------------------------------------------------------
+
+
+    async def _watchdog(self):
+        try:
+            while True:
+                await asyncio.sleep(1)
+                if time.monotonic() - self.last_seen > self.HEARTBEAT_TIMEOUT:
+                    logger.info(f'[watchdog] user={self.user.id} timed out')
+                    await self.close(code=4000)
+                    return
+        except asyncio.CancelledError:
+            pass
+
 
     async def _record_sync_sample(self, trigger, payload):
         debug = getattr(self, '_last_recompute_debug', None)
