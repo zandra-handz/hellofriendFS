@@ -1362,8 +1362,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         elif action == 'update_host_gecko_position':
             if not getattr(self, 'is_host', False):
-                # Cache may be stale if the push-invalidation from the sesh-accept
-                # view was missed. Re-read once before rejecting.
+                now = time.monotonic()
+                if now - getattr(self, '_last_role_recheck', 0) < 5:
+                    return
+                self._last_role_recheck = now
                 await self._get_active_live_sesh_partner_id()
                 if not getattr(self, 'is_host', False):
                     logger.warning(
@@ -1464,6 +1466,10 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
 
         elif action == 'update_guest_gecko_position':
             if getattr(self, 'is_host', False):
+                now = time.monotonic()
+                if now - getattr(self, '_last_role_recheck', 0) < 5:
+                    return
+                self._last_role_recheck = now
                 await self._get_active_live_sesh_partner_id()
                 if getattr(self, 'is_host', False):
                     logger.warning(
