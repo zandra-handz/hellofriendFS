@@ -1148,6 +1148,74 @@ def cancel_current_live_sesh(request):
     )
 
 
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def rust_live_sesh_context(request):
+    from friends.models import Friend
+
+    secret = request.headers.get("X-Rust-Internal-Secret")
+    if secret != getattr(settings, "RUST_INTERNAL_SECRET", None):
+        return response.Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+    user_id = request.query_params.get("user_id")
+
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return response.Response({"detail": "Invalid user_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+    sesh = (
+        models.UserFriendCurrentLiveSesh.objects
+        .filter(user_id=user_id, expires_at__gt=timezone.now())
+        .select_related("friend", "other_user")
+        .only(
+            "other_user_id",
+            "is_host",
+            "friend_id",
+            "gecko_play_mode",
+            "friend__theme_color_light",
+            "friend__theme_color_dark",
+            "other_user__username",
+        )
+        .first()
+    )
+
+    if not sesh:
+        return response.Response({
+            "user_id": user_id,
+            "partner_id": None,
+            "is_host": False,
+            "friend_id": None,
+            "friend_light_color": None,
+            "friend_dark_color": None,
+            "gecko_play_mode": None,
+            "partner_username": None,
+            "partner_friend_id": None,
+            "partner_friend_name": None,
+        })
+
+    partner_friend = (
+        Friend.objects
+        .filter(user_id=user_id, linked_user_id=sesh.other_user_id)
+        .values("id", "name")
+        .first()
+    )
+
+    return response.Response({
+        "user_id": user_id,
+        "partner_id": sesh.other_user_id,
+        "is_host": sesh.is_host,
+        "friend_id": sesh.friend_id,
+        "friend_light_color": sesh.friend.theme_color_light if sesh.friend else None,
+        "friend_dark_color": sesh.friend.theme_color_dark if sesh.friend else None,
+        "gecko_play_mode": sesh.gecko_play_mode,
+        "partner_username": sesh.other_user.username if sesh.other_user else None,
+        "partner_friend_id": partner_friend["id"] if partner_friend else None,
+        "partner_friend_name": partner_friend["name"] if partner_friend else None,
+    })
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_current_live_sesh(request):

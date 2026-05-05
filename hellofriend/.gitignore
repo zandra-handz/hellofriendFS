@@ -3,3 +3,4 @@ venv/
 hellofriend/hfroot/db.sqlite3
 /hfroot.db.sqlite3
 db.sqlite3
+gecko-socket-rust/target/

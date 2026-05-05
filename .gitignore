@@ -5,3 +5,5 @@ db.sqlite3
 
 /hellofriend/hfroot/db.sqlite3
 hellofriend/hfroot/db.sqlite3
+
+gecko-socket-rust/target/

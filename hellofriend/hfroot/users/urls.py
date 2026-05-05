@@ -71,6 +71,12 @@ urlpatterns = [
 
     path('friend-link-code/', views.create_or_reset_friend_link_code),
 
+    path(
+        "internal/gecko/live-sesh-context/",
+        views.rust_live_sesh_context,
+        name="rust-live-sesh-context",
+    ),
+
     path('live-sesh/current/', views.get_current_live_sesh, name='live-sesh-current'),
     path('live-sesh/current/cancel/', views.cancel_current_live_sesh, name='live-sesh-current-cancel'),       
     path('live-sesh/invites/', views.get_live_sesh_invites, name='live-sesh-invites'),
