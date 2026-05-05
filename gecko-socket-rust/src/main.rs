@@ -1457,7 +1457,7 @@ type ClientId = String;
 type RoomName = String;
 type Tx = mpsc::UnboundedSender<Message>;
 
-const DJANGO_BASE_URL: &str = "http://127.0.0.1:8000";
+const DJANGO_BASE_URL: &str = "http://127.0.0.1";
 
 const BINARY_OUTBOUND_ACTIONS: &[&str] = &[
     "gecko_coords",
