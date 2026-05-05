@@ -1141,6 +1141,7 @@ def cancel_current_live_sesh(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def rust_live_sesh_context(request):
     from friends.models import Friend
 
@@ -1226,6 +1227,7 @@ def rust_live_sesh_context(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def rust_check_host_link_and_load(request):
     secret = request.headers.get("X-Rust-Internal-Secret")
     if secret != getattr(settings, "RUST_INTERNAL_SECRET", None):
@@ -1353,6 +1355,7 @@ def rust_check_host_link_and_load(request):
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@throttle_classes([])
 def gecko_socket_action(request):
     secret = request.headers.get("X-Rust-Internal-Secret")
     if secret != getattr(settings, "RUST_INTERNAL_SECRET", None):
