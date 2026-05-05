@@ -2517,16 +2517,29 @@ async fn hydrate_live_sesh_context(
     {
         let mut clients = state.clients.write().await;
         if let Some(c) = clients.get_mut(client_id) {
-            c.partner_id = partner_id;
-            c.is_host = is_host;
-            c.friend_id = friend_id;
-            c.sesh_friend_id = sesh_friend_id;
-            c.friend_light_color = friend_light_color;
-            c.friend_dark_color = friend_dark_color;
-            c.partner_username = partner_username;
-            c.partner_friend_id = partner_friend_id;
-            c.partner_friend_name = partner_friend_name;
-            c.partner_room = partner_room.clone();
+            if partner_id.is_some() {
+                c.partner_id = partner_id;
+                c.is_host = is_host;
+                c.friend_id = friend_id;
+                c.sesh_friend_id = sesh_friend_id;
+                c.friend_light_color = friend_light_color;
+                c.friend_dark_color = friend_dark_color;
+                c.partner_username = partner_username;
+                c.partner_friend_id = partner_friend_id;
+                c.partner_friend_name = partner_friend_name;
+                c.partner_room = partner_room.clone();
+            } else if send_initial_score_state {
+                c.partner_id = None;
+                c.is_host = false;
+                c.friend_id = None;
+                c.sesh_friend_id = None;
+                c.friend_light_color = None;
+                c.friend_dark_color = None;
+                c.partner_username = None;
+                c.partner_friend_id = None;
+                c.partner_friend_name = None;
+                c.partner_room = None;
+            }
         }
     }
 
