@@ -77,6 +77,10 @@ urlpatterns = [
         name="rust-live-sesh-context",
     ),
     path(
+        "internal/gecko/check-host-link-and-load/",
+        views.rust_check_host_link_and_load,
+    ),
+    path(
         "internal/gecko/socket-action/",
         views.gecko_socket_action,
         name="rust-gecko-socket-action",

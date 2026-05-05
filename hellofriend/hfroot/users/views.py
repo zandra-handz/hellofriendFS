@@ -1223,6 +1223,125 @@ def rust_live_sesh_context(request):
     })
 
 
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def rust_check_host_link_and_load(request):
+    secret = request.headers.get("X-Rust-Internal-Secret")
+    if secret != getattr(settings, "RUST_INTERNAL_SECRET", None):
+        return response.Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+    body = request.data or {}
+    user_id = body.get("user_id")
+    partner_id = body.get("partner_id")
+
+    try:
+        user_id = int(user_id)
+        partner_id = int(partner_id)
+    except (TypeError, ValueError):
+        return response.Response(
+            {
+                "action": "capsule_matches_ready",
+                "data": {
+                    "completed": False,
+                    "reason": "invalid_user_or_partner_id",
+                },
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    User = apps.get_model(
+        settings.AUTH_USER_MODEL.split(".")[0],
+        settings.AUTH_USER_MODEL.split(".")[1],
+    )
+
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return response.Response(
+            {
+                "action": "capsule_matches_ready",
+                "data": {
+                    "completed": False,
+                    "reason": "unknown_user",
+                },
+            },
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    sesh = (
+        models.UserFriendCurrentLiveSesh.objects
+        .filter(
+            user_id=user_id,
+            other_user_id=partner_id,
+            expires_at__gt=timezone.now(),
+        )
+        .select_related("friend", "other_user")
+        .first()
+    )
+
+    if sesh is None:
+        return response.Response({
+            "action": "capsule_matches_ready",
+            "data": {
+                "completed": False,
+                "reason": "no_active_sesh",
+                "guest_user_id": user_id,
+                "host_user_id": partner_id,
+                "is_linked": False,
+                "matches": [],
+            },
+        })
+
+    if sesh.is_host:
+        return response.Response({
+            "action": "capsule_matches_ready",
+            "data": {
+                "completed": False,
+                "reason": "caller_is_host",
+                "guest_user_id": user_id,
+                "host_user_id": partner_id,
+                "is_linked": False,
+                "matches": [],
+            },
+        })
+
+    try:
+        from .gecko_match_helpers import handle_request_capsule_matches
+
+        # This should reuse the same helper your Rust socket already calls for
+        # action == "request_capsule_matches".
+        payload = handle_request_capsule_matches(user_id)
+
+    except Exception:
+        logger.exception(
+            "[rust_check_host_link_and_load] failed user=%s partner=%s",
+            user_id,
+            partner_id,
+        )
+        return response.Response(
+            {
+                "action": "capsule_matches_ready",
+                "data": {
+                    "completed": False,
+                    "reason": "internal_error",
+                    "guest_user_id": user_id,
+                    "host_user_id": partner_id,
+                    "is_linked": False,
+                    "matches": [],
+                },
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    return response.Response(payload)
+
+
+
+
+
+
+
 # ---------------------------------------------------------------------------
 # Rust socket -> Django: business-logic endpoint.
 # Rust forwards heavy/validating actions here (POST {action, data, user_id})
