@@ -76,6 +76,11 @@ urlpatterns = [
         views.rust_live_sesh_context,
         name="rust-live-sesh-context",
     ),
+    path(
+        "internal/gecko/socket-action/",
+        views.gecko_socket_action,
+        name="rust-gecko-socket-action",
+    ),
 
     path('live-sesh/current/', views.get_current_live_sesh, name='live-sesh-current'),
     path('live-sesh/current/cancel/', views.cancel_current_live_sesh, name='live-sesh-current-cancel'),       

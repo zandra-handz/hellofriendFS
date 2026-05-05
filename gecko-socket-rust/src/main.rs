@@ -540,14 +540,45 @@
 
 
 
+// =====================================================================
+// Active server.
+//
+// Wire format parity with Django consumers.py:
+//   - JSON text frames for every action EXCEPT the five high-frequency
+//     broadcasts below, which are sent as msgpack binary frames.
+//     Frontend (binary_ws_frontend_instructions.md) decodes ArrayBuffer
+//     as msgpack and falls back to JSON.parse for text.
+//   - Inbound supports both: JSON text and msgpack binary frames.
+//
+// Server-pushed actions (score_state pushes, flush_ack, win flow,
+// capsule_matches_ready, live_sesh_cancelled, force_disconnect, ...)
+// are NOT reimplemented here. Django pushes them via the internal HTTP
+// routes below, and Rust just forwards to the right socket(s):
+//   POST /internal/push/user        { user_id, action, data, close_after? }
+//   POST /internal/push/room        { room, action, data, exclude_user_id? }
+//   POST /internal/disconnect-user  { user_id }
+// All three require X-Rust-Internal-Secret matching env RUST_INTERNAL_SECRET.
+//
+// Django endpoints Rust calls:
+//   GET  /internal/gecko/live-sesh-context/?user_id=N
+//        -> { partner_id, is_host, friend_id, friend_light_color,
+//             friend_dark_color, partner_username, partner_friend_id,
+//             partner_friend_name, sesh_friend_id, score_state }
+//   POST /users/internal/gecko/socket-action/
+//        -> { action, data }     (direct ack to caller; broadcasts to
+//                                  peers should be triggered by Django
+//                                  via the push routes above)
+// =====================================================================
+
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
         Query, State,
     },
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
-    routing::get,
-    Router,
+    routing::{get, post},
+    Json, Router,
 };
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
@@ -556,7 +587,7 @@ use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
     sync::Arc,
-    time::{Duration, Instant},
+    time::Instant,
 };
 use tokio::sync::{mpsc, RwLock};
 use uuid::Uuid;
@@ -568,11 +599,22 @@ type Tx = mpsc::UnboundedSender<Message>;
 
 const DJANGO_BASE_URL: &str = "http://127.0.0.1:8000";
 
+// Actions that ship as msgpack binary to match consumers.py ormsgpack output.
+// Everything else stays JSON text.
+const BINARY_OUTBOUND_ACTIONS: &[&str] = &[
+    "gecko_coords",
+    "host_gecko_coords",
+    "guest_gecko_coords",
+    "all_host_capsules",
+    "capsule_progress",
+];
+
 #[derive(Clone)]
 struct AppState {
     clients: Arc<RwLock<HashMap<ClientId, Client>>>,
     rooms: Arc<RwLock<HashMap<RoomName, HashSet<ClientId>>>>,
     http: reqwest::Client,
+    internal_secret: String,
 }
 
 #[derive(Clone)]
@@ -582,6 +624,10 @@ struct Client {
     friend_id: Option<u64>,
     is_host: bool,
     partner_id: Option<u64>,
+    partner_username: Option<String>,
+    partner_friend_id: Option<u64>,
+    partner_friend_name: Option<String>,
+    sesh_friend_id: Option<u64>,
     own_room: RoomName,
     shared_room: RoomName,
     partner_room: Option<RoomName>,
@@ -596,16 +642,33 @@ struct WsQuery {
     user_id: Option<UserId>,
 }
 
-#[derive(Debug, Deserialize)]
-struct IncomingMessage {
-    action: String,
-    data: Option<Value>,
-}
-
 #[derive(Debug, Serialize)]
 struct OutgoingMessage {
     action: String,
     data: Value,
+}
+
+#[derive(Debug, Deserialize)]
+struct PushUserBody {
+    user_id: UserId,
+    action: String,
+    data: Value,
+    #[serde(default)]
+    close_after: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct PushRoomBody {
+    room: String,
+    action: String,
+    data: Value,
+    #[serde(default)]
+    exclude_user_id: Option<UserId>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DisconnectUserBody {
+    user_id: UserId,
 }
 
 #[tokio::main]
@@ -614,12 +677,20 @@ async fn main() {
         clients: Arc::new(RwLock::new(HashMap::new())),
         rooms: Arc::new(RwLock::new(HashMap::new())),
         http: reqwest::Client::new(),
+        internal_secret: std::env::var("RUST_INTERNAL_SECRET").unwrap_or_default(),
     };
+
+    if state.internal_secret.is_empty() {
+        println!("WARNING: RUST_INTERNAL_SECRET is empty — internal push routes will reject all calls");
+    }
 
     let app = Router::new()
         .route("/", get(root))
         .route("/ws/gecko-rust-test", get(ws_handler))
         .route("/ws/gecko-rust-test/", get(ws_handler))
+        .route("/internal/push/user", post(internal_push_user))
+        .route("/internal/push/room", post(internal_push_room))
+        .route("/internal/disconnect-user", post(internal_disconnect_user))
         .with_state(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 4000));
@@ -652,6 +723,10 @@ async fn handle_socket(socket: WebSocket, query: WsQuery, state: AppState) {
         return;
     };
 
+    // Single-active-channel: kick any older socket(s) for this user before
+    // registering the new one (mirrors consumer's force_disconnect path).
+    evict_existing_user(&state, user_id).await;
+
     let client_id = Uuid::new_v4().to_string();
     let own_room = format!("gecko_energy_{}", user_id);
     let shared_room = format!("gecko_shared_with_friend_{}", user_id);
@@ -669,6 +744,10 @@ async fn handle_socket(socket: WebSocket, query: WsQuery, state: AppState) {
                 friend_id: None,
                 is_host: false,
                 partner_id: None,
+                partner_username: None,
+                partner_friend_id: None,
+                partner_friend_name: None,
+                sesh_friend_id: None,
                 own_room: own_room.clone(),
                 shared_room: shared_room.clone(),
                 partner_room: None,
@@ -683,7 +762,7 @@ async fn handle_socket(socket: WebSocket, query: WsQuery, state: AppState) {
     join_room(&state, &own_room, &client_id).await;
     join_room(&state, &shared_room, &client_id).await;
 
-    send_json(
+    send_outgoing(
         &tx,
         OutgoingMessage {
             action: "rust_connected".to_string(),
@@ -696,11 +775,17 @@ async fn handle_socket(socket: WebSocket, query: WsQuery, state: AppState) {
         },
     );
 
-    hydrate_live_sesh_context(&state, &client_id).await;
+    // Hydrate from Django: pulls live-sesh state AND the initial score_state.
+    // The score_state push to FE happens inside hydrate_live_sesh_context.
+    hydrate_live_sesh_context(&state, &client_id, true).await;
 
     let send_task = tokio::spawn(async move {
         while let Some(message) = rx.recv().await {
+            let is_close = matches!(message, Message::Close(_));
             if socket_sender.send(message).await.is_err() {
+                break;
+            }
+            if is_close {
                 break;
             }
         }
@@ -714,23 +799,44 @@ async fn handle_socket(socket: WebSocket, query: WsQuery, state: AppState) {
             match result {
                 Ok(Message::Text(text)) => {
                     mark_seen(&recv_state, &recv_client_id).await;
-                    handle_text_message(&recv_state, &recv_client_id, text.to_string()).await;
+                    match serde_json::from_str::<Value>(&text) {
+                        Ok(value) => {
+                            handle_incoming(&recv_state, &recv_client_id, value).await;
+                        }
+                        Err(_) => {
+                            send_to_client(
+                                &recv_state,
+                                &recv_client_id,
+                                OutgoingMessage {
+                                    action: "rust_error".to_string(),
+                                    data: json!({ "reason": "invalid_json", "raw": text.to_string() }),
+                                },
+                            )
+                            .await;
+                        }
+                    }
                 }
                 Ok(Message::Binary(bytes)) => {
                     mark_seen(&recv_state, &recv_client_id).await;
-
-                    send_to_client(
-                        &recv_state,
-                        &recv_client_id,
-                        OutgoingMessage {
-                            action: "rust_error".to_string(),
-                            data: json!({
-                                "reason": "binary_not_enabled_yet",
-                                "bytes_len": bytes.len(),
-                            }),
-                        },
-                    )
-                    .await;
+                    match rmp_serde::from_slice::<Value>(&bytes) {
+                        Ok(value) => {
+                            handle_incoming(&recv_state, &recv_client_id, value).await;
+                        }
+                        Err(_) => {
+                            send_to_client(
+                                &recv_state,
+                                &recv_client_id,
+                                OutgoingMessage {
+                                    action: "rust_error".to_string(),
+                                    data: json!({
+                                        "reason": "invalid_msgpack",
+                                        "bytes_len": bytes.len(),
+                                    }),
+                                },
+                            )
+                            .await;
+                        }
+                    }
                 }
                 Ok(Message::Ping(_)) | Ok(Message::Pong(_)) => {
                     mark_seen(&recv_state, &recv_client_id).await;
@@ -752,23 +858,15 @@ async fn handle_socket(socket: WebSocket, query: WsQuery, state: AppState) {
     disconnect_cleanup(&state, &client_id).await;
 }
 
-async fn handle_text_message(state: &AppState, client_id: &str, text: String) {
-    let parsed: Result<IncomingMessage, _> = serde_json::from_str(&text);
+async fn handle_incoming(state: &AppState, client_id: &str, value: Value) {
+    let action = value
+        .get("action")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let data = value.get("data").cloned();
 
-    let Ok(message) = parsed else {
-        send_to_client(
-            state,
-            client_id,
-            OutgoingMessage {
-                action: "rust_error".to_string(),
-                data: json!({ "reason": "invalid_json", "raw": text }),
-            },
-        )
-        .await;
-        return;
-    };
-
-    match message.action.as_str() {
+    match action.as_str() {
         "ping" => {
             send_to_client(
                 state,
@@ -781,32 +879,37 @@ async fn handle_text_message(state: &AppState, client_id: &str, text: String) {
             .await;
         }
 
-        "set_friend" => handle_set_friend(state, client_id, message.data).await,
+        "set_friend" => handle_set_friend(state, client_id, data).await,
         "join_live_sesh" => handle_join_live_sesh(state, client_id).await,
         "leave_live_sesh" => handle_leave_live_sesh(state, client_id).await,
         "request_peer_presence" => handle_request_peer_presence(state, client_id).await,
 
         "get_gecko_message" => handle_get_gecko_message(state, client_id).await,
         "send_front_end_text_to_gecko" => {
-            handle_send_front_end_text_to_gecko(state, client_id, message.data).await
+            handle_send_front_end_text_to_gecko(state, client_id, data).await
         }
         "send_read_status_to_gecko" => {
-            handle_send_read_status_to_gecko(state, client_id, message.data).await
+            handle_send_read_status_to_gecko(state, client_id, data).await
         }
 
         "get_gecko_screen_position" => handle_get_gecko_screen_position(state, client_id).await,
-        "update_gecko_position" => handle_update_gecko_position(state, client_id, message.data).await,
+        "update_gecko_position" => handle_update_gecko_position(state, client_id, data).await,
         "update_host_gecko_position" => {
-            handle_update_host_gecko_position(state, client_id, message.data).await
+            handle_update_host_gecko_position(state, client_id, data).await
         }
         "update_guest_gecko_position" => {
-            handle_update_guest_gecko_position(state, client_id, message.data).await
+            handle_update_guest_gecko_position(state, client_id, data).await
         }
         "update_capsule_progress" => {
-            handle_update_capsule_progress(state, client_id, message.data).await
+            handle_update_capsule_progress(state, client_id, data).await
         }
-        "send_all_host_capsules" => handle_send_all_host_capsules(state, client_id, message.data).await,
+        "send_all_host_capsules" => {
+            handle_send_all_host_capsules(state, client_id, data).await
+        }
 
+        // Heavy server-side validation lives in Django. Rust just forwards.
+        // Django returns the direct ack; any peer broadcasts come back via
+        // the /internal/push/* routes.
         "get_score_state"
         | "update_gecko_data"
         | "flush"
@@ -817,7 +920,7 @@ async fn handle_text_message(state: &AppState, client_id: &str, text: String) {
         | "propose_gecko_match_win"
         | "send_validate_win_request"
         | "send_validate_match_win_request" => {
-            proxy_action_to_django(state, client_id, &message.action, message.data).await;
+            proxy_action_to_django(state, client_id, &action, data).await;
         }
 
         _ => {
@@ -828,7 +931,7 @@ async fn handle_text_message(state: &AppState, client_id: &str, text: String) {
                     action: "rust_error".to_string(),
                     data: json!({
                         "reason": "unknown_action",
-                        "action": message.action,
+                        "action": action,
                     }),
                 },
             )
@@ -853,6 +956,28 @@ async fn handle_set_friend(state: &AppState, client_id: &str, data: Option<Value
         .await;
         return;
     };
+
+    // Mirror consumer's host/sesh check: if we're a host with a known
+    // sesh_friend_id, the FE-supplied friend_id has to match it.
+    let client_snap = get_client(state, client_id).await;
+    if let Some(c) = &client_snap {
+        if c.is_host {
+            if let Some(sfid) = c.sesh_friend_id {
+                if sfid != friend_id {
+                    send_to_client(
+                        state,
+                        client_id,
+                        OutgoingMessage {
+                            action: "set_friend_failed".to_string(),
+                            data: json!({ "reason": "sesh_friend_mismatch" }),
+                        },
+                    )
+                    .await;
+                    return;
+                }
+            }
+        }
+    }
 
     {
         let mut clients = state.clients.write().await;
@@ -881,7 +1006,7 @@ async fn handle_set_friend(state: &AppState, client_id: &str, data: Option<Value
 }
 
 async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
-    hydrate_live_sesh_context(state, client_id).await;
+    hydrate_live_sesh_context(state, client_id, false).await;
 
     let client = get_client(state, client_id).await;
     let Some(client) = client else { return };
@@ -904,8 +1029,8 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
 
     {
         let mut clients = state.clients.write().await;
-        if let Some(client) = clients.get_mut(client_id) {
-            client.partner_room = Some(partner_room.clone());
+        if let Some(c) = clients.get_mut(client_id) {
+            c.partner_room = Some(partner_room.clone());
         }
     }
 
@@ -916,9 +1041,9 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
             action: "join_live_sesh_ok".to_string(),
             data: json!({
                 "partner_id": partner_id,
-                "partner_username": null,
-                "partner_friend_id": null,
-                "partner_friend_name": null,
+                "partner_username": client.partner_username,
+                "partner_friend_id": client.partner_friend_id,
+                "partner_friend_name": client.partner_friend_name,
             }),
         },
     )
@@ -927,7 +1052,7 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
     broadcast_to_room(
         state,
         &client.shared_room,
-        Some(client_id),
+        Some(client.user_id),
         OutgoingMessage {
             action: "peer_presence".to_string(),
             data: json!({
@@ -948,7 +1073,7 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
     broadcast_to_room(
         state,
         &client.shared_room,
-        Some(client_id),
+        Some(client.user_id),
         OutgoingMessage {
             action: "peer_presence".to_string(),
             data: json!({
@@ -965,7 +1090,7 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
         broadcast_to_room(
             state,
             &client.shared_room,
-            Some(client_id),
+            Some(client.user_id),
             OutgoingMessage {
                 action: "host_gecko_coords".to_string(),
                 data: json!({
@@ -988,7 +1113,7 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
         broadcast_to_room(
             state,
             &client.shared_room,
-            Some(client_id),
+            Some(client.user_id),
             OutgoingMessage {
                 action: "guest_gecko_coords".to_string(),
                 data: json!({
@@ -1008,9 +1133,9 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
 
     {
         let mut clients = state.clients.write().await;
-        if let Some(client) = clients.get_mut(client_id) {
-            client.partner_room = None;
-            client.is_host = false;
+        if let Some(c) = clients.get_mut(client_id) {
+            c.partner_room = None;
+            c.is_host = false;
         }
     }
 
@@ -1045,7 +1170,7 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
     broadcast_to_room(
         state,
         &partner_room,
-        Some(client_id),
+        Some(client.user_id),
         OutgoingMessage {
             action: "peer_presence_request".to_string(),
             data: json!({
@@ -1128,9 +1253,7 @@ async fn handle_send_read_status_to_gecko(
     handle_send_front_end_text_to_gecko(
         state,
         client_id,
-        Some(json!({
-            "message": message
-        })),
+        Some(json!({ "message": message })),
     )
     .await;
 }
@@ -1167,7 +1290,7 @@ async fn handle_update_gecko_position(state: &AppState, client_id: &str, data: O
     broadcast_to_room(
         state,
         &client.shared_room,
-        Some(client_id),
+        Some(client.user_id),
         OutgoingMessage {
             action: "gecko_coords".to_string(),
             data: json!({
@@ -1197,7 +1320,7 @@ async fn handle_update_host_gecko_position(
     broadcast_to_room(
         state,
         &client.shared_room,
-        Some(client_id),
+        Some(client.user_id),
         OutgoingMessage {
             action: "host_gecko_coords".to_string(),
             data: json!({
@@ -1235,7 +1358,7 @@ async fn handle_update_guest_gecko_position(
     broadcast_to_room(
         state,
         &client.shared_room,
-        Some(client_id),
+        Some(client.user_id),
         OutgoingMessage {
             action: "guest_gecko_coords".to_string(),
             data: json!({
@@ -1259,16 +1382,19 @@ async fn handle_update_capsule_progress(
 
     let payload = data.unwrap_or_else(|| json!({}));
     let capsule_id = payload.get("capsule_id").cloned();
-    let new_progress = payload.get("new_progress").cloned();
+    let new_progress_raw = payload.get("new_progress").cloned();
 
-    if capsule_id.is_none() || new_progress.is_none() {
-        return;
-    }
+    let Some(capsule_id) = capsule_id else { return };
+    let Some(new_progress_raw) = new_progress_raw else { return };
+
+    // Match consumer: cast to int.
+    let new_progress = new_progress_raw.as_f64().map(|n| n as i64);
+    let Some(new_progress) = new_progress else { return };
 
     broadcast_to_room(
         state,
         &client.shared_room,
-        Some(client_id),
+        Some(client.user_id),
         OutgoingMessage {
             action: "capsule_progress".to_string(),
             data: json!({
@@ -1299,7 +1425,7 @@ async fn handle_send_all_host_capsules(
     broadcast_to_room(
         state,
         &client.shared_room,
-        Some(client_id),
+        Some(client.user_id),
         OutgoingMessage {
             action: "all_host_capsules".to_string(),
             data: json!({
@@ -1325,13 +1451,30 @@ async fn proxy_action_to_django(
 
     let url = format!("{}/users/internal/gecko/socket-action/", DJANGO_BASE_URL);
 
+    // Inject server-tracked context the FE doesn't send (friend_id, is_host)
+    // so Django doesn't have to re-derive them. Don't overwrite caller-set
+    // keys — the FE may legitimately supply them.
+    let mut data_with_ctx = match data.unwrap_or_else(|| json!({})) {
+        Value::Object(map) => map,
+        _ => serde_json::Map::new(),
+    };
+    if !data_with_ctx.contains_key("friend_id") {
+        if let Some(fid) = client.friend_id {
+            data_with_ctx.insert("friend_id".to_string(), json!(fid));
+        }
+    }
+    if !data_with_ctx.contains_key("is_host") {
+        data_with_ctx.insert("is_host".to_string(), json!(client.is_host));
+    }
+
     let response = state
         .http
         .post(url)
+        .header("X-Rust-Internal-Secret", &state.internal_secret)
         .json(&json!({
             "user_id": client.user_id,
             "action": action,
-            "data": data.unwrap_or_else(|| json!({})),
+            "data": Value::Object(data_with_ctx),
         }))
         .send()
         .await;
@@ -1385,22 +1528,24 @@ async fn proxy_action_to_django(
     }
 }
 
-async fn hydrate_live_sesh_context(state: &AppState, client_id: &str) {
+// `send_initial_score_state`: when called during connect, also forward the
+// score_state field (if present) to the freshly-connected client so the FE
+// gets the same first frame consumer.py sends right after accept().
+async fn hydrate_live_sesh_context(state: &AppState, client_id: &str, send_initial_score_state: bool) {
     let client = get_client(state, client_id).await;
     let Some(client) = client else { return };
 
     let url = format!(
-        "{}/internal/gecko/live-sesh-context/?user_id={}",
+        "{}/users/internal/gecko/live-sesh-context/?user_id={}",
         DJANGO_BASE_URL, client.user_id
     );
 
-    // let response = state.http.get(url).send().await;
     let response = state
-    .http
-    .get(url)
-    .header("X-Rust-Internal-Secret", std::env::var("RUST_INTERNAL_SECRET").unwrap_or_default())
-    .send()
-    .await;
+        .http
+        .get(url)
+        .header("X-Rust-Internal-Secret", &state.internal_secret)
+        .send()
+        .await;
 
     let Ok(response) = response else {
         return;
@@ -1417,6 +1562,7 @@ async fn hydrate_live_sesh_context(state: &AppState, client_id: &str) {
         .and_then(|v| v.as_bool())
         .unwrap_or(false);
     let friend_id = value.get("friend_id").and_then(|v| v.as_u64());
+    let sesh_friend_id = value.get("sesh_friend_id").and_then(|v| v.as_u64());
 
     let friend_light_color = value
         .get("friend_light_color")
@@ -1428,14 +1574,30 @@ async fn hydrate_live_sesh_context(state: &AppState, client_id: &str) {
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
+    let partner_username = value
+        .get("partner_username")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let partner_friend_id = value.get("partner_friend_id").and_then(|v| v.as_u64());
+
+    let partner_friend_name = value
+        .get("partner_friend_name")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
     {
         let mut clients = state.clients.write().await;
-        if let Some(client) = clients.get_mut(client_id) {
-            client.partner_id = partner_id;
-            client.is_host = is_host;
-            client.friend_id = friend_id;
-            client.friend_light_color = friend_light_color;
-            client.friend_dark_color = friend_dark_color;
+        if let Some(c) = clients.get_mut(client_id) {
+            c.partner_id = partner_id;
+            c.is_host = is_host;
+            c.friend_id = friend_id;
+            c.sesh_friend_id = sesh_friend_id;
+            c.friend_light_color = friend_light_color;
+            c.friend_dark_color = friend_dark_color;
+            c.partner_username = partner_username;
+            c.partner_friend_id = partner_friend_id;
+            c.partner_friend_name = partner_friend_name;
         }
     }
 
@@ -1444,8 +1606,22 @@ async fn hydrate_live_sesh_context(state: &AppState, client_id: &str) {
         join_room(state, &partner_room, client_id).await;
 
         let mut clients = state.clients.write().await;
-        if let Some(client) = clients.get_mut(client_id) {
-            client.partner_room = Some(partner_room);
+        if let Some(c) = clients.get_mut(client_id) {
+            c.partner_room = Some(partner_room);
+        }
+    }
+
+    if send_initial_score_state {
+        if let Some(score_state) = value.get("score_state").cloned() {
+            send_to_client(
+                state,
+                client_id,
+                OutgoingMessage {
+                    action: "score_state".to_string(),
+                    data: score_state,
+                },
+            )
+            .await;
         }
     }
 }
@@ -1457,7 +1633,7 @@ async fn disconnect_cleanup(state: &AppState, client_id: &str) {
         broadcast_to_room(
             state,
             &client.shared_room,
-            Some(client_id),
+            Some(client.user_id),
             OutgoingMessage {
                 action: "peer_presence".to_string(),
                 data: json!({
@@ -1482,6 +1658,30 @@ async fn disconnect_cleanup(state: &AppState, client_id: &str) {
             set.remove(client_id);
         }
         rooms.retain(|_, set| !set.is_empty());
+    }
+}
+
+async fn evict_existing_user(state: &AppState, user_id: UserId) {
+    let to_evict: Vec<(ClientId, Tx)> = {
+        let clients = state.clients.read().await;
+        clients
+            .iter()
+            .filter(|(_, c)| c.user_id == user_id)
+            .map(|(id, c)| (id.clone(), c.tx.clone()))
+            .collect()
+    };
+
+    for (cid, tx) in to_evict {
+        // Best-effort warning frame so the FE knows it was kicked, then close.
+        let warn = OutgoingMessage {
+            action: "force_disconnect".to_string(),
+            data: json!({ "reason": "superseded_by_new_connection" }),
+        };
+        if let Some(msg) = encode_outgoing(&warn) {
+            let _ = tx.send(msg);
+        }
+        let _ = tx.send(Message::Close(None));
+        println!("evicting older socket for user_id={} client_id={}", user_id, cid);
     }
 }
 
@@ -1516,22 +1716,18 @@ async fn get_client(state: &AppState, client_id: &str) -> Option<Client> {
 async fn send_to_client(state: &AppState, client_id: &str, message: OutgoingMessage) {
     let clients = state.clients.read().await;
     if let Some(client) = clients.get(client_id) {
-        send_json(&client.tx, message);
+        send_outgoing(&client.tx, message);
     }
 }
 
 async fn broadcast_to_room(
     state: &AppState,
     room_name: &str,
-    exclude_client_id: Option<&str>,
+    exclude_user_id: Option<UserId>,
     message: OutgoingMessage,
 ) {
-    let encoded = match serde_json::to_string(&message) {
-        Ok(value) => value,
-        Err(err) => {
-            println!("failed to encode outgoing message: {}", err);
-            return;
-        }
+    let Some(encoded) = encode_outgoing(&message) else {
+        return;
     };
 
     let room_client_ids = {
@@ -1546,28 +1742,171 @@ async fn broadcast_to_room(
     let clients = state.clients.read().await;
 
     for room_client_id in room_client_ids {
-        if exclude_client_id == Some(room_client_id.as_str()) {
-            continue;
-        }
-
         if let Some(client) = clients.get(&room_client_id) {
-            let _ = client.tx.send(Message::Text(encoded.clone().into()));
+            if Some(client.user_id) == exclude_user_id {
+                continue;
+            }
+            let _ = client.tx.send(encoded.clone());
         }
     }
 }
 
-fn send_json(tx: &Tx, message: OutgoingMessage) {
-    match serde_json::to_string(&message) {
-        Ok(encoded) => {
-            let _ = tx.send(Message::Text(encoded.into()));
+fn send_outgoing(tx: &Tx, message: OutgoingMessage) {
+    if let Some(msg) = encode_outgoing(&message) {
+        let _ = tx.send(msg);
+    }
+}
+
+fn encode_outgoing(message: &OutgoingMessage) -> Option<Message> {
+    if BINARY_OUTBOUND_ACTIONS.contains(&message.action.as_str()) {
+        match rmp_serde::to_vec_named(message) {
+            Ok(bytes) => Some(Message::Binary(bytes.into())),
+            Err(err) => {
+                println!("failed to encode msgpack action={}: {}", message.action, err);
+                None
+            }
         }
-        Err(err) => {
-            println!("failed to encode json: {}", err);
+    } else {
+        match serde_json::to_string(message) {
+            Ok(s) => Some(Message::Text(s.into())),
+            Err(err) => {
+                println!("failed to encode json action={}: {}", message.action, err);
+                None
+            }
         }
     }
 }
 
+// =====================================================================
+// Internal HTTP routes — Django pushes server-initiated socket traffic
+// here. Auth: X-Rust-Internal-Secret header must match env secret.
+// =====================================================================
 
+fn check_internal_auth(state: &AppState, headers: &HeaderMap) -> Result<(), StatusCode> {
+    if state.internal_secret.is_empty() {
+        return Err(StatusCode::UNAUTHORIZED);
+    }
+    let provided = headers
+        .get("X-Rust-Internal-Secret")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    if provided == state.internal_secret {
+        Ok(())
+    } else {
+        Err(StatusCode::UNAUTHORIZED)
+    }
+}
 
-//need to add        GET  /internal/gecko/live-sesh-context/?user_id=2
-//                 POST /internal/gecko/socket-action/
+async fn internal_push_user(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<PushUserBody>,
+) -> impl IntoResponse {
+    if let Err(code) = check_internal_auth(&state, &headers) {
+        return code.into_response();
+    }
+
+    let txs: Vec<Tx> = {
+        let clients = state.clients.read().await;
+        clients
+            .values()
+            .filter(|c| c.user_id == body.user_id)
+            .map(|c| c.tx.clone())
+            .collect()
+    };
+
+    if txs.is_empty() {
+        return (StatusCode::OK, Json(json!({ "delivered": 0 }))).into_response();
+    }
+
+    let outgoing = OutgoingMessage {
+        action: body.action,
+        data: body.data,
+    };
+    let Some(encoded) = encode_outgoing(&outgoing) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    let mut delivered = 0usize;
+    for tx in &txs {
+        if tx.send(encoded.clone()).is_ok() {
+            delivered += 1;
+        }
+    }
+
+    if body.close_after {
+        for tx in &txs {
+            let _ = tx.send(Message::Close(None));
+        }
+    }
+
+    (StatusCode::OK, Json(json!({ "delivered": delivered }))).into_response()
+}
+
+async fn internal_push_room(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<PushRoomBody>,
+) -> impl IntoResponse {
+    if let Err(code) = check_internal_auth(&state, &headers) {
+        return code.into_response();
+    }
+
+    let outgoing = OutgoingMessage {
+        action: body.action,
+        data: body.data,
+    };
+    let Some(encoded) = encode_outgoing(&outgoing) else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    let room_client_ids = {
+        let rooms = state.rooms.read().await;
+        rooms.get(&body.room).cloned()
+    };
+
+    let Some(room_client_ids) = room_client_ids else {
+        return (StatusCode::OK, Json(json!({ "delivered": 0 }))).into_response();
+    };
+
+    let clients = state.clients.read().await;
+    let mut delivered = 0usize;
+    for cid in room_client_ids {
+        if let Some(c) = clients.get(&cid) {
+            if Some(c.user_id) == body.exclude_user_id {
+                continue;
+            }
+            if c.tx.send(encoded.clone()).is_ok() {
+                delivered += 1;
+            }
+        }
+    }
+
+    (StatusCode::OK, Json(json!({ "delivered": delivered }))).into_response()
+}
+
+async fn internal_disconnect_user(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<DisconnectUserBody>,
+) -> impl IntoResponse {
+    if let Err(code) = check_internal_auth(&state, &headers) {
+        return code.into_response();
+    }
+
+    let txs: Vec<Tx> = {
+        let clients = state.clients.read().await;
+        clients
+            .values()
+            .filter(|c| c.user_id == body.user_id)
+            .map(|c| c.tx.clone())
+            .collect()
+    };
+
+    let count = txs.len();
+    for tx in txs {
+        let _ = tx.send(Message::Close(None));
+    }
+
+    (StatusCode::OK, Json(json!({ "closed": count }))).into_response()
+}

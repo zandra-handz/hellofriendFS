@@ -1096,13 +1096,9 @@ def end_current_live_sesh(request):
             user_id__in=[user.id, partner_id],
         ).update(expires_at=now)
 
-    channel_layer = get_channel_layer()
-    if channel_layer is not None:
-        for uid in (user.id, partner_id):
-            async_to_sync(channel_layer.group_send)(
-                f'gecko_energy_{uid}',
-                {'type': 'sesh_context_refresh', 'partner_id': None},
-            )
+    from .rust_push import refresh_sesh_context
+    for uid in (user.id, partner_id):
+        refresh_sesh_context(uid, None)
 
     return response.Response(
         {'detail': 'Live sesh ended.', 'partner_id': partner_id},
@@ -1113,9 +1109,6 @@ def end_current_live_sesh(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def cancel_current_live_sesh(request):
-    from asgiref.sync import async_to_sync
-    from channels.layers import get_channel_layer
-
     user = request.user
     sesh = models.UserFriendCurrentLiveSesh.objects.filter(user=user).first()
     if not sesh:
@@ -1132,15 +1125,12 @@ def cancel_current_live_sesh(request):
             user_id__in=[user.id, partner_id],
         ).update(expires_at=now)
 
-    # Force-disconnect both gecko sockets if they're connected.
-    channel_layer = get_channel_layer()
-    if channel_layer is not None:
-        payload = {'cancelled_by': user.id}
-        for uid in (user.id, partner_id):
-            async_to_sync(channel_layer.group_send)(
-                f'gecko_energy_{uid}',
-                {'type': 'live_sesh_cancelled', 'data': payload},
-            )
+    # Force-disconnect both gecko sockets if they're connected (channels +
+    # Rust). cancel_live_sesh delivers live_sesh_cancelled then closes.
+    from .rust_push import cancel_live_sesh
+    payload = {'cancelled_by': user.id}
+    for uid in (user.id, partner_id):
+        cancel_live_sesh(uid, payload)
 
     return response.Response(
         {'detail': 'Live sesh cancelled.', 'partner_id': partner_id},
@@ -1181,18 +1171,33 @@ def rust_live_sesh_context(request):
         .first()
     )
 
+    # Load score_state so the Rust socket can forward it as the initial
+    # `score_state` frame on connect (matches consumers.py:633).
+    from .gecko_score_helpers import load_initial_score_payload
+    User = apps.get_model(settings.AUTH_USER_MODEL.split(".")[0], settings.AUTH_USER_MODEL.split(".")[1])
+    try:
+        user_obj = User.objects.get(pk=user_id)
+        score_state = load_initial_score_payload(user_obj)
+    except User.DoesNotExist:
+        score_state = None
+    except Exception:
+        logger.exception("[rust_live_sesh_context] failed to load score_state user=%s", user_id)
+        score_state = None
+
     if not sesh:
         return response.Response({
             "user_id": user_id,
             "partner_id": None,
             "is_host": False,
             "friend_id": None,
+            "sesh_friend_id": None,
             "friend_light_color": None,
             "friend_dark_color": None,
             "gecko_play_mode": None,
             "partner_username": None,
             "partner_friend_id": None,
             "partner_friend_name": None,
+            "score_state": score_state,
         })
 
     partner_friend = (
@@ -1207,13 +1212,143 @@ def rust_live_sesh_context(request):
         "partner_id": sesh.other_user_id,
         "is_host": sesh.is_host,
         "friend_id": sesh.friend_id,
+        "sesh_friend_id": sesh.friend_id,
         "friend_light_color": sesh.friend.theme_color_light if sesh.friend else None,
         "friend_dark_color": sesh.friend.theme_color_dark if sesh.friend else None,
         "gecko_play_mode": sesh.gecko_play_mode,
         "partner_username": sesh.other_user.username if sesh.other_user else None,
         "partner_friend_id": partner_friend["id"] if partner_friend else None,
         "partner_friend_name": partner_friend["name"] if partner_friend else None,
+        "score_state": score_state,
     })
+
+
+# ---------------------------------------------------------------------------
+# Rust socket -> Django: business-logic endpoint.
+# Rust forwards heavy/validating actions here (POST {action, data, user_id})
+# and relays the response back to the calling FE socket. For actions that
+# also need to broadcast to other users (win flow, capsule_matches_ready,
+# etc.), this view should additionally call rust_push.notify_user(...) to
+# push to the partner's socket(s).
+# ---------------------------------------------------------------------------
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def gecko_socket_action(request):
+    secret = request.headers.get("X-Rust-Internal-Secret")
+    if secret != getattr(settings, "RUST_INTERNAL_SECRET", None):
+        return response.Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+
+    body = request.data or {}
+    user_id = body.get("user_id")
+    action = body.get("action")
+    data = body.get("data") or {}
+
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return response.Response(
+            {"action": f"{action or 'unknown'}_failed", "data": {"reason": "invalid_user_id"}},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    User = apps.get_model(settings.AUTH_USER_MODEL.split(".")[0], settings.AUTH_USER_MODEL.split(".")[1])
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return response.Response(
+            {"action": f"{action or 'unknown'}_failed", "data": {"reason": "unknown_user"}},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if action == "get_score_state":
+        from .gecko_score_helpers import load_initial_score_payload
+        return response.Response({
+            "action": "score_state",
+            "data": load_initial_score_payload(user),
+        })
+
+    if action == "flush":
+        # The Rust socket has no per-connection pending_data buffer (the
+        # consumer's flush model is irrelevant here — every update_gecko_data
+        # commits to DB on the spot). Always ack.
+        return response.Response({
+            "action": "flush_ack",
+            "data": {"status": "nothing_to_flush"},
+        })
+
+    if action == "update_gecko_data":
+        # The consumer's friend_id comes from set_friend earlier in the
+        # connection. The Rust socket forwards it in data.friend_id (it
+        # already tracks it on the Client struct after set_friend / hydrate).
+        from .gecko_score_helpers import apply_gecko_data_update
+        friend_id = data.get("friend_id") if isinstance(data, dict) else None
+        try:
+            new_state = apply_gecko_data_update(user, friend_id, data or {})
+        except Exception:
+            logger.exception(
+                "[gecko_socket_action] update_gecko_data failed user=%s",
+                user_id,
+            )
+            return response.Response({
+                "action": "update_gecko_data_failed",
+                "data": {"reason": "internal_error"},
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return response.Response({"action": "score_state", "data": new_state})
+
+    if action == "request_capsule_matches":
+        from .gecko_match_helpers import handle_request_capsule_matches
+        return response.Response(handle_request_capsule_matches(user_id))
+
+    if action == "repull_capsule_matches":
+        from .gecko_match_helpers import handle_repull_capsule_matches
+        ack, http_status = handle_repull_capsule_matches(user_id)
+        return response.Response(ack, status=http_status)
+
+    if action == "propose_gecko_win":
+        from .gecko_match_helpers import handle_propose_gecko_win
+        capsule_id = data.get("capsule_id") if isinstance(data, dict) else None
+        try:
+            ack = handle_propose_gecko_win(user, capsule_id)
+        except Exception:
+            logger.exception(
+                "[gecko_socket_action] propose_gecko_win db error user=%s capsule_id=%s",
+                user_id,
+                capsule_id,
+            )
+            ack = {"action": "propose_gecko_win_failed", "data": {"reason": "db_error"}}
+        return response.Response(ack)
+
+    if action == "propose_gecko_match_win":
+        from .gecko_match_helpers import handle_propose_gecko_match_win
+        requested_type = data.get("gecko_game_type") if isinstance(data, dict) else None
+        try:
+            ack = handle_propose_gecko_match_win(user, requested_type)
+        except Exception:
+            logger.exception(
+                "[gecko_socket_action] propose_gecko_match_win db error user=%s",
+                user_id,
+            )
+            ack = {"action": "propose_gecko_match_win_failed", "data": {"reason": "db_error"}}
+        return response.Response(ack)
+
+    if action == "send_validate_win_request":
+        # Consumer treats this as a no-op when validate is True (consumers.py:1326).
+        return response.Response({"action": "send_validate_win_request_ack", "data": {}})
+
+    # Not implemented in the consumer either — keep parity by returning a
+    # deterministic failure so the FE can surface it.
+    not_implemented = {"send_match_request", "send_validate_match_win_request"}
+    if action in not_implemented:
+        return response.Response({
+            "action": f"{action}_failed",
+            "data": {"reason": "not_implemented"},
+        })
+
+    return response.Response(
+        {"action": f"{action or 'unknown'}_failed", "data": {"reason": "unknown_action"}},
+        status=status.HTTP_400_BAD_REQUEST,
+    )
 
 
 @api_view(['GET'])
@@ -1351,24 +1486,11 @@ def accept_live_sesh_invite(request, invite_id):
             },
         )
 
-    from asgiref.sync import async_to_sync
-    from channels.layers import get_channel_layer
-
-    channel_layer = get_channel_layer()
-    if channel_layer is not None:
-        for uid, partner_id in ((sender.id, recipient.id), (recipient.id, sender.id)):
-            async_to_sync(channel_layer.group_send)(
-                f'gecko_energy_{uid}',
-                {'type': 'sesh_context_refresh', 'partner_id': partner_id},
-            )
-        for displaced_uid in displaced_partner_ids:
-            async_to_sync(channel_layer.group_send)(
-                f'gecko_energy_{displaced_uid}',
-                {
-                    'type': 'live_sesh_cancelled',
-                    'data': {'cancelled_by': 'partner_started_new_sesh'},
-                },
-            )
+    from .rust_push import refresh_sesh_context, cancel_live_sesh
+    for uid, partner_id in ((sender.id, recipient.id), (recipient.id, sender.id)):
+        refresh_sesh_context(uid, partner_id)
+    for displaced_uid in displaced_partner_ids:
+        cancel_live_sesh(displaced_uid, {'cancelled_by': 'partner_started_new_sesh'})
 
     notify_user(sender.id, 'live_sesh_invite_accepted', {
         'invite_id': invite.id,
@@ -1602,26 +1724,12 @@ class GeckoGameWinPendingDetail(APIView):
 
     
     def _notify_user(self, user_id, event_type, data):
-        from channels.layers import get_channel_layer
-        from asgiref.sync import async_to_sync
+        from .rust_push import notify_user
 
-        channel_layer = get_channel_layer()
-        if channel_layer is None:
-            return
-        
         def _send():
-            async_to_sync(channel_layer.group_send)(
-                f'gecko_energy_{user_id}',
-                {
-                    'type': event_type,
-                    **data,
-
-                },
-            )
+            notify_user(user_id, event_type, data)
 
         transaction.on_commit(_send)
-
-        return
 
 
     def post(self, request):
@@ -2052,20 +2160,9 @@ class GeckoGameMatchWinPendingDetail(APIView):
         return None
 
     def _notify_user(self, user_id, event_type, data):
-        from channels.layers import get_channel_layer
-        from asgiref.sync import async_to_sync
-
-        channel_layer = get_channel_layer()
-        if channel_layer is None:
-            return
+        from .rust_push import notify_user
 
         def _send():
-            async_to_sync(channel_layer.group_send)(
-                f'gecko_energy_{user_id}',
-                {
-                    'type': event_type,
-                    **data,
-                },
-            )
+            notify_user(user_id, event_type, data)
 
         transaction.on_commit(_send)
