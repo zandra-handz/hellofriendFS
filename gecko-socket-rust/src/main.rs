@@ -24,7 +24,7 @@ use std::{
 use tokio::sync::{mpsc, RwLock};
 use uuid::Uuid;
 
-use jsonwebtoken::(decode, Algorithm, DecodingKey, Validation);
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use axum::response::Response;
 
 type UserId = u64;
