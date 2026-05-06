@@ -2,7 +2,9 @@ from . import models
 from . import serializers
 from .notifications import notify_user
 import datetime
+import jwt      
 import logging
+import time   
 
 logger = logging.getLogger(__name__)
 from django.apps import apps
@@ -1222,6 +1224,27 @@ def rust_live_sesh_context(request):
         "partner_friend_name": partner_friend["name"] if partner_friend else None,
         "score_state": score_state,
     })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def gecko_socket_token(request):
+    secret = settings.GECKO_WS_JWT_SECRET
+    if not secret:
+        return response.Response({"detail": "socket auth not configured"}, status=500)
+
+    now = int(time.time())
+    payload = {
+        "user_id": request.user.id,
+        "iat": now,
+        "exp": now + 300,  # 5 minutes
+    }
+    token = jwt.encode(payload, secret, algorithm="HS256")
+    return response.Response({"token": token, "expires_at": payload["exp"]})
+
+
+
+
 
 
 

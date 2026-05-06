@@ -24,6 +24,9 @@ use std::{
 use tokio::sync::{mpsc, RwLock};
 use uuid::Uuid;
 
+use jsonwebtoken::(decode, Algorithm, DecodingKey, Validation);
+use axum::response::Response;
+
 type UserId = u64;
 type ClientId = String;
 type RoomName = String;
@@ -45,6 +48,7 @@ struct AppState {
     rooms: Arc<RwLock<HashMap<RoomName, HashSet<ClientId>>>>,
     http: reqwest::Client,
     internal_secret: String,
+    jwt_secret: String,
 }
 
 #[derive(Clone)]
@@ -68,8 +72,11 @@ struct Client {
 }
 
 #[derive(Debug, Deserialize)]
-struct WsQuery {
-    user_id: Option<UserId>,
+ 
+
+struct JwtClaims {
+    user_id: UserId,
+    exp: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -108,10 +115,15 @@ async fn main() {
         rooms: Arc::new(RwLock::new(HashMap::new())),
         http: reqwest::Client::new(),
         internal_secret: std::env::var("RUST_INTERNAL_SECRET").unwrap_or_default(),
+        jwt_secret: std::env::var("GECKO_WS_JWT_SECRET").unwrap_or_default(),
     };
 
     if state.internal_secret.is_empty() {
         println!("WARNING: RUST_INTERNAL_SECRET is empty — internal push routes will reject all calls");
+    }
+
+    if state.jwt_secret.is_empty() {
+        println!("WARNING: GECKO_WS_JWT_SECRET is empty — websocket connections will be rejected");
     }
 
     let app = Router::new()
@@ -141,18 +153,51 @@ async fn root() -> &'static str {
 
 async fn ws_handler(
     ws: WebSocketUpgrade,
-    Query(query): Query<WsQuery>,
     State(state): State<AppState>,
-) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_socket(socket, query, state))
-}
+    headers: HeaderMap,
+) -> Response {
+    if state.jwt_secret.is_empty() {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "socket auth not configured").into_response();
+    }
 
-async fn handle_socket(socket: WebSocket, query: WsQuery, state: AppState) {
-    let Some(user_id) = query.user_id else {
-        println!("rejecting websocket: missing user_id");
-        return;
+    let proto_header = headers
+        .get("sec-websocket-protocol")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+
+    let mut jwt_token: Option<&str> = None;
+    for part in proto_header.split(',') {
+        let trimmed = part.trim();
+        if let Some(rest) = trimmed.strip_prefix("jwt.") {
+            jwt_token = Some(rest);
+            break;
+        }
+    }
+
+    let Some(jwt_token) = jwt_token else {
+        return (StatusCode::UNAUTHORIZED, "missing jwt subprotocol").into_response();
     };
 
+    let validation = Validation::new(Algorithm::HS256);
+    let token_data = match decode::<JwtClaims>(
+        jwt_token,
+        &DecodingKey::from_secret(state.jwt_secret.as_bytes()),
+        &validation,
+    ) {
+        Ok(d) => d,
+        Err(e) => {
+            println!("jwt verify failed: {}", e);
+            return (StatusCode::UNAUTHORIZED, "invalid jwt").into_response();
+        }
+    };
+
+    let user_id = token_data.claims.user_id;
+
+    ws.protocols(["gecko.v1"])
+        .on_upgrade(move |socket| handle_socket(socket, user_id, state))
+}
+
+async fn handle_socket(socket: WebSocket, query: WsQuery, user_id: UserId, state: AppState) {
     evict_existing_user(&state, user_id).await;
 
     let client_id = Uuid::new_v4().to_string();
