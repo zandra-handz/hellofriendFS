@@ -401,4 +401,12 @@ STATIC_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.{AWS_S3_REGION_NAME}.digitaloce
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')
 GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 # RUST_INTERNAL_SECRET = os.environ.get("RUST_INTERNAL_SECRET")
-RUST_INTERNAL_SECRET = "dev-secret-123"
+RUST_INTERNAL_SECRET = os.getenv('RUST_INTERNAL_SECRET')
+
+
+
+
+# later, in powershell:   [Convert]::ToHexString((1..32 | ForEach-Object { Get-Random -Maximum 256 } | ForEach-Object { [byte]$_ })).ToLower()  
+# or on droplet:  openssl rand -hex 32  
+# to edit rust  sudo nano /etc/systemd/system/gecko-rust.service
+# edit gunicorn sudo nano /etc/systemd/system/gunicorn.service
