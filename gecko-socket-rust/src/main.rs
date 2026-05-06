@@ -5,7 +5,7 @@
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
-        Query, State,
+        State,
     },
     http::{HeaderMap, StatusCode},
     response::IntoResponse,
@@ -197,7 +197,7 @@ async fn ws_handler(
         .on_upgrade(move |socket| handle_socket(socket, user_id, state))
 }
 
-async fn handle_socket(socket: WebSocket, query: WsQuery, user_id: UserId, state: AppState) {
+async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
     evict_existing_user(&state, user_id).await;
 
     let client_id = Uuid::new_v4().to_string();
