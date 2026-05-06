@@ -72,7 +72,8 @@ urlpatterns = [
     path('friend-link-code/', views.create_or_reset_friend_link_code),
 
 
-    path("gecko/socket-token/", views.gecko_socket_token, name="gecko-socket-token"),
+    path("gecko-socket-token/", views.gecko_socket_token, name="gecko-socket-token"),
+
 
     path(
         "internal/gecko/live-sesh-context/",
