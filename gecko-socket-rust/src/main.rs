@@ -703,6 +703,24 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
     }
 }
 
+async fn handle_get_gecko_message(state: &AppState, client_id: &str) {
+    let client = get_client(state, client_id).await;
+    let Some(client) = client else { return };
+
+    send_to_client(
+        state,
+        client_id,
+        OutgoingMessage {
+            action: "gecko_message".to_string(),
+            data: json!({
+                "from_user": client.user_id,
+                "message": client.gecko_message,
+            }),
+        },
+    )
+    .await;
+}
+
 async fn handle_send_front_end_text_to_gecko(
     state: &AppState,
     client_id: &str,
