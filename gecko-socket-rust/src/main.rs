@@ -631,17 +631,17 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
     .await;
 }
 
-async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
-    let client = get_client(state, client_id).await;
+ 
+async fn handle_request_peer_presence(state: &AppState, client_id: &str) {                                                                                                                                                                                  
+    let client = get_client(state, client_id).await;                                                                                                                                                                                                      
     let Some(client) = client else { return };
 
     println!(
-        "[PEER_PRES] request_peer_presence user={} partner_room={:?}",
-        client.user_id, client.partner_room
+        "[PEER_PRES] request_peer_presence user={} partner_id={:?}",
+        client.user_id, client.partner_id
     );
 
-
-    let Some(partner_room) = client.partner_room.clone() else {
+    let Some(partner_id) = client.partner_id else {
         send_to_client(
             state,
             client_id,
@@ -654,41 +654,53 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
         return;
     };
 
-    println!(
-        "[PEER_PRES] broadcasting peer_presence_request from user={} to room={}",
-        client.user_id, partner_room
-    );
+    let partner = {
+        let clients = state.clients.read().await;
+        clients
+            .values()
+            .find(|c| c.user_id == partner_id)
+            .cloned()
+    };
 
-    broadcast_to_room(
-        state,
-        &partner_room,
-        Some(client.user_id),
-        OutgoingMessage {
-            action: "peer_presence_request".to_string(),
-            data: json!({
-                "requester_user_id": client.user_id,
-            }),
-        },
-    )
-    .await;
-}
+    if let Some(partner) = partner {
+        println!(
+            "[PEER_PRES] replying online for partner={} to user={}",
+            partner_id, client.user_id
+        );
 
-async fn handle_get_gecko_message(state: &AppState, client_id: &str) {
-    let client = get_client(state, client_id).await;
-    let Some(client) = client else { return };
+        send_to_client(
+            state,
+            client_id,
+            OutgoingMessage {
+                action: "peer_presence".to_string(),
+                data: json!({
+                    "user_id": partner.user_id,
+                    "online": true,
+                    "friend_light_color": partner.friend_light_color,
+                    "friend_dark_color": partner.friend_dark_color,
+                }),
+            },
+        )
+        .await;
+    } else {
+        println!(
+            "[PEER_PRES] partner={} not connected, replying offline to user={}",
+            partner_id, client.user_id
+        );
 
-    send_to_client(
-        state,
-        client_id,
-        OutgoingMessage {
-            action: "gecko_message".to_string(),
-            data: json!({
-                "from_user": client.user_id,
-                "message": client.gecko_message,
-            }),
-        },
-    )
-    .await;
+        send_to_client(
+            state,
+            client_id,
+            OutgoingMessage {
+                action: "peer_presence".to_string(),
+                data: json!({
+                    "user_id": partner_id,
+                    "online": false,
+                }),
+            },
+        )
+        .await;
+    }
 }
 
 async fn handle_send_front_end_text_to_gecko(
