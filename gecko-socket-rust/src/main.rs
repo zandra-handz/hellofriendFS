@@ -46,7 +46,7 @@ const BINARY_OUTBOUND_ACTIONS: &[&str] = &[
 #[derive(Clone)]
 struct AppState {
     clients: Arc<RwLock<HashMap<ClientId, Client>>>,
-    rooms: Arc<RwLock<HashMap<RoomName, HashSet<ClientId>>>>,
+    rooms: Arc<RwLock<HashMap<RoomName, Arc<HashSet<ClientId>>>>>,
     http: reqwest::Client,
     internal_secret: String,
     jwt_secret: String,
@@ -1281,8 +1281,8 @@ async fn disconnect_cleanup(state: &AppState, client_id: &str) {
 
     {
         let mut rooms = state.rooms.write().await;
-        for set in rooms.values_mut() {
-            set.remove(client_id);
+        for arc in rooms.values_mut() {
+            Arc::make_mut(arc).remove(client_id);
         }
         rooms.retain(|_, set| !set.is_empty());
     }
@@ -1324,16 +1324,17 @@ async fn evict_existing_user(state: &AppState, user_id: UserId) {
 
 async fn join_room(state: &AppState, room_name: &str, client_id: &str) {
     let mut rooms = state.rooms.write().await;
-    rooms
+    let arc = rooms
         .entry(room_name.to_string())
-        .or_insert_with(HashSet::new)
-        .insert(client_id.to_string());
+        .or_insert_with(|| Arc::new(HashSet::new()));
+    Arc::make_mut(arc).insert(client_id.to_string());
 }
+
 
 async fn leave_room(state: &AppState, room_name: &str, client_id: &str) {
     let mut rooms = state.rooms.write().await;
-    if let Some(set) = rooms.get_mut(room_name) {
-        set.remove(client_id);
+    if let Some(arc) = rooms.get_mut(room_name) {
+        Arc::make_mut(arc).remove(client_id);
     }
     rooms.retain(|_, set| !set.is_empty());
 }
@@ -1362,7 +1363,7 @@ async fn broadcast_to_room(
 
     let room_client_ids = {
         let rooms = state.rooms.read().await;
-        rooms.get(room_name).cloned()
+        rooms.get(room_name).cloned()   // <-- now clones the Arc, not the HashSet
     };
 
     let Some(room_client_ids) = room_client_ids else {
@@ -1371,8 +1372,8 @@ async fn broadcast_to_room(
 
     let clients = state.clients.read().await;
 
-    for room_client_id in room_client_ids {
-        if let Some(client) = clients.get(&room_client_id) {
+    for room_client_id in room_client_ids.iter() {
+        if let Some(client) = clients.get(room_client_id) {
             if Some(client.user_id) == exclude_user_id {
                 continue;
             }
@@ -1508,8 +1509,8 @@ async fn internal_push_room(
     let clients = state.clients.read().await;
     let mut delivered = 0usize;
 
-    for cid in room_client_ids {
-        if let Some(c) = clients.get(&cid) {
+    for cid in room_client_ids.iter() {
+        if let Some(c) = clients.get(cid) {
             if Some(c.user_id) == body.exclude_user_id {
                 continue;
             }
