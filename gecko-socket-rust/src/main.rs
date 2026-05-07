@@ -19,7 +19,7 @@ use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
     sync::Arc,
-    time::Instant,
+    time::{Duration, Instant},
 };
 use tokio::sync::{mpsc, RwLock};
 use uuid::Uuid;
@@ -114,7 +114,12 @@ async fn main() {
     let state = AppState {
         clients: Arc::new(RwLock::new(HashMap::new())),
         rooms: Arc::new(RwLock::new(HashMap::new())),
-        http: reqwest::Client::new(),
+        http: reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .connect_timeout(std::time::Duration::from_secs(2))
+        .pool_max_idle_per_host(32)
+        .build()
+        .expect("failed to build reqwest client"),
         internal_secret: std::env::var("RUST_INTERNAL_SECRET").unwrap_or_default(),
         jwt_secret: std::env::var("GECKO_WS_JWT_SECRET").unwrap_or_default(),
     };
