@@ -30,7 +30,8 @@ use axum::response::Response;
 type UserId = u64;
 type ClientId = String;
 type RoomName = String;
-type Tx = mpsc::UnboundedSender<Message>;
+// type Tx = mpsc::UnboundedSender<Message>;
+type Tx = mpsc::Sender<Message>;
 
 const DJANGO_BASE_URL: &str = "https://badrainbowz.com";
 
@@ -205,7 +206,8 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
     let shared_room = format!("gecko_shared_with_friend_{}", user_id);
 
     let (mut socket_sender, mut socket_receiver) = socket.split();
-    let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
+    // let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
+    let (tx, mut rx) = mpsc::channel::<Message>(256);
 
     {
         let mut clients = state.clients.write().await;
@@ -277,7 +279,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
         while let Some(result) = socket_receiver.next().await {
             match result {
                 Ok(Message::Text(text)) => {
-                    mark_seen(&recv_state, &recv_client_id).await;
+                    // mark_seen(&recv_state, &recv_client_id).await;
                     match serde_json::from_str::<Value>(&text) {
                         Ok(value) => handle_incoming(&recv_state, &recv_client_id, value).await,
                         Err(_) => {
@@ -297,7 +299,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                     }
                 }
                 Ok(Message::Binary(bytes)) => {
-                    mark_seen(&recv_state, &recv_client_id).await;
+                    // mark_seen(&recv_state, &recv_client_id).await;
                     match rmp_serde::from_slice::<Value>(&bytes) {
                         Ok(value) => handle_incoming(&recv_state, &recv_client_id, value).await,
                         Err(_) => {
@@ -316,9 +318,10 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                         }
                     }
                 }
-                Ok(Message::Ping(_)) | Ok(Message::Pong(_)) => {
-                    mark_seen(&recv_state, &recv_client_id).await;
-                }
+                Ok(Message::Ping(_)) | Ok(Message::Pong(_)) => {}    
+                // Ok(Message::Ping(_)) | Ok(Message::Pong(_)) => {
+                //     // mark_seen(&recv_state, &recv_client_id).await;
+                // }
                 Ok(Message::Close(_)) => break,
                 Err(err) => {
                     println!("websocket error client_id={} err={}", recv_client_id, err);
@@ -485,6 +488,11 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
     let client = get_client(state, client_id).await;
     let Some(client) = client else { return };
 
+    println!(
+      "[PEER_PRES] join_live_sesh user={} partner_id={:?} shared_room={} partner_room={:?}",
+      client.user_id, client.partner_id, client.shared_room, client.partner_room
+    );
+
     let Some(partner_id) = client.partner_id else {
         send_to_client(
             state,
@@ -537,6 +545,11 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
 async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
     let client = get_client(state, client_id).await;
     let Some(client) = client else { return };
+
+    println!(
+        "[PEER_PRES] leave_live_sesh user={} shared_room={} partner_room={:?}",
+        client.user_id, client.shared_room, client.partner_room
+    );
 
     broadcast_to_room(
         state,
@@ -622,6 +635,12 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
     let client = get_client(state, client_id).await;
     let Some(client) = client else { return };
 
+    println!(
+        "[PEER_PRES] request_peer_presence user={} partner_room={:?}",
+        client.user_id, client.partner_room
+    );
+
+
     let Some(partner_room) = client.partner_room.clone() else {
         send_to_client(
             state,
@@ -634,6 +653,11 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
         .await;
         return;
     };
+
+    println!(
+        "[PEER_PRES] broadcasting peer_presence_request from user={} to room={}",
+        client.user_id, partner_room
+    );
 
     broadcast_to_room(
         state,
@@ -1192,6 +1216,12 @@ async fn disconnect_cleanup(state: &AppState, client_id: &str) {
     let client = get_client(state, client_id).await;
 
     if let Some(client) = client {
+
+        println!(
+            "[PEER_PRES] disconnect_cleanup user={} broadcasting offline to {}",
+            client.user_id, client.shared_room
+        );
+
         broadcast_to_room(
             state,
             &client.shared_room,
@@ -1240,20 +1270,22 @@ async fn evict_existing_user(state: &AppState, user_id: UserId) {
         };
 
         if let Some(msg) = encode_outgoing(&warn) {
-            let _ = tx.send(msg);
+            // let _ = tx.send(msg);
+            let _ = tx.try_send(msg);
         }
 
-        let _ = tx.send(Message::Close(None));
+        // let _ = tx.send(Message::Close(None));
+        let _ = tx.try_send(Message::Close(None));
         println!("evicting older socket for user_id={} client_id={}", user_id, cid);
     }
 }
 
-async fn mark_seen(state: &AppState, client_id: &str) {
-    let mut clients = state.clients.write().await;
-    if let Some(client) = clients.get_mut(client_id) {
-        client.last_seen = Instant::now();
-    }
-}
+// async fn mark_seen(state: &AppState, client_id: &str) {
+//     let mut clients = state.clients.write().await;
+//     if let Some(client) = clients.get_mut(client_id) {
+//         client.last_seen = Instant::now();
+//     }
+// }
 
 async fn join_room(state: &AppState, room_name: &str, client_id: &str) {
     let mut rooms = state.rooms.write().await;
@@ -1310,14 +1342,17 @@ async fn broadcast_to_room(
                 continue;
             }
 
-            let _ = client.tx.send(encoded.clone());
+            // let _ = client.tx.send(encoded.clone());
+            let _ = client.tx.try_send(encoded.clone());
+
         }
     }
 }
 
 fn send_outgoing(tx: &Tx, message: OutgoingMessage) {
     if let Some(msg) = encode_outgoing(&message) {
-        let _ = tx.send(msg);
+        // let _ = tx.send(msg);
+        let _ = tx.try_send(msg);
     }
 }
 
@@ -1392,14 +1427,16 @@ async fn internal_push_user(
     let mut delivered = 0usize;
 
     for tx in &txs {
-        if tx.send(encoded.clone()).is_ok() {
+        // if tx.send(encoded.clone()).is_ok() {
+        let _ = tx.try_send(Message::Close(None));
             delivered += 1;
         }
     }
 
     if body.close_after {
         for tx in &txs {
-            let _ = tx.send(Message::Close(None));
+            // let _ = tx.send(Message::Close(None));
+            let _ = tx.try_send(Message::Close(None));
         }
     }
 
@@ -1442,7 +1479,8 @@ async fn internal_push_room(
                 continue;
             }
 
-            if c.tx.send(encoded.clone()).is_ok() {
+            // if c.tx.send(encoded.clone()).is_ok() {
+            if c.tx.try_send(encoded.clone()).is_ok() {
                 delivered += 1;
             }
         }
@@ -1472,7 +1510,9 @@ async fn internal_disconnect_user(
     let count = txs.len();
 
     for tx in txs {
-        let _ = tx.send(Message::Close(None));
+        // let _ = tx.send(Message::Close(None));
+        let _ = tx.try_send(Message::Close(None));
+
     }
 
     (StatusCode::OK, Json(json!({ "closed": count }))).into_response()
