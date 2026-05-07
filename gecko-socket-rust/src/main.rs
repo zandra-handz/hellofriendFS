@@ -1428,7 +1428,7 @@ async fn internal_push_user(
 
     for tx in &txs {
         // if tx.send(encoded.clone()).is_ok() {
-        let _ = tx.try_send(Message::Close(None));
+        if tx.try_send(encoded.clone()).is_ok() {
             delivered += 1;
         }
     }
