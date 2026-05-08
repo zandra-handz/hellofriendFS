@@ -1203,17 +1203,6 @@ async fn hydrate_live_sesh_context(
                 c.partner_friend_id = partner_friend_id;
                 c.partner_friend_name = partner_friend_name;
                 c.partner_room = partner_room.clone();
-            } else if send_initial_score_state {
-                c.partner_id = None;
-                c.is_host = false;
-                c.friend_id = None;
-                c.sesh_friend_id = None;
-                c.friend_light_color = None;
-                c.friend_dark_color = None;
-                c.partner_username = None;
-                c.partner_friend_id = None;
-                c.partner_friend_name = None;
-                c.partner_room = None;
             }
         }
     }
@@ -1495,7 +1484,7 @@ async fn internal_push_room(
     let clients = state.clients.read().await;
     let mut delivered = 0usize;
 
-    for cid in room_client_ids.iter() {it 
+    for cid in room_client_ids.iter() {
         if let Some(c) = clients.get(cid) {
             if Some(c.user_id) == body.exclude_user_id {
                 continue;
