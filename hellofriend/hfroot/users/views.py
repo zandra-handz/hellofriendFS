@@ -1174,19 +1174,6 @@ def rust_live_sesh_context(request):
         .first()
     )
 
-    # Load score_state so the Rust socket can forward it as the initial
-    # `score_state` frame on connect (matches consumers.py:633).
-    from .gecko_score_helpers import load_initial_score_payload
-    User = apps.get_model(settings.AUTH_USER_MODEL.split(".")[0], settings.AUTH_USER_MODEL.split(".")[1])
-    try:
-        user_obj = User.objects.get(pk=user_id)
-        score_state = load_initial_score_payload(user_obj)
-    except User.DoesNotExist:
-        score_state = None
-    except Exception:
-        logger.exception("[rust_live_sesh_context] failed to load score_state user=%s", user_id)
-        score_state = None
-
     if not sesh:
         return response.Response({
             "user_id": user_id,
@@ -1200,7 +1187,6 @@ def rust_live_sesh_context(request):
             "partner_username": None,
             "partner_friend_id": None,
             "partner_friend_name": None,
-            "score_state": score_state,
         })
 
     partner_friend = (
@@ -1222,7 +1208,6 @@ def rust_live_sesh_context(request):
         "partner_username": sesh.other_user.username if sesh.other_user else None,
         "partner_friend_id": partner_friend["id"] if partner_friend else None,
         "partner_friend_name": partner_friend["name"] if partner_friend else None,
-        "score_state": score_state,
     })
 
 

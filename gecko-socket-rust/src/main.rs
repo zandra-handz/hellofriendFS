@@ -255,7 +255,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
         },
     );
 
-    hydrate_live_sesh_context(&state, &client_id, true).await;
+    hydrate_live_sesh_context(&state, &client_id).await;
 
     if let Some(client) = get_client(&state, &client_id).await {
         if !client.is_host {
@@ -488,7 +488,7 @@ async fn handle_set_friend(state: &AppState, client_id: &str, data: Option<Value
 }
 
 async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
-    hydrate_live_sesh_context(state, client_id, false).await;
+    hydrate_live_sesh_context(state, client_id).await;
 
     let client = get_client(state, client_id).await;
     let Some(client) = client else { return };
@@ -1122,7 +1122,6 @@ async fn proxy_action_to_django(
 async fn hydrate_live_sesh_context(
     state: &AppState,
     client_id: &str,
-    send_initial_score_state: bool,
 ) {
     let client = get_client(state, client_id).await;
     let Some(client) = client else { return };
@@ -1232,19 +1231,6 @@ async fn hydrate_live_sesh_context(
         partner_room
     );
 
-    if send_initial_score_state {
-        if let Some(score_state) = value.get("score_state").cloned() {
-            send_to_client(
-                state,
-                client_id,
-                OutgoingMessage {
-                    action: "score_state".to_string(),
-                    data: score_state,
-                },
-            )
-            .await;
-        }
-    }
 }
 
 async fn disconnect_cleanup(state: &AppState, client_id: &str) {
@@ -1509,7 +1495,7 @@ async fn internal_push_room(
     let clients = state.clients.read().await;
     let mut delivered = 0usize;
 
-    for cid in room_client_ids.iter() {
+    for cid in room_client_ids.iter() {it 
         if let Some(c) = clients.get(cid) {
             if Some(c.user_id) == body.exclude_user_id {
                 continue;
