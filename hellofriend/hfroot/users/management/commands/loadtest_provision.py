@@ -92,34 +92,40 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def _provision(self, n: int, secret: str) -> list[dict]:
+        """
+        BadRainbowzUser.save() auto-creates a UserFriendCurrentLiveSesh with no
+        other_user, which then crashes in its own save(). To avoid touching the
+        model, we bypass save() entirely with bulk_create, then build the sesh
+        rows manually with other_user set. The auxiliary records skipped by
+        bulk_create (UserProfile, GeckoScoreState, etc.) are not needed for the
+        load-test path; the Rust hydration view tolerates their absence.
+        """
         expires_at = timezone.now() + timedelta(hours=2)
-        pairs = []
 
+        to_create = []
         for i in range(1, n + 1):
-            host_username = f"{USERNAME_PREFIX}host_{i:04d}"
-            guest_username = f"{USERNAME_PREFIX}guest_{i:04d}"
+            for role in ("host", "guest"):
+                username = f"{USERNAME_PREFIX}{role}_{i:04d}"
+                u = BadRainbowzUser(
+                    username=username,
+                    email=f"{username}@loadtest.local",
+                    is_test_user=True,
+                )
+                u.set_unusable_password()
+                to_create.append(u)
 
-            host, _ = BadRainbowzUser.objects.get_or_create(
-                username=host_username,
-                defaults={
-                    "email": f"{host_username}@loadtest.local",
-                    "is_test_user": True,
-                },
-            )
-            if not host.has_usable_password():
-                host.set_unusable_password()
-                host.save(update_fields=["password"])
+        BadRainbowzUser.objects.bulk_create(to_create, ignore_conflicts=True)
 
-            guest, _ = BadRainbowzUser.objects.get_or_create(
-                username=guest_username,
-                defaults={
-                    "email": f"{guest_username}@loadtest.local",
-                    "is_test_user": True,
-                },
-            )
-            if not guest.has_usable_password():
-                guest.set_unusable_password()
-                guest.save(update_fields=["password"])
+        usernames = [u.username for u in to_create]
+        users = {
+            u.username: u
+            for u in BadRainbowzUser.objects.filter(username__in=usernames)
+        }
+
+        pairs = []
+        for i in range(1, n + 1):
+            host = users[f"{USERNAME_PREFIX}host_{i:04d}"]
+            guest = users[f"{USERNAME_PREFIX}guest_{i:04d}"]
 
             UserFriendCurrentLiveSesh.objects.update_or_create(
                 user=host,

@@ -172,7 +172,9 @@ class BadRainbowzUser(AbstractUser):
                     code=FriendLinkCode.generate_code(),
                     expires_at=timezone.now(),
                 )
-                UserFriendCurrentLiveSesh.objects.create(user=self)
+
+                # REMOVED, IT REQUIRES THE OTHER USER OF SESSION
+                # UserFriendCurrentLiveSesh.objects.create(user=self)
                 UserCategory.objects.create(user=self, name='Grab bag', is_deletable=False)
                 GeckoGameWinPending.objects.create(user=self)
                 
