@@ -260,7 +260,11 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
     if let Some(client) = get_client(&state, &client_id).await {
         if !client.is_host {
             if let Some(partner_id) = client.partner_id {
-                proxy_check_host_link_and_load(&state, &client_id, partner_id).await;
+                let bg_state = state.clone();
+                let bg_client_id = client_id.clone();
+                tokio::spawn(async move {
+                    proxy_check_host_link_and_load(&bg_state, &bg_client_id, partner_id).await;
+                });
             }
         }
     }
