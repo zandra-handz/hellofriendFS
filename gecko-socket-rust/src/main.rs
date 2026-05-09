@@ -21,7 +21,7 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{mpsc, RwLock, Semaphore};
 use uuid::Uuid;
 
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -51,6 +51,7 @@ struct AppState {
     http: reqwest::Client,
     internal_secret: String,
     jwt_secret: String,
+    django_concurrency: Arc<Semaphore>,
 }
 
 #[derive(Clone)]
@@ -132,6 +133,7 @@ async fn main() {
         .expect("failed to build reqwest client"),
         internal_secret: std::env::var("RUST_INTERNAL_SECRET").unwrap_or_default(),
         jwt_secret: std::env::var("GECKO_WS_JWT_SECRET").unwrap_or_default(),
+        django_concurrency: Arc::new(Semaphore::new(10)),
     };
 
     if state.internal_secret.is_empty() {
@@ -1029,6 +1031,7 @@ async fn proxy_check_host_link_and_load(
         DJANGO_BASE_URL
     );
 
+    let _permit = state.django_concurrency.acquire().await.ok();
     let response = state
         .http
         .post(url)
@@ -1113,6 +1116,7 @@ async fn proxy_action_to_django(
         data_with_ctx.insert("is_host".to_string(), json!(client.is_host));
     }
 
+    let _permit = state.django_concurrency.acquire().await.ok();
     let response = state
         .http
         .post(url)
@@ -1186,6 +1190,7 @@ async fn hydrate_live_sesh_context(
         DJANGO_BASE_URL, client.user_id
     );
 
+    let _permit = state.django_concurrency.acquire().await.ok();
     let response = state
         .http
         .get(url)
