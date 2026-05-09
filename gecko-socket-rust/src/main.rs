@@ -549,7 +549,13 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
     let bg_state = state.clone();
     let bg_client_id = client_id.to_string();
     tokio::spawn(async move {
-        hydrate_live_sesh_context(&bg_state, &bg_client_id).await;
+        let needs_hydrate = {
+            let clients = bg_state.clients.read().await;
+            clients.get(&bg_client_id).and_then(|c| c.partner_id).is_none()
+        };
+        if needs_hydrate {
+            hydrate_live_sesh_context(&bg_state, &bg_client_id).await;
+        }
 
         let client = get_client(&bg_state, &bg_client_id).await;
         let Some(client) = client else { return };
