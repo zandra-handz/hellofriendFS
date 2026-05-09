@@ -1263,14 +1263,20 @@ async fn hydrate_live_sesh_context(
             if partner_id.is_some() {
                 c.partner_id = partner_id;
                 c.is_host = is_host;
-                c.friend_id = friend_id;
                 c.sesh_friend_id = sesh_friend_id;
-                c.friend_light_color = friend_light_color;
-                c.friend_dark_color = friend_dark_color;
                 c.partner_username = partner_username;
                 c.partner_friend_id = partner_friend_id;
                 c.partner_friend_name = partner_friend_name;
                 c.partner_room = partner_room.clone();
+                if friend_id.is_some() {
+                    c.friend_id = friend_id;
+                }
+                if friend_light_color.is_some() {
+                    c.friend_light_color = friend_light_color;
+                }
+                if friend_dark_color.is_some() {
+                    c.friend_dark_color = friend_dark_color;
+                }
             }
         }
     }
