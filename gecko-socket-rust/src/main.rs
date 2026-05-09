@@ -824,8 +824,12 @@ async fn handle_update_gecko_position(state: &AppState, client_id: &str, data: O
         return;
     }
 
-    let payload = data.unwrap_or_else(|| json!({}));
-    let position = payload.get("position").cloned().unwrap_or_else(|| json!([0, 0]));
+    let mut payload = data.unwrap_or_else(|| json!({}));
+    if let Value::Object(map) = &mut payload {
+        map.entry("position".to_string()).or_insert_with(|| json!([0, 0]));
+        map.insert("from_user".to_string(), json!(ctx.user_id));
+        map.insert("friend_id".to_string(), json!(ctx.friend_id));
+    }
 
     broadcast_to_room(
         state,
@@ -833,11 +837,7 @@ async fn handle_update_gecko_position(state: &AppState, client_id: &str, data: O
         Some(ctx.user_id),
         OutgoingMessage {
             action: "gecko_coords".to_string(),
-            data: json!({
-                "from_user": ctx.user_id,
-                "friend_id": ctx.friend_id,
-                "position": position,
-            }),
+            data: payload,
         },
     )
     .await;
@@ -854,7 +854,16 @@ async fn handle_update_host_gecko_position(
         return;
     }
 
-    let payload = data.unwrap_or_else(|| json!({}));
+    let mut payload = data.unwrap_or_else(|| json!({}));
+    if let Value::Object(map) = &mut payload {
+        map.entry("position".to_string()).or_insert_with(|| json!([0, 0]));
+        map.entry("steps".to_string()).or_insert_with(|| json!([]));
+        map.entry("first_fingers".to_string()).or_insert_with(|| json!([]));
+        map.entry("held_moments".to_string()).or_insert_with(|| json!([]));
+        map.entry("moments".to_string()).or_insert_with(|| json!([]));
+        map.insert("from_user".to_string(), json!(ctx.user_id));
+        map.insert("friend_id".to_string(), json!(ctx.friend_id));
+    }
 
     broadcast_to_room(
         state,
@@ -862,19 +871,7 @@ async fn handle_update_host_gecko_position(
         Some(ctx.user_id),
         OutgoingMessage {
             action: "host_gecko_coords".to_string(),
-            data: json!({
-                "from_user": ctx.user_id,
-                "friend_id": ctx.friend_id,
-                "position": payload.get("position").cloned().unwrap_or_else(|| json!([0, 0])),
-                "steps": payload.get("steps").cloned().unwrap_or_else(|| json!([])),
-                "steps_len": payload.get("steps_len").cloned(),
-                "first_fingers": payload.get("first_fingers").cloned().unwrap_or_else(|| json!([])),
-                "held_moments": payload.get("held_moments").cloned().unwrap_or_else(|| json!([])),
-                "held_moments_len": payload.get("held_moments_len").cloned(),
-                "moments": payload.get("moments").cloned().unwrap_or_else(|| json!([])),
-                "moments_len": payload.get("moments_len").cloned(),
-                "timestamp": payload.get("timestamp").cloned(),
-            }),
+            data: payload,
         },
     )
     .await;
@@ -891,7 +888,12 @@ async fn handle_update_guest_gecko_position(
         return;
     }
 
-    let payload = data.unwrap_or_else(|| json!({}));
+    let mut payload = data.unwrap_or_else(|| json!({}));
+    if let Value::Object(map) = &mut payload {
+        map.entry("position".to_string()).or_insert_with(|| json!([0, 0]));
+        map.entry("steps".to_string()).or_insert_with(|| json!([]));
+        map.insert("from_user".to_string(), json!(ctx.user_id));
+    }
 
     broadcast_to_room(
         state,
@@ -899,12 +901,7 @@ async fn handle_update_guest_gecko_position(
         Some(ctx.user_id),
         OutgoingMessage {
             action: "guest_gecko_coords".to_string(),
-            data: json!({
-                "from_user": ctx.user_id,
-                "position": payload.get("position").cloned().unwrap_or_else(|| json!([0, 0])),
-                "steps": payload.get("steps").cloned().unwrap_or_else(|| json!([])),
-                "timestamp": payload.get("timestamp").cloned(),
-            }),
+            data: payload,
         },
     )
     .await;
@@ -917,15 +914,19 @@ async fn handle_update_capsule_progress(
 ) {
     let Some(ctx) = coord_ctx(state, client_id).await else { return };
 
-    let payload = data.unwrap_or_else(|| json!({}));
-    let capsule_id = payload.get("capsule_id").cloned();
-    let new_progress_raw = payload.get("new_progress").cloned();
+    let mut payload = data.unwrap_or_else(|| json!({}));
+    let Value::Object(map) = &mut payload else { return };
 
-    let Some(capsule_id) = capsule_id else { return };
-    let Some(new_progress_raw) = new_progress_raw else { return };
+    if !map.contains_key("capsule_id") {
+        return;
+    }
+    let Some(new_progress) = map.get("new_progress").and_then(|v| v.as_f64()) else {
+        return;
+    };
+    let new_progress = new_progress as i64;
 
-    let new_progress = new_progress_raw.as_f64().map(|n| n as i64);
-    let Some(new_progress) = new_progress else { return };
+    map.insert("new_progress".to_string(), json!(new_progress));
+    map.insert("from_user".to_string(), json!(ctx.user_id));
 
     broadcast_to_room(
         state,
@@ -933,12 +934,7 @@ async fn handle_update_capsule_progress(
         Some(ctx.user_id),
         OutgoingMessage {
             action: "capsule_progress".to_string(),
-            data: json!({
-                "from_user": ctx.user_id,
-                "capsule_id": capsule_id,
-                "new_progress": new_progress,
-                "timestamp": payload.get("timestamp").cloned(),
-            }),
+            data: payload,
         },
     )
     .await;
@@ -955,7 +951,12 @@ async fn handle_send_all_host_capsules(
         return;
     }
 
-    let payload = data.unwrap_or_else(|| json!({}));
+    let mut payload = data.unwrap_or_else(|| json!({}));
+    if let Value::Object(map) = &mut payload {
+        map.entry("moments".to_string()).or_insert_with(|| json!([]));
+        map.insert("from_user".to_string(), json!(ctx.user_id));
+        map.insert("friend_id".to_string(), json!(ctx.friend_id));
+    }
 
     broadcast_to_room(
         state,
@@ -963,13 +964,7 @@ async fn handle_send_all_host_capsules(
         Some(ctx.user_id),
         OutgoingMessage {
             action: "all_host_capsules".to_string(),
-            data: json!({
-                "from_user": ctx.user_id,
-                "friend_id": ctx.friend_id,
-                "moments": payload.get("moments").cloned().unwrap_or_else(|| json!([])),
-                "moments_len": payload.get("moments_len").cloned(),
-                "timestamp": payload.get("timestamp").cloned(),
-            }),
+            data: payload,
         },
     )
     .await;
