@@ -818,10 +818,9 @@ async fn handle_get_gecko_screen_position(state: &AppState, client_id: &str) {
 }
 
 async fn handle_update_gecko_position(state: &AppState, client_id: &str, data: Option<Value>) {
-    let client = get_client(state, client_id).await;
-    let Some(client) = client else { return };
+    let Some(ctx) = coord_ctx(state, client_id).await else { return };
 
-    if client.friend_id.is_none() {
+    if ctx.friend_id.is_none() {
         return;
     }
 
@@ -830,13 +829,13 @@ async fn handle_update_gecko_position(state: &AppState, client_id: &str, data: O
 
     broadcast_to_room(
         state,
-        &client.shared_room,
-        Some(client.user_id),
+        &ctx.shared_room,
+        Some(ctx.user_id),
         OutgoingMessage {
             action: "gecko_coords".to_string(),
             data: json!({
-                "from_user": client.user_id,
-                "friend_id": client.friend_id,
+                "from_user": ctx.user_id,
+                "friend_id": ctx.friend_id,
                 "position": position,
             }),
         },
@@ -849,10 +848,9 @@ async fn handle_update_host_gecko_position(
     client_id: &str,
     data: Option<Value>,
 ) {
-    let client = get_client(state, client_id).await;
-    let Some(client) = client else { return };
+    let Some(ctx) = coord_ctx(state, client_id).await else { return };
 
-    if !client.is_host || client.friend_id.is_none() {
+    if !ctx.is_host || ctx.friend_id.is_none() {
         return;
     }
 
@@ -860,13 +858,13 @@ async fn handle_update_host_gecko_position(
 
     broadcast_to_room(
         state,
-        &client.shared_room,
-        Some(client.user_id),
+        &ctx.shared_room,
+        Some(ctx.user_id),
         OutgoingMessage {
             action: "host_gecko_coords".to_string(),
             data: json!({
-                "from_user": client.user_id,
-                "friend_id": client.friend_id,
+                "from_user": ctx.user_id,
+                "friend_id": ctx.friend_id,
                 "position": payload.get("position").cloned().unwrap_or_else(|| json!([0, 0])),
                 "steps": payload.get("steps").cloned().unwrap_or_else(|| json!([])),
                 "steps_len": payload.get("steps_len").cloned(),
@@ -887,10 +885,9 @@ async fn handle_update_guest_gecko_position(
     client_id: &str,
     data: Option<Value>,
 ) {
-    let client = get_client(state, client_id).await;
-    let Some(client) = client else { return };
+    let Some(ctx) = coord_ctx(state, client_id).await else { return };
 
-    if client.is_host {
+    if ctx.is_host {
         return;
     }
 
@@ -898,12 +895,12 @@ async fn handle_update_guest_gecko_position(
 
     broadcast_to_room(
         state,
-        &client.shared_room,
-        Some(client.user_id),
+        &ctx.shared_room,
+        Some(ctx.user_id),
         OutgoingMessage {
             action: "guest_gecko_coords".to_string(),
             data: json!({
-                "from_user": client.user_id,
+                "from_user": ctx.user_id,
                 "position": payload.get("position").cloned().unwrap_or_else(|| json!([0, 0])),
                 "steps": payload.get("steps").cloned().unwrap_or_else(|| json!([])),
                 "timestamp": payload.get("timestamp").cloned(),
@@ -918,8 +915,7 @@ async fn handle_update_capsule_progress(
     client_id: &str,
     data: Option<Value>,
 ) {
-    let client = get_client(state, client_id).await;
-    let Some(client) = client else { return };
+    let Some(ctx) = coord_ctx(state, client_id).await else { return };
 
     let payload = data.unwrap_or_else(|| json!({}));
     let capsule_id = payload.get("capsule_id").cloned();
@@ -933,12 +929,12 @@ async fn handle_update_capsule_progress(
 
     broadcast_to_room(
         state,
-        &client.shared_room,
-        Some(client.user_id),
+        &ctx.shared_room,
+        Some(ctx.user_id),
         OutgoingMessage {
             action: "capsule_progress".to_string(),
             data: json!({
-                "from_user": client.user_id,
+                "from_user": ctx.user_id,
                 "capsule_id": capsule_id,
                 "new_progress": new_progress,
                 "timestamp": payload.get("timestamp").cloned(),
@@ -953,10 +949,9 @@ async fn handle_send_all_host_capsules(
     client_id: &str,
     data: Option<Value>,
 ) {
-    let client = get_client(state, client_id).await;
-    let Some(client) = client else { return };
+    let Some(ctx) = coord_ctx(state, client_id).await else { return };
 
-    if !client.is_host || client.friend_id.is_none() {
+    if !ctx.is_host || ctx.friend_id.is_none() {
         return;
     }
 
@@ -964,13 +959,13 @@ async fn handle_send_all_host_capsules(
 
     broadcast_to_room(
         state,
-        &client.shared_room,
-        Some(client.user_id),
+        &ctx.shared_room,
+        Some(ctx.user_id),
         OutgoingMessage {
             action: "all_host_capsules".to_string(),
             data: json!({
-                "from_user": client.user_id,
-                "friend_id": client.friend_id,
+                "from_user": ctx.user_id,
+                "friend_id": ctx.friend_id,
                 "moments": payload.get("moments").cloned().unwrap_or_else(|| json!([])),
                 "moments_len": payload.get("moments_len").cloned(),
                 "timestamp": payload.get("timestamp").cloned(),
@@ -1340,6 +1335,24 @@ async fn leave_room(state: &AppState, room_name: &str, client_id: &str) {
 async fn get_client(state: &AppState, client_id: &str) -> Option<Client> {
     let clients = state.clients.read().await;
     clients.get(client_id).cloned()
+}
+
+struct CoordCtx {
+    user_id: UserId,
+    friend_id: Option<u64>,
+    is_host: bool,
+    shared_room: RoomName,
+}
+
+async fn coord_ctx(state: &AppState, client_id: &str) -> Option<CoordCtx> {
+    let clients = state.clients.read().await;
+    let c = clients.get(client_id)?;
+    Some(CoordCtx {
+        user_id: c.user_id,
+        friend_id: c.friend_id,
+        is_host: c.is_host,
+        shared_room: c.shared_room.clone(),
+    })
 }
 
 async fn send_to_client(state: &AppState, client_id: &str, message: OutgoingMessage) {
