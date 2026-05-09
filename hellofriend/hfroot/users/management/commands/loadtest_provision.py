@@ -24,6 +24,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from users.models import BadRainbowzUser, UserFriendCurrentLiveSesh
+from users import sesh_cache
 
 USERNAME_PREFIX = "loadtest_"
 DEFAULT_OUTPUT = Path(settings.BASE_DIR).parent.parent / "loadtest" / "loadtest_users.json"
@@ -151,13 +152,17 @@ class Command(BaseCommand):
                 "guest_token": mint_token(guest.id, secret),
             })
 
+        sesh_cache.invalidate(*[u.id for u in users.values()])
+
         return pairs
 
     @transaction.atomic
     def _cleanup(self):
         qs = BadRainbowzUser.objects.filter(username__startswith=USERNAME_PREFIX)
-        count = qs.count()
+        ids = list(qs.values_list("id", flat=True))
+        count = len(ids)
         qs.delete()
+        sesh_cache.invalidate(*ids)
         self.stdout.write(
             self.style.SUCCESS(
                 f"Deleted {count} loadtest users (and cascaded sesh rows)."
