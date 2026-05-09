@@ -265,18 +265,20 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
         },
     );
 
-    hydrate_live_sesh_context(&state, &client_id).await;
+    {
+        let bg_state = state.clone();
+        let bg_client_id = client_id.clone();
+        tokio::spawn(async move {
+            hydrate_live_sesh_context(&bg_state, &bg_client_id).await;
 
-    if let Some(client) = get_client(&state, &client_id).await {
-        if !client.is_host {
-            if let Some(partner_id) = client.partner_id {
-                let bg_state = state.clone();
-                let bg_client_id = client_id.clone();
-                tokio::spawn(async move {
-                    proxy_check_host_link_and_load(&bg_state, &bg_client_id, partner_id).await;
-                });
+            if let Some(client) = get_client(&bg_state, &bg_client_id).await {
+                if !client.is_host {
+                    if let Some(partner_id) = client.partner_id {
+                        proxy_check_host_link_and_load(&bg_state, &bg_client_id, partner_id).await;
+                    }
+                }
             }
-        }
+        });
     }
 
     let send_task = tokio::spawn(async move {
@@ -502,64 +504,68 @@ async fn handle_set_friend(state: &AppState, client_id: &str, data: Option<Value
 }
 
 async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
-    hydrate_live_sesh_context(state, client_id).await;
+    let bg_state = state.clone();
+    let bg_client_id = client_id.to_string();
+    tokio::spawn(async move {
+        hydrate_live_sesh_context(&bg_state, &bg_client_id).await;
 
-    let client = get_client(state, client_id).await;
-    let Some(client) = client else { return };
+        let client = get_client(&bg_state, &bg_client_id).await;
+        let Some(client) = client else { return };
 
-    debug!(
-        target: "peer_pres",
-        "join_live_sesh user={} partner_id={:?} shared_room={} partner_room={:?}",
-        client.user_id, client.partner_id, client.shared_room, client.partner_room
-    );
+        debug!(
+            target: "peer_pres",
+            "join_live_sesh user={} partner_id={:?} shared_room={} partner_room={:?}",
+            client.user_id, client.partner_id, client.shared_room, client.partner_room
+        );
 
-    let Some(partner_id) = client.partner_id else {
+        let Some(partner_id) = client.partner_id else {
+            send_to_client(
+                &bg_state,
+                &bg_client_id,
+                OutgoingMessage {
+                    action: "join_live_sesh_failed".to_string(),
+                    data: json!({ "reason": "no_active_sesh" }),
+                },
+            )
+            .await;
+            return;
+        };
+
         send_to_client(
-            state,
-            client_id,
+            &bg_state,
+            &bg_client_id,
             OutgoingMessage {
-                action: "join_live_sesh_failed".to_string(),
-                data: json!({ "reason": "no_active_sesh" }),
+                action: "join_live_sesh_ok".to_string(),
+                data: json!({
+                    "partner_id": partner_id,
+                    "partner_username": client.partner_username,
+                    "partner_friend_id": client.partner_friend_id,
+                    "partner_friend_name": client.partner_friend_name,
+                }),
             },
         )
         .await;
-        return;
-    };
 
-    send_to_client(
-        state,
-        client_id,
-        OutgoingMessage {
-            action: "join_live_sesh_ok".to_string(),
-            data: json!({
-                "partner_id": partner_id,
-                "partner_username": client.partner_username,
-                "partner_friend_id": client.partner_friend_id,
-                "partner_friend_name": client.partner_friend_name,
-            }),
-        },
-    )
-    .await;
+        broadcast_to_room(
+            &bg_state,
+            &client.shared_room,
+            Some(client.user_id),
+            OutgoingMessage {
+                action: "peer_presence".to_string(),
+                data: json!({
+                    "user_id": client.user_id,
+                    "online": true,
+                    "friend_light_color": client.friend_light_color,
+                    "friend_dark_color": client.friend_dark_color,
+                }),
+            },
+        )
+        .await;
 
-    broadcast_to_room(
-        state,
-        &client.shared_room,
-        Some(client.user_id),
-        OutgoingMessage {
-            action: "peer_presence".to_string(),
-            data: json!({
-                "user_id": client.user_id,
-                "online": true,
-                "friend_light_color": client.friend_light_color,
-                "friend_dark_color": client.friend_dark_color,
-            }),
-        },
-    )
-    .await;
-
-    if !client.is_host {
-        proxy_check_host_link_and_load(state, client_id, partner_id).await;
-    }
+        if !client.is_host {
+            proxy_check_host_link_and_load(&bg_state, &bg_client_id, partner_id).await;
+        }
+    });
 }
 
 async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
