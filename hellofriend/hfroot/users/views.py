@@ -1098,6 +1098,9 @@ def end_current_live_sesh(request):
             user_id__in=[user.id, partner_id],
         ).update(expires_at=now)
 
+    from . import sesh_cache
+    sesh_cache.invalidate(user.id, partner_id)
+
     from .rust_push import refresh_sesh_context
     for uid in (user.id, partner_id):
         refresh_sesh_context(uid, None)
@@ -1127,6 +1130,9 @@ def cancel_current_live_sesh(request):
             user_id__in=[user.id, partner_id],
         ).update(expires_at=now)
 
+    from . import sesh_cache
+    sesh_cache.invalidate(user.id, partner_id)
+
     # Force-disconnect both gecko sockets if they're connected (channels +
     # Rust). cancel_live_sesh delivers live_sesh_cancelled then closes.
     from .rust_push import cancel_live_sesh
@@ -1146,6 +1152,7 @@ def cancel_current_live_sesh(request):
 @throttle_classes([])
 def rust_live_sesh_context(request):
     from friends.models import Friend
+    from . import sesh_cache
 
     secret = request.headers.get("X-Rust-Internal-Secret")
     if secret != getattr(settings, "RUST_INTERNAL_SECRET", None):
@@ -1175,7 +1182,7 @@ def rust_live_sesh_context(request):
     )
 
     if not sesh:
-        return response.Response({
+        empty = {
             "user_id": user_id,
             "partner_id": None,
             "is_host": False,
@@ -1187,7 +1194,9 @@ def rust_live_sesh_context(request):
             "partner_username": None,
             "partner_friend_id": None,
             "partner_friend_name": None,
-        })
+        }
+        sesh_cache.write(user_id, empty)
+        return response.Response(empty)
 
     partner_friend = (
         Friend.objects
@@ -1196,7 +1205,7 @@ def rust_live_sesh_context(request):
         .first()
     )
 
-    return response.Response({
+    payload = {
         "user_id": user_id,
         "partner_id": sesh.other_user_id,
         "is_host": sesh.is_host,
@@ -1208,7 +1217,9 @@ def rust_live_sesh_context(request):
         "partner_username": sesh.other_user.username if sesh.other_user else None,
         "partner_friend_id": partner_friend["id"] if partner_friend else None,
         "partner_friend_name": partner_friend["name"] if partner_friend else None,
-    })
+    }
+    sesh_cache.write(user_id, payload)
+    return response.Response(payload)
 
 
 @api_view(["GET"])
@@ -1615,6 +1626,9 @@ def accept_live_sesh_invite(request, invite_id):
                 'current_log': host_sesh.current_log,
             },
         )
+
+    from . import sesh_cache
+    sesh_cache.invalidate(sender.id, recipient.id, *displaced_partner_ids)
 
     from .rust_push import refresh_sesh_context, cancel_live_sesh
     for uid, partner_id in ((sender.id, recipient.id), (recipient.id, sender.id)):
