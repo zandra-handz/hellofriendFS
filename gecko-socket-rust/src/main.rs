@@ -26,6 +26,7 @@ use uuid::Uuid;
 
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use axum::response::Response;
+use tracing::{debug, error, info, warn};
 
 type UserId = u64;
 type ClientId = String;
@@ -111,6 +112,15 @@ struct DisconnectUserBody {
 
 #[tokio::main]
 async fn main() {
+    let (nb_writer, _log_guard) = tracing_appender::non_blocking(std::io::stdout());
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .with_writer(nb_writer)
+        .init();
+
     let state = AppState {
         clients: Arc::new(RwLock::new(HashMap::new())),
         rooms: Arc::new(RwLock::new(HashMap::new())),
@@ -125,11 +135,11 @@ async fn main() {
     };
 
     if state.internal_secret.is_empty() {
-        println!("WARNING: RUST_INTERNAL_SECRET is empty — internal push routes will reject all calls");
+        warn!("RUST_INTERNAL_SECRET is empty — internal push routes will reject all calls");
     }
 
     if state.jwt_secret.is_empty() {
-        println!("WARNING: GECKO_WS_JWT_SECRET is empty — websocket connections will be rejected");
+        warn!("GECKO_WS_JWT_SECRET is empty — websocket connections will be rejected");
     }
 
     let app = Router::new()
@@ -142,7 +152,7 @@ async fn main() {
         .with_state(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 4000));
-    println!("Rust websocket running at http://{}", addr);
+    info!("Rust websocket running at http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr)
         .await
@@ -192,7 +202,7 @@ async fn ws_handler(
     ) {
         Ok(d) => d,
         Err(e) => {
-            println!("jwt verify failed: {}", e);
+            warn!("jwt verify failed: {}", e);
             return (StatusCode::UNAUTHORIZED, "invalid jwt").into_response();
         }
     };
@@ -333,7 +343,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 // }
                 Ok(Message::Close(_)) => break,
                 Err(err) => {
-                    println!("websocket error client_id={} err={}", recv_client_id, err);
+                    warn!("websocket error client_id={} err={}", recv_client_id, err);
                     break;
                 }
             }
@@ -497,9 +507,10 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
     let client = get_client(state, client_id).await;
     let Some(client) = client else { return };
 
-    println!(
-      "[PEER_PRES] join_live_sesh user={} partner_id={:?} shared_room={} partner_room={:?}",
-      client.user_id, client.partner_id, client.shared_room, client.partner_room
+    debug!(
+        target: "peer_pres",
+        "join_live_sesh user={} partner_id={:?} shared_room={} partner_room={:?}",
+        client.user_id, client.partner_id, client.shared_room, client.partner_room
     );
 
     let Some(partner_id) = client.partner_id else {
@@ -555,8 +566,9 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
     let client = get_client(state, client_id).await;
     let Some(client) = client else { return };
 
-    println!(
-        "[PEER_PRES] leave_live_sesh user={} shared_room={} partner_room={:?}",
+    debug!(
+        target: "peer_pres",
+        "leave_live_sesh user={} shared_room={} partner_room={:?}",
         client.user_id, client.shared_room, client.partner_room
     );
 
@@ -645,8 +657,9 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
     let client = get_client(state, client_id).await;                                                                                                                                                                                                      
     let Some(client) = client else { return };
 
-    println!(
-        "[PEER_PRES] request_peer_presence user={} partner_id={:?}",
+    debug!(
+        target: "peer_pres",
+        "request_peer_presence user={} partner_id={:?}",
         client.user_id, client.partner_id
     );
 
@@ -672,8 +685,9 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
     };
 
     if let Some(partner) = partner {
-        println!(
-            "[PEER_PRES] replying online for partner={} to user={}",
+        debug!(
+            target: "peer_pres",
+            "replying online for partner={} to user={}",
             partner_id, client.user_id
         );
 
@@ -692,8 +706,9 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
         )
         .await;
     } else {
-        println!(
-            "[PEER_PRES] partner={} not connected, replying offline to user={}",
+        debug!(
+            target: "peer_pres",
+            "partner={} not connected, replying offline to user={}",
             partner_id, client.user_id
         );
 
@@ -1143,8 +1158,9 @@ async fn hydrate_live_sesh_context(
         .await;
 
     let Ok(response) = response else {
-        println!(
-            "[hydrate_live_sesh_context] django_unreachable user_id={}",
+        warn!(
+            target: "hydrate_live_sesh_context",
+            "django_unreachable user_id={}",
             client.user_id
         );
         return;
@@ -1152,8 +1168,9 @@ async fn hydrate_live_sesh_context(
 
     let parsed: Result<Value, _> = response.json().await;
     let Ok(value) = parsed else {
-        println!(
-            "[hydrate_live_sesh_context] bad_django_response user_id={}",
+        warn!(
+            target: "hydrate_live_sesh_context",
+            "bad_django_response user_id={}",
             client.user_id
         );
         return;
@@ -1215,8 +1232,9 @@ async fn hydrate_live_sesh_context(
         join_room(state, room, client_id).await;
     }
 
-    println!(
-        "[hydrate_live_sesh_context] user={} partner_id={:?} is_host={} friend_id={:?} partner_room={:?}",
+    debug!(
+        target: "hydrate_live_sesh_context",
+        "user={} partner_id={:?} is_host={} friend_id={:?} partner_room={:?}",
         client.user_id,
         partner_id,
         is_host,
@@ -1231,8 +1249,9 @@ async fn disconnect_cleanup(state: &AppState, client_id: &str) {
 
     if let Some(client) = client {
 
-        println!(
-            "[PEER_PRES] disconnect_cleanup user={} broadcasting offline to {}",
+        debug!(
+            target: "peer_pres",
+            "disconnect_cleanup user={} broadcasting offline to {}",
             client.user_id, client.shared_room
         );
 
@@ -1290,7 +1309,7 @@ async fn evict_existing_user(state: &AppState, user_id: UserId) {
 
         // let _ = tx.send(Message::Close(None));
         let _ = tx.try_send(Message::Close(None));
-        println!("evicting older socket for user_id={} client_id={}", user_id, cid);
+        info!("evicting older socket for user_id={} client_id={}", user_id, cid);
     }
 }
 
@@ -1376,7 +1395,7 @@ fn encode_outgoing(message: &OutgoingMessage) -> Option<Message> {
         match rmp_serde::to_vec_named(message) {
             Ok(bytes) => Some(Message::Binary(bytes.into())),
             Err(err) => {
-                println!("failed to encode msgpack action={}: {}", message.action, err);
+                error!("failed to encode msgpack action={}: {}", message.action, err);
                 None
             }
         }
@@ -1384,7 +1403,7 @@ fn encode_outgoing(message: &OutgoingMessage) -> Option<Message> {
         match serde_json::to_string(message) {
             Ok(s) => Some(Message::Text(s.into())),
             Err(err) => {
-                println!("failed to encode json action={}: {}", message.action, err);
+                error!("failed to encode json action={}: {}", message.action, err);
                 None
             }
         }
