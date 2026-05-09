@@ -172,18 +172,7 @@ function startSending(state) {
   const t0 = Date.now();
   console.log("[loadtest] opening sockets…");
 
-  // Stagger pair starts so we don't slam Django with N parallel hydration
-  // calls at once. Each runPair still opens host+guest in parallel internally.
-  // 100ms between pair starts means ~10 in-flight handshakes at any time.
-  const STAGGER_MS = 100;
-  const pendingPairs = [];
-  for (let i = 0; i < pairs.length; i++) {
-    pendingPairs.push(runPair(pairs[i], i));
-    if (i < pairs.length - 1) {
-      await new Promise((r) => setTimeout(r, STAGGER_MS));
-    }
-  }
-  const sessions = await Promise.all(pendingPairs);
+  const sessions = await Promise.all(pairs.map((p, i) => runPair(p, i)));
   console.log(`[loadtest] all ${sessions.length} pairs online in ${Date.now() - t0}ms`);
 
   console.log(`[loadtest] driving ${HZ}Hz for ${DURATION_SEC}s…`);

@@ -271,12 +271,52 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
         tokio::spawn(async move {
             hydrate_live_sesh_context(&bg_state, &bg_client_id).await;
 
-            if let Some(client) = get_client(&bg_state, &bg_client_id).await {
-                if !client.is_host {
-                    if let Some(partner_id) = client.partner_id {
-                        proxy_check_host_link_and_load(&bg_state, &bg_client_id, partner_id).await;
-                    }
-                }
+            let Some(client) = get_client(&bg_state, &bg_client_id).await else { return };
+            let Some(partner_id) = client.partner_id else { return };
+
+            let partner_snapshot = {
+                let clients = bg_state.clients.read().await;
+                clients
+                    .values()
+                    .find(|c| c.user_id == partner_id)
+                    .map(|c| (c.user_id, c.friend_light_color.clone(), c.friend_dark_color.clone()))
+            };
+
+            if let Some((pid, light, dark)) = partner_snapshot {
+                send_to_client(
+                    &bg_state,
+                    &bg_client_id,
+                    OutgoingMessage {
+                        action: "peer_presence".to_string(),
+                        data: json!({
+                            "user_id": pid,
+                            "online": true,
+                            "friend_light_color": light,
+                            "friend_dark_color": dark,
+                        }),
+                    },
+                )
+                .await;
+            }
+
+            broadcast_to_room(
+                &bg_state,
+                &client.shared_room,
+                Some(client.user_id),
+                OutgoingMessage {
+                    action: "peer_presence".to_string(),
+                    data: json!({
+                        "user_id": client.user_id,
+                        "online": true,
+                        "friend_light_color": client.friend_light_color,
+                        "friend_dark_color": client.friend_dark_color,
+                    }),
+                },
+            )
+            .await;
+
+            if !client.is_host {
+                proxy_check_host_link_and_load(&bg_state, &bg_client_id, partner_id).await;
             }
         });
     }
