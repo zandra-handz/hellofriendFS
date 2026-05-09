@@ -884,29 +884,31 @@ async fn handle_get_gecko_screen_position(state: &AppState, client_id: &str) {
 }
 
 async fn handle_update_gecko_position(state: &AppState, client_id: &str, data: Option<Value>) {
-    let Some(ctx) = coord_ctx(state, client_id).await else { return };
+    let mut payload = data.unwrap_or_else(|| json!({}));
 
-    if ctx.friend_id.is_none() {
+    let clients = state.clients.read().await;
+    let Some(c) = clients.get(client_id) else { return };
+    if c.friend_id.is_none() {
         return;
     }
+    let user_id = c.user_id;
+    let friend_id = c.friend_id;
+    let shared_room = c.shared_room.clone();
 
-    let mut payload = data.unwrap_or_else(|| json!({}));
     if let Value::Object(map) = &mut payload {
         map.entry("position".to_string()).or_insert_with(|| json!([0, 0]));
-        map.insert("from_user".to_string(), json!(ctx.user_id));
-        map.insert("friend_id".to_string(), json!(ctx.friend_id));
+        map.insert("from_user".to_string(), json!(user_id));
+        map.insert("friend_id".to_string(), json!(friend_id));
     }
 
-    broadcast_to_room(
-        state,
-        &ctx.shared_room,
-        Some(ctx.user_id),
-        OutgoingMessage {
-            action: "gecko_coords".to_string(),
-            data: payload,
-        },
-    )
-    .await;
+    let Some(encoded) = encode_outgoing(&OutgoingMessage {
+        action: "gecko_coords".to_string(),
+        data: payload,
+    }) else {
+        return;
+    };
+
+    broadcast_to_room_with_clients(state, &clients, &shared_room, user_id, encoded).await;
 }
 
 async fn handle_update_host_gecko_position(
@@ -914,33 +916,35 @@ async fn handle_update_host_gecko_position(
     client_id: &str,
     data: Option<Value>,
 ) {
-    let Some(ctx) = coord_ctx(state, client_id).await else { return };
+    let mut payload = data.unwrap_or_else(|| json!({}));
 
-    if !ctx.is_host || ctx.friend_id.is_none() {
+    let clients = state.clients.read().await;
+    let Some(c) = clients.get(client_id) else { return };
+    if !c.is_host || c.friend_id.is_none() {
         return;
     }
+    let user_id = c.user_id;
+    let friend_id = c.friend_id;
+    let shared_room = c.shared_room.clone();
 
-    let mut payload = data.unwrap_or_else(|| json!({}));
     if let Value::Object(map) = &mut payload {
         map.entry("position".to_string()).or_insert_with(|| json!([0, 0]));
         map.entry("steps".to_string()).or_insert_with(|| json!([]));
         map.entry("first_fingers".to_string()).or_insert_with(|| json!([]));
         map.entry("held_moments".to_string()).or_insert_with(|| json!([]));
         map.entry("moments".to_string()).or_insert_with(|| json!([]));
-        map.insert("from_user".to_string(), json!(ctx.user_id));
-        map.insert("friend_id".to_string(), json!(ctx.friend_id));
+        map.insert("from_user".to_string(), json!(user_id));
+        map.insert("friend_id".to_string(), json!(friend_id));
     }
 
-    broadcast_to_room(
-        state,
-        &ctx.shared_room,
-        Some(ctx.user_id),
-        OutgoingMessage {
-            action: "host_gecko_coords".to_string(),
-            data: payload,
-        },
-    )
-    .await;
+    let Some(encoded) = encode_outgoing(&OutgoingMessage {
+        action: "host_gecko_coords".to_string(),
+        data: payload,
+    }) else {
+        return;
+    };
+
+    broadcast_to_room_with_clients(state, &clients, &shared_room, user_id, encoded).await;
 }
 
 async fn handle_update_guest_gecko_position(
@@ -948,29 +952,30 @@ async fn handle_update_guest_gecko_position(
     client_id: &str,
     data: Option<Value>,
 ) {
-    let Some(ctx) = coord_ctx(state, client_id).await else { return };
+    let mut payload = data.unwrap_or_else(|| json!({}));
 
-    if ctx.is_host {
+    let clients = state.clients.read().await;
+    let Some(c) = clients.get(client_id) else { return };
+    if c.is_host {
         return;
     }
+    let user_id = c.user_id;
+    let shared_room = c.shared_room.clone();
 
-    let mut payload = data.unwrap_or_else(|| json!({}));
     if let Value::Object(map) = &mut payload {
         map.entry("position".to_string()).or_insert_with(|| json!([0, 0]));
         map.entry("steps".to_string()).or_insert_with(|| json!([]));
-        map.insert("from_user".to_string(), json!(ctx.user_id));
+        map.insert("from_user".to_string(), json!(user_id));
     }
 
-    broadcast_to_room(
-        state,
-        &ctx.shared_room,
-        Some(ctx.user_id),
-        OutgoingMessage {
-            action: "guest_gecko_coords".to_string(),
-            data: payload,
-        },
-    )
-    .await;
+    let Some(encoded) = encode_outgoing(&OutgoingMessage {
+        action: "guest_gecko_coords".to_string(),
+        data: payload,
+    }) else {
+        return;
+    };
+
+    broadcast_to_room_with_clients(state, &clients, &shared_room, user_id, encoded).await;
 }
 
 async fn handle_update_capsule_progress(
@@ -978,8 +983,6 @@ async fn handle_update_capsule_progress(
     client_id: &str,
     data: Option<Value>,
 ) {
-    let Some(ctx) = coord_ctx(state, client_id).await else { return };
-
     let mut payload = data.unwrap_or_else(|| json!({}));
     let Value::Object(map) = &mut payload else { return };
 
@@ -991,19 +994,22 @@ async fn handle_update_capsule_progress(
     };
     let new_progress = new_progress as i64;
 
-    map.insert("new_progress".to_string(), json!(new_progress));
-    map.insert("from_user".to_string(), json!(ctx.user_id));
+    let clients = state.clients.read().await;
+    let Some(c) = clients.get(client_id) else { return };
+    let user_id = c.user_id;
+    let shared_room = c.shared_room.clone();
 
-    broadcast_to_room(
-        state,
-        &ctx.shared_room,
-        Some(ctx.user_id),
-        OutgoingMessage {
-            action: "capsule_progress".to_string(),
-            data: payload,
-        },
-    )
-    .await;
+    map.insert("new_progress".to_string(), json!(new_progress));
+    map.insert("from_user".to_string(), json!(user_id));
+
+    let Some(encoded) = encode_outgoing(&OutgoingMessage {
+        action: "capsule_progress".to_string(),
+        data: payload,
+    }) else {
+        return;
+    };
+
+    broadcast_to_room_with_clients(state, &clients, &shared_room, user_id, encoded).await;
 }
 
 async fn handle_send_all_host_capsules(
@@ -1011,29 +1017,31 @@ async fn handle_send_all_host_capsules(
     client_id: &str,
     data: Option<Value>,
 ) {
-    let Some(ctx) = coord_ctx(state, client_id).await else { return };
+    let mut payload = data.unwrap_or_else(|| json!({}));
 
-    if !ctx.is_host || ctx.friend_id.is_none() {
+    let clients = state.clients.read().await;
+    let Some(c) = clients.get(client_id) else { return };
+    if !c.is_host || c.friend_id.is_none() {
         return;
     }
+    let user_id = c.user_id;
+    let friend_id = c.friend_id;
+    let shared_room = c.shared_room.clone();
 
-    let mut payload = data.unwrap_or_else(|| json!({}));
     if let Value::Object(map) = &mut payload {
         map.entry("moments".to_string()).or_insert_with(|| json!([]));
-        map.insert("from_user".to_string(), json!(ctx.user_id));
-        map.insert("friend_id".to_string(), json!(ctx.friend_id));
+        map.insert("from_user".to_string(), json!(user_id));
+        map.insert("friend_id".to_string(), json!(friend_id));
     }
 
-    broadcast_to_room(
-        state,
-        &ctx.shared_room,
-        Some(ctx.user_id),
-        OutgoingMessage {
-            action: "all_host_capsules".to_string(),
-            data: payload,
-        },
-    )
-    .await;
+    let Some(encoded) = encode_outgoing(&OutgoingMessage {
+        action: "all_host_capsules".to_string(),
+        data: payload,
+    }) else {
+        return;
+    };
+
+    broadcast_to_room_with_clients(state, &clients, &shared_room, user_id, encoded).await;
 }
 
 async fn proxy_check_host_link_and_load(
@@ -1445,24 +1453,6 @@ async fn get_client(state: &AppState, client_id: &str) -> Option<Client> {
     clients.get(client_id).cloned()
 }
 
-struct CoordCtx {
-    user_id: UserId,
-    friend_id: Option<u64>,
-    is_host: bool,
-    shared_room: RoomName,
-}
-
-async fn coord_ctx(state: &AppState, client_id: &str) -> Option<CoordCtx> {
-    let clients = state.clients.read().await;
-    let c = clients.get(client_id)?;
-    Some(CoordCtx {
-        user_id: c.user_id,
-        friend_id: c.friend_id,
-        is_host: c.is_host,
-        shared_room: c.shared_room.clone(),
-    })
-}
-
 async fn send_to_client(state: &AppState, client_id: &str, message: OutgoingMessage) {
     let clients = state.clients.read().await;
     if let Some(client) = clients.get(client_id) {
@@ -1500,6 +1490,26 @@ async fn broadcast_to_room(
             // let _ = client.tx.send(encoded.clone());
             let _ = client.tx.try_send(encoded.clone());
 
+        }
+    }
+}
+
+async fn broadcast_to_room_with_clients(
+    state: &AppState,
+    clients: &HashMap<ClientId, Client>,
+    room_name: &str,
+    exclude_user_id: UserId,
+    encoded: Message,
+) {
+    let rooms = state.rooms.read().await;
+    if let Some(room_arc) = rooms.get(room_name) {
+        for cid in room_arc.iter() {
+            if let Some(client) = clients.get(cid) {
+                if client.user_id == exclude_user_id {
+                    continue;
+                }
+                let _ = client.tx.try_send(encoded.clone());
+            }
         }
     }
 }
