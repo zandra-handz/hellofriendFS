@@ -125,9 +125,9 @@ async fn main() {
         clients: Arc::new(RwLock::new(HashMap::new())),
         rooms: Arc::new(RwLock::new(HashMap::new())),
         http: reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .connect_timeout(std::time::Duration::from_secs(2))
-        .pool_max_idle_per_host(32)
+        .timeout(Duration::from_secs(30))
+        .connect_timeout(std::time::Duration::from_secs(5))
+        .pool_max_idle_per_host(64)
         .build()
         .expect("failed to build reqwest client"),
         internal_secret: std::env::var("RUST_INTERNAL_SECRET").unwrap_or_default(),

@@ -31,7 +31,7 @@ const INPUT = args.input ?? "./loadtest_users.json";
 const DURATION_SEC = Number(args.duration ?? 60);
 const HZ = 20;
 const SEND_INTERVAL_MS = 1000 / HZ;
-const HANDSHAKE_TIMEOUT_MS = 15_000;
+const HANDSHAKE_TIMEOUT_MS = 30_000;
 
 const pairs = JSON.parse(readFileSync(INPUT, "utf8"));
 console.log(`[loadtest] ${pairs.length} pairs (${pairs.length * 2} sockets), ${DURATION_SEC}s @ ${HZ}Hz`);
