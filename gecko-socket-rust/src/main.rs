@@ -27,6 +27,7 @@ use uuid::Uuid;
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 use axum::response::Response;
 use tracing::{debug, error, info, warn};
+use redis::AsyncCommands;
 
 type UserId = u64;
 type ClientId = String;
@@ -52,6 +53,7 @@ struct AppState {
     internal_secret: String,
     jwt_secret: String,
     django_concurrency: Arc<Semaphore>,
+    redis: redis::aio::ConnectionManager,
 }
 
 #[derive(Clone)]
@@ -122,6 +124,15 @@ async fn main() {
         .with_writer(nb_writer)
         .init();
 
+      let redis_url = std::env::var("REDIS_URL")
+          .unwrap_or_else(|_| "redis://127.0.0.1:6379/1".to_string());
+      let redis_client = redis::Client::open(redis_url)
+          .expect("invalid REDIS_URL");
+      let redis = redis::aio::ConnectionManager::new(redis_client)
+          .await
+          .expect("failed to connect to Redis");
+
+
     let state = AppState {
         clients: Arc::new(RwLock::new(HashMap::new())),
         rooms: Arc::new(RwLock::new(HashMap::new())),
@@ -134,6 +145,7 @@ async fn main() {
         internal_secret: std::env::var("RUST_INTERNAL_SECRET").unwrap_or_default(),
         jwt_secret: std::env::var("GECKO_WS_JWT_SECRET").unwrap_or_default(),
         django_concurrency: Arc::new(Semaphore::new(10)),
+        redis,
     };
 
     if state.internal_secret.is_empty() {
@@ -1190,10 +1202,40 @@ async fn hydrate_live_sesh_context(
 ) {
     let client = get_client(state, client_id).await;
     let Some(client) = client else { return };
+    let user_id = client.user_id;
+
+    let cache_key = format!("gecko_sesh:{}", user_id);
+    let mut redis = state.redis.clone();
+    match redis.get::<_, Option<String>>(&cache_key).await {
+        Ok(Some(json_str)) => {
+            match serde_json::from_str::<Value>(&json_str) {
+                Ok(value) => {
+                    debug!(
+                        target: "hydrate_live_sesh_context",
+                        "cache hit user_id={}",
+                        user_id
+                    );
+                    apply_hydrate_value(state, client_id, user_id, value).await;
+                    return;
+                }
+                Err(e) => warn!(
+                    target: "hydrate_live_sesh_context",
+                    "cache value not parseable user_id={} err={}",
+                    user_id, e
+                ),
+            }
+        }
+        Ok(None) => {}
+        Err(e) => warn!(
+            target: "hydrate_live_sesh_context",
+            "redis get failed user_id={} err={}",
+            user_id, e
+        ),
+    }
 
     let url = format!(
         "{}/users/internal/gecko/live-sesh-context/?user_id={}",
-        DJANGO_BASE_URL, client.user_id
+        DJANGO_BASE_URL, user_id
     );
 
     let _permit = state.django_concurrency.acquire().await.ok();
@@ -1208,7 +1250,7 @@ async fn hydrate_live_sesh_context(
         warn!(
             target: "hydrate_live_sesh_context",
             "django_unreachable user_id={}",
-            client.user_id
+            user_id
         );
         return;
     };
@@ -1218,11 +1260,20 @@ async fn hydrate_live_sesh_context(
         warn!(
             target: "hydrate_live_sesh_context",
             "bad_django_response user_id={}",
-            client.user_id
+            user_id
         );
         return;
     };
 
+    apply_hydrate_value(state, client_id, user_id, value).await;
+}
+
+async fn apply_hydrate_value(
+    state: &AppState,
+    client_id: &str,
+    user_id: UserId,
+    value: Value,
+) {
     let partner_id = value.get("partner_id").and_then(|v| v.as_u64());
     let is_host = value
         .get("is_host")
@@ -1288,13 +1339,12 @@ async fn hydrate_live_sesh_context(
     debug!(
         target: "hydrate_live_sesh_context",
         "user={} partner_id={:?} is_host={} friend_id={:?} partner_room={:?}",
-        client.user_id,
+        user_id,
         partner_id,
         is_host,
         friend_id,
         partner_room
     );
-
 }
 
 async fn disconnect_cleanup(state: &AppState, client_id: &str) {
