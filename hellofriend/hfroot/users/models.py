@@ -1208,19 +1208,7 @@ class GeckoSleepChangeLog(models.Model):
     def __str__(self):
         return f"Sleep change for {self.user.username} on {self.created_on}"
     
-class GeckoCombinedData(models.Model):
-    user = models.OneToOneField('users.BadRainbowzUser', on_delete=models.CASCADE)
-    
-    total_steps = models.PositiveIntegerField(default=0)
-    total_distance = models.PositiveIntegerField(default=0)
-    total_duration = models.PositiveIntegerField(default=0)
-    # energy level ?
-
-    created_on = models.DateTimeField(auto_now_add=True)
-    updated_on = models.DateTimeField(auto_now=True)
-
-    total_gecko_points = models.PositiveIntegerField(default=0)
-
+ 
 
 
 class GeckoPointsLedger(models.Model):
