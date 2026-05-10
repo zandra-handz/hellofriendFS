@@ -20,8 +20,20 @@ from typing import Any, Dict
 from . import constants
 
 
-def serialize_score_state(user, score_state: Dict[str, Any], total_steps_all_time: int) -> Dict[str, Any]:
-    """Mirror of consumers._serialize_score_state, callable from sync code."""
+def serialize_score_state(
+    user,
+    score_state: Dict[str, Any],
+    total_steps_all_time: int,
+    steps_last_24h: int | None = None,
+    sustenance_last_24h: int | None = None,
+) -> Dict[str, Any]:
+    """Mirror of consumers._serialize_score_state, callable from sync code.
+
+    Pure dict assembly — no DB. The 24h aggregates are passed in only on
+    initial connect (load_initial_score_payload); the hotpath response from
+    apply_gecko_data_update omits them since the FE tracks its own running
+    totals after the first hydrate.
+    """
     ss = score_state
     max_active_hours = ss.get("max_active_hours", 16)
     full_rest_hours = 24 - max_active_hours
@@ -37,14 +49,16 @@ def serialize_score_state(user, score_state: Dict[str, Any], total_steps_all_tim
     return {
         "user": user.id,
         "total_steps_all_time": total_steps_all_time,
+        "steps_last_24h": steps_last_24h,
+        "sustenance_last_24h": sustenance_last_24h,
         "multiplier": ss["multiplier"],
         "expires_at": _fmt_dt(ss["expires_at"]),
         "updated_on": _fmt_dt(ss.get("updated_on")),
         "base_multiplier": ss["base_multiplier"],
-        "energy": ss["energy"],
-        "surplus_energy": ss["surplus_energy"],
-        "energy_updated_at": _fmt_dt(ss["energy_updated_at"]),
-        "revives_at": _fmt_dt(ss["revives_at"]),
+        # "energy": ss["energy"],
+        # "surplus_energy": ss["surplus_energy"],
+        # "energy_updated_at": _fmt_dt(ss["energy_updated_at"]),
+        # "revives_at": _fmt_dt(ss["revives_at"]),
         "recharge_per_second": recharge_per_second,
         "streak_recharge_per_second": recharge_per_second * 0.5,
         "step_fatigue_per_step": constants.STEP_FATIGUE_PER_STEP,
@@ -96,22 +110,65 @@ def _score_state_dict_from_obj(obj) -> Dict[str, Any]:
     }
 
 
+def load_24h_seed(user) -> Dict[str, Any]:
+    """
+    Minimal connect-time payload — just the 24h step/sustenance totals the
+    FE needs to seed the gecko animation. Everything else (config, multiplier,
+    etc.) flows through REST + react-query, off the hot path.
+
+    Reads Redis first; only falls through to a single indexed Sum on miss.
+    Rust reads the same Redis key directly, so in steady state this Python
+    path never executes — it's the cold-cache fallback.
+    """
+    from . import seed_24h_cache
+
+    cached = seed_24h_cache.read(user.id)
+    if cached is not None:
+        return cached
+
+    from django.db.models import Sum
+    from .models import GeckoHourlySteps
+
+    totals = GeckoHourlySteps.objects.filter(user_id=user.id).aggregate(
+        steps_total=Sum("steps"),
+        sustenance_total=Sum("points"),
+    )
+    payload = {
+        "steps_last_24h": totals["steps_total"] or 0,
+        "sustenance_last_24h": totals["sustenance_total"] or 0,
+    }
+    seed_24h_cache.write(
+        user.id,
+        payload["steps_last_24h"],
+        payload["sustenance_last_24h"],
+    )
+    return payload
+
+
 def load_initial_score_payload(user) -> Dict[str, Any]:
     """
     Mirror of consumers._load_initial_state. Loads (or creates) the score
-    state row, recomputes energy, and returns the dict the FE expects under
-    score_state.data.
+    state row and returns the dict the FE expects under score_state.data.
+
+    This is the only path that includes the 24h aggregates — runs once per
+    connect, FE tracks its own running totals after that.
     """
-    from .models import GeckoScoreState
+    from django.db.models import Sum
+    from .models import GeckoScoreState, GeckoHourlySteps
 
     obj, _ = GeckoScoreState.objects.get_or_create(user=user)
-    # obj.recompute_energy()
-    total_steps_all_time = obj.total_steps
+
+    hourly_totals = GeckoHourlySteps.objects.filter(user_id=user.id).aggregate(
+        steps_total=Sum("steps"),
+        sustenance_total=Sum("points"),
+    )
 
     return serialize_score_state(
         user,
         _score_state_dict_from_obj(obj),
-        total_steps_all_time,
+        obj.total_steps,
+        steps_last_24h=hourly_totals["steps_total"] or 0,
+        sustenance_last_24h=hourly_totals["sustenance_total"] or 0,
     )
 
 

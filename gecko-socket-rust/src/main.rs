@@ -464,6 +464,10 @@ async fn handle_incoming(state: &AppState, client_id: &str, value: Value) {
             handle_send_all_host_capsules(state, client_id, data).await
         }
 
+        "get_24h_seed" => {
+            handle_get_24h_seed(state, client_id).await;
+        }
+
         "get_score_state"
         | "update_gecko_data"
         | "flush"
@@ -1203,6 +1207,37 @@ async fn proxy_action_to_django(
         }
     }
 }
+
+async fn handle_get_24h_seed(state: &AppState, client_id: &str) {
+    // Hot path. Try Redis (sub-ms) first; only fall through to Django on a
+    // cold cache. Django writes through this same key on every step bucket
+    // update so steady state never leaves Rust + Redis.
+    let client = get_client(state, client_id).await;
+    let Some(client) = client else { return };
+    let user_id = client.user_id;
+
+    let cache_key = format!("gecko_24h:{}", user_id);
+    let mut redis = state.redis.clone();
+    if let Ok(Some(json_str)) = redis.get::<_, Option<String>>(&cache_key).await {
+        if let Ok(value) = serde_json::from_str::<Value>(&json_str) {
+            send_to_client(
+                state,
+                client_id,
+                OutgoingMessage {
+                    action: "seed_24h".to_string(),
+                    data: value,
+                },
+            )
+            .await;
+            return;
+        }
+    }
+
+    // Cold cache → fall through to Django (which will populate Redis on the
+    // way out).
+    proxy_action_to_django(state, client_id, "get_24h_seed", None).await;
+}
+
 
 async fn hydrate_live_sesh_context(
     state: &AppState,

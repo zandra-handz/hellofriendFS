@@ -1477,6 +1477,13 @@ def gecko_socket_action(request):
             "data": load_initial_score_payload(user),
         })
 
+    if action == "get_24h_seed":
+        from .gecko_score_helpers import load_24h_seed
+        return response.Response({
+            "action": "seed_24h",
+            "data": load_24h_seed(user),
+        })
+
     if action == "flush":
         # The Rust socket has no per-connection pending_data buffer (the
         # consumer's flush model is irrelevant here — every update_gecko_data
