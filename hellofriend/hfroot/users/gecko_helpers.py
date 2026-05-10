@@ -465,4 +465,6 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 for e in points_earned_list
             ])
 
+    if friend_id is None:
+        return None
     return friends_models.GeckoData.objects.get(user=user, friend_id=friend_id)
