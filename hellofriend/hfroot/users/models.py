@@ -635,8 +635,8 @@ class GeckoScoreState(models.Model):
 
     # MY NEW ADDS, USE GECKOHOURLYSTEPS TO GET
 
-    steps_last_24h = models.PositiveBigIntegerField(default=0)
-    sustenance_last_24th = models.PositiveBigIntegerField(default=0)
+    # steps_last_24h = models.PositiveBigIntegerField(default=0)
+    # sustenance_last_24th = models.PositiveBigIntegerField(default=0)
     # eventually move to this better named field and remove expires_at
     last_steak_expiry = models.DateTimeField(default=timezone.now)
 

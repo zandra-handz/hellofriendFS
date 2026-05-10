@@ -3,6 +3,7 @@ import math
 from . import models
 from rest_framework import serializers
 from django.core.exceptions import ValidationError
+from django.db.models import Sum
 from django.utils.timezone import now
 from django.utils import timezone
 from . import constants
@@ -62,6 +63,8 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
     story_type_label = serializers.SerializerMethodField()
     available_choices = serializers.SerializerMethodField()
     thresholds = serializers.SerializerMethodField()
+    steps_last_24h = serializers.SerializerMethodField()
+    sustenance_last_24h = serializers.SerializerMethodField()
 
     class Meta():
         model = models.GeckoScoreState
@@ -70,7 +73,7 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
             'base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at',
             'revives_at',
             'total_steps', 'total_distance', 'total_duration', 'total_gecko_points',
-            'steps_last_24h', 'sustenance_last_24th',
+            'steps_last_24h', 'sustenance_last_24h',
             'last_steak_expiry',
             'recharge_per_second', 'streak_recharge_per_second',
             'step_fatigue_per_step', 'streak_fatigue_multiplier', 'surplus_cap',
@@ -87,13 +90,24 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at', 'revives_at',
             'total_steps', 'total_distance', 'total_duration', 'total_gecko_points',
-            'steps_last_24h', 'sustenance_last_24th',
             'last_steak_expiry',
             'personality_type', 'memory_type', 'active_hours_type', 'story_type',
             'stamina', 'max_active_hours', 'max_duration_till_revival',
             'max_score_multiplier', 'max_streak_length_seconds',
             'active_hours', 'gecko_created_on',
         ]
+
+    def get_steps_last_24h(self, obj):
+        agg = models.GeckoHourlySteps.objects.filter(
+            user_id=obj.user_id,
+        ).aggregate(total=Sum('steps'))
+        return agg['total'] or 0
+
+    def get_sustenance_last_24h(self, obj):
+        agg = models.GeckoHourlySteps.objects.filter(
+            user_id=obj.user_id,
+        ).aggregate(total=Sum('points'))
+        return agg['total'] or 0
 
     def _get_recharge_per_second(self, obj):
         full_rest_hours = 24 - obj.max_active_hours

@@ -480,6 +480,9 @@ class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+        # Mirror expires_at onto last_steak_expiry until we fully cut over.
+        instance.last_steak_expiry = data['expires_at']
+        instance.save(update_fields=['last_steak_expiry'])
         # instance.recompute_energy()
         instance.refresh_from_db()
         return response.Response(self.get_serializer(instance).data)

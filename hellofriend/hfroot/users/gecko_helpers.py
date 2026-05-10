@@ -390,6 +390,13 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
             f'user={user.id} score_rows={score_rows}'
         )
 
+        update_hourly_steps(
+            user,
+            delta_steps=delta_steps,
+            delta_distance=delta_distance,
+            delta_points=total_points,
+        )
+
         existing_combined_session = None
 
         logger.info(

@@ -455,9 +455,11 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
     # just those keeps streak resume working without running the recompute.
     obj.multiplier = score_state["multiplier"]
     obj.expires_at = score_state["expires_at"]
+    obj.last_steak_expiry = score_state["expires_at"]
     obj.save(update_fields=[
         "multiplier",
         "expires_at",
+        "last_steak_expiry",
     ])
 
     if entry["steps"] or entry["distance"] or entry["points_earned"]:
