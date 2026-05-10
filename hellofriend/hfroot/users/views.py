@@ -1470,12 +1470,13 @@ def gecko_socket_action(request):
             status=status.HTTP_404_NOT_FOUND,
         )
 
-    if action == "get_score_state":
-        from .gecko_score_helpers import load_initial_score_payload
-        return response.Response({
-            "action": "score_state",
-            "data": load_initial_score_payload(user),
-        })
+    # Score state config moved to REST + react-query. Connect uses get_24h_seed.
+    # if action == "get_score_state":
+    #     from .gecko_score_helpers import load_initial_score_payload
+    #     return response.Response({
+    #         "action": "score_state",
+    #         "data": load_initial_score_payload(user),
+    #     })
 
     if action == "get_24h_seed":
         from .gecko_score_helpers import load_24h_seed

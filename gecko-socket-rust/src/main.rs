@@ -901,6 +901,7 @@ async fn handle_update_gecko_position(state: &AppState, client_id: &str, data: O
 
     if let Value::Object(map) = &mut payload {
         map.entry("position".to_string()).or_insert_with(|| json!([0, 0]));
+        map.entry("energy".to_string()).or_insert_with(|| json!(1.0));
         map.insert("from_user".to_string(), json!(user_id));
         map.insert("friend_id".to_string(), json!(friend_id));
     }
@@ -937,6 +938,7 @@ async fn handle_update_host_gecko_position(
         map.entry("first_fingers".to_string()).or_insert_with(|| json!([]));
         map.entry("held_moments".to_string()).or_insert_with(|| json!([]));
         map.entry("moments".to_string()).or_insert_with(|| json!([]));
+        map.entry("energy".to_string()).or_insert_with(|| json!(1.0));
         map.insert("from_user".to_string(), json!(user_id));
         map.insert("friend_id".to_string(), json!(friend_id));
     }
@@ -969,6 +971,7 @@ async fn handle_update_guest_gecko_position(
     if let Value::Object(map) = &mut payload {
         map.entry("position".to_string()).or_insert_with(|| json!([0, 0]));
         map.entry("steps".to_string()).or_insert_with(|| json!([]));
+        map.entry("energy".to_string()).or_insert_with(|| json!(1.0));
         map.insert("from_user".to_string(), json!(user_id));
     }
 
