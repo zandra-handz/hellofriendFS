@@ -319,16 +319,76 @@ class GeckoCombinedDataSessionsAll(generics.ListAPIView):
         return super().list(request, *args, **kwargs)
 
 
+# class GeckoCombinedDataSessionsTimeRange(generics.ListAPIView):
+#     serializer_class = serializers.GeckoCombinedDataSessionSerializer
+#     permission_classes = [IsAuthenticated]
+#     pagination_class = MediumPagination
+
+#     def get_queryset(self):
+#         user = self.request.user 
+#         minutes = self.request.query_params.get('minutes')
+
+#         qs = models.GeckoCombinedSession.objects.filter(user=user)
+
+#         if minutes:
+#             try:
+#                 since = timezone.now() - datetime.timedelta(minutes=float(minutes))
+#                 qs = qs.filter(started_on__gte=since)
+#             except (ValueError, TypeError):
+#                 pass
+
+#         return qs
+
+#     def list(self, request, *args, **kwargs):
+#         queryset = self.filter_queryset(self.get_queryset())
+
+#         totals = queryset.aggregate(
+#             total_steps=Sum('steps'),
+#             total_distance=Sum('distance'),
+#             session_count=Count('id'),
+#         )
+
+#         # compute total duration in python since it's derived from two fields
+#         total_duration = sum(
+#             max(0, (s.ended_on - s.started_on).total_seconds())
+#             for s in queryset.only('started_on', 'ended_on')
+#         )
+
+#         totals['total_duration_seconds'] = int(total_duration)
+#         total_hours = total_duration / 3600
+#         totals['total_hours'] = round(total_hours, 2)
+#         totals['steps_per_hour'] = round(totals['total_steps'] / total_hours, 1) if total_hours > 0 else 0
+#         totals['distance_per_hour'] = round(totals['total_distance'] / total_hours, 1) if total_hours > 0 else 0
+
+#         page = self.paginate_queryset(queryset)
+#         if page is not None:
+#             serializer = self.get_serializer(page, many=True)
+#             resp = self.get_paginated_response(serializer.data)
+#             resp.data['totals'] = totals
+#             return resp
+
+#         serializer = self.get_serializer(queryset, many=True)
+#         return response.Response({'results': serializer.data, 'totals': totals})
+
+
+
 class GeckoCombinedDataSessionsTimeRange(generics.ListAPIView):
     serializer_class = serializers.GeckoCombinedDataSessionSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = MediumPagination
 
     def get_queryset(self):
-        user = self.request.user 
+        user = self.request.user
         minutes = self.request.query_params.get('minutes')
+        friend_id = self.request.query_params.get('friend_id')
 
         qs = models.GeckoCombinedSession.objects.filter(user=user)
+
+        if friend_id:
+            try:
+                qs = qs.filter(friend_id=int(friend_id))
+            except (ValueError, TypeError):
+                pass
 
         if minutes:
             try:
@@ -348,7 +408,6 @@ class GeckoCombinedDataSessionsTimeRange(generics.ListAPIView):
             session_count=Count('id'),
         )
 
-        # compute total duration in python since it's derived from two fields
         total_duration = sum(
             max(0, (s.ended_on - s.started_on).total_seconds())
             for s in queryset.only('started_on', 'ended_on')
@@ -369,7 +428,6 @@ class GeckoCombinedDataSessionsTimeRange(generics.ListAPIView):
 
         serializer = self.get_serializer(queryset, many=True)
         return response.Response({'results': serializer.data, 'totals': totals})
-
 
 class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.GeckoScoreStateSerializer
