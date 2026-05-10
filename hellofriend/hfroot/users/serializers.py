@@ -48,7 +48,7 @@ class GeckoCombinedDataSessionSerializer(serializers.ModelSerializer):
 class GeckoHourlyStepsSerializer(serializers.ModelSerializer):
 
     class Meta():
-        models = models.GeckoHourlySteps
+        model = models.GeckoHourlySteps
         fields = ['user', 'hour', 'steps', 'distance', 'points', 'updated_at']
 
 class GeckoScoreStateSerializer(serializers.ModelSerializer):

@@ -746,7 +746,7 @@ class GeckoHourlyStepsView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return models.GeckoHourlySteps.object.filter(user=self.request.user)
+        return models.GeckoHourlySteps.objects.filter(user=self.request.user)
 
 class PointsLedgerView(generics.ListAPIView):
     serializer_class = serializers.PointsLedgerSerializer
