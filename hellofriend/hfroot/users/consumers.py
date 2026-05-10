@@ -2643,6 +2643,8 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
     # DB operations
     # ------------------------------------------------------------------
 
+    # IMPORTANT NOTE IF EVER REVERT TO THIS CONSUMER:
+    # WE RIPPED OUT RECOMPUTE_ENERGY SO THIS WON'T WORK ANYMORE
     @database_sync_to_async
     def _load_initial_state(self):
         from users.models import GeckoScoreState, GeckoCombinedData

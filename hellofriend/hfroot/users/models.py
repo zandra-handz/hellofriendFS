@@ -603,33 +603,69 @@ class Story(models.IntegerChoices):
     ESCAPER = 3, "Escaper"
 
 
+ 
+
+
+class GeckoHourlySteps(models.Model):
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    hour = models.PositiveSmallIntegerField()  # 0-23
+    steps = models.PositiveIntegerField(default=0)
+    distance = models.PositiveIntegerField(default=0)
+    points = models.IntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("user", "hour")]
+
+
+# class GeckoStepsHourlyLedger(models.Model):
+#keeps 24 logs at any given time for 
+
+# class GeckoSession(models.Model):
+# keep friend data here so we can use one model for both
+
+
+
 class GeckoScoreState(models.Model):
     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='geckoscorestate')
+    
+    # ADD, PUT COMBINED GECKO DATA HERE INSTEAD
+    total_steps = models.PositiveIntegerField(default=0)
+    total_distance = models.PositiveIntegerField(default=0)
+    total_duration = models.PositiveIntegerField(default=0)
+    total_gecko_points = models.PositiveIntegerField(default=0)
+
+    # MY NEW ADDS, USE GECKOHOURLYSTEPS TO GET
+
+    steps_last_24h = models.PositiveBigIntegerField(default=0)
+    sustenance_last_24th = models.PositiveBigIntegerField(default=0)
+    # eventually move to this better named field and remove expires_at
+    last_steak_expiry = models.DateTimeField(default=timezone.now)
+
+    # TO REMOVE LATER, LEAVE FOR NOW
     base_multiplier = models.PositiveIntegerField(default=1)
     multiplier = models.PositiveIntegerField(default=1)
-
-    # when streak expires
-    expires_at = models.DateTimeField(default=timezone.now)
-
-
     energy = models.FloatField(default=1.0)
     surplus_energy = models.FloatField(default=0.0)
     energy_updated_at = models.DateTimeField(default=timezone.now)
     revives_at = models.DateTimeField(null=True, blank=True)
- 
-    personality_type = models.IntegerField(choices=Personality.choices, default=Personality.CURIOUS)
-    memory_type = models.IntegerField(choices=Memory.choices, default=Memory.AMNESIAC)
-    active_hours_type = models.IntegerField(choices=ActivityHours.choices, default=ActivityHours.DAY)
-    story_type = models.IntegerField(choices=Story.choices, default=Story.LEARNER)
     stamina = models.FloatField(default=1.0)
-
     max_active_hours = models.SmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(20)], default=(16))
-    
     max_duration_till_revival = models.PositiveIntegerField(default=60)
     max_score_multiplier = models.PositiveIntegerField(default=3)
     max_streak_length_seconds = models.PositiveIntegerField(default=10)
 
     active_hours = models.JSONField(default=list, blank=True)
+ 
+
+    # when streak expires
+    expires_at = models.DateTimeField(default=timezone.now)
+
+    personality_type = models.IntegerField(choices=Personality.choices, default=Personality.CURIOUS)
+    memory_type = models.IntegerField(choices=Memory.choices, default=Memory.AMNESIAC)
+    active_hours_type = models.IntegerField(choices=ActivityHours.choices, default=ActivityHours.DAY)
+    story_type = models.IntegerField(choices=Story.choices, default=Story.LEARNER)
+
 
     gecko_created_on = models.DateTimeField(null=True, blank=True)
 
@@ -679,128 +715,128 @@ class GeckoScoreState(models.Model):
 
 
 
-    def recompute_energy(self):
-        now = timezone.now()
-        elapsed = (now - self.energy_updated_at).total_seconds()
-        if elapsed <= 0:
-            return
+    # def recompute_energy(self):
+    #     now = timezone.now()
+    #     elapsed = (now - self.energy_updated_at).total_seconds()
+    #     if elapsed <= 0:
+    #         return
 
-        if (
-            self.multiplier > self.base_multiplier
-            and self.expires_at
-            and self.expires_at <= now
-        ):
-            self.multiplier = self.base_multiplier
+    #     if (
+    #         self.multiplier > self.base_multiplier
+    #         and self.expires_at
+    #         and self.expires_at <= now
+    #     ):
+    #         self.multiplier = self.base_multiplier
 
 
-        if self.energy <= 0.0 and self.surplus_energy <= 0.0:
-            if self.revives_at and now >= self.revives_at:
-                self.energy = 0.05
-                self.revives_at = None
-            elif not self.revives_at:
-                self.revives_at = now + timedelta(seconds=self.max_duration_till_revival)
-            self.energy_updated_at = now
-            self.save(update_fields=["energy", "surplus_energy", "energy_updated_at", "revives_at"])
-            GeckoEnergyLog.objects.create(
-                user=self.user, energy=self.energy,
-                surplus_energy=self.surplus_energy, steps=0,
-                total_steps=getattr(getattr(self.user, 'geckocombineddata', None), 'total_steps', 0),
-                friend=None, recorded_at=now,
-            )
-            return
+    #     if self.energy <= 0.0 and self.surplus_energy <= 0.0:
+    #         if self.revives_at and now >= self.revives_at:
+    #             self.energy = 0.05
+    #             self.revives_at = None
+    #         elif not self.revives_at:
+    #             self.revives_at = now + timedelta(seconds=self.max_duration_till_revival)
+    #         self.energy_updated_at = now
+    #         self.save(update_fields=["energy", "surplus_energy", "energy_updated_at", "revives_at"])
+    #         GeckoEnergyLog.objects.create(
+    #             user=self.user, energy=self.energy,
+    #             surplus_energy=self.surplus_energy, steps=0,
+    #             total_steps=getattr(getattr(self.user, 'geckocombineddata', None), 'total_steps', 0),
+    #             friend=None, recorded_at=now,
+    #         )
+    #         return
 
-        stamina = self.stamina                                                                                                                                                                                                                                 
-        max_active_hours = self.max_active_hours                                                                                                                                                                                                               
-        full_rest_hours = 24 - max_active_hours                                                                                                                                                                                                                
-        recharge_per_second = 1.0 / (full_rest_hours * 3600)
-        streak_recharge_per_second = recharge_per_second * 0.5
+    #     stamina = self.stamina                                                                                                                                                                                                                                 
+    #     max_active_hours = self.max_active_hours                                                                                                                                                                                                               
+    #     full_rest_hours = 24 - max_active_hours                                                                                                                                                                                                                
+    #     recharge_per_second = 1.0 / (full_rest_hours * 3600)
+    #     streak_recharge_per_second = recharge_per_second * 0.5
 
-        sessions = self.user.geckocombinedsession_set.filter(
-            ended_on__gt=self.energy_updated_at
-        )
-        new_steps = sum(s.steps or 0 for s in sessions)
-        active_seconds = sum(
-            max(0, (s.ended_on - s.started_on).total_seconds())
-            for s in sessions
-            if s.started_on and s.ended_on
-        )
-        rest_seconds = max(0, elapsed - active_seconds)
+    #     sessions = self.user.geckocombinedsession_set.filter(
+    #         ended_on__gt=self.energy_updated_at
+    #     )
+    #     new_steps = sum(s.steps or 0 for s in sessions)
+    #     active_seconds = sum(
+    #         max(0, (s.ended_on - s.started_on).total_seconds())
+    #         for s in sessions
+    #         if s.started_on and s.ended_on
+    #     )
+    #     rest_seconds = max(0, elapsed - active_seconds)
 
-        streak_is_active = (
-            self.multiplier > self.base_multiplier
-            and self.expires_at > self.energy_updated_at
-        )
+    #     streak_is_active = (
+    #         self.multiplier > self.base_multiplier
+    #         and self.expires_at > self.energy_updated_at
+    #     )
 
-        if streak_is_active and active_seconds > 0:
-            streak_end = min(self.expires_at, now)
-            streak_seconds = max(0, (streak_end - self.energy_updated_at).total_seconds())
-            streak_ratio = min(1.0, streak_seconds / elapsed)
+    #     if streak_is_active and active_seconds > 0:
+    #         streak_end = min(self.expires_at, now)
+    #         streak_seconds = max(0, (streak_end - self.energy_updated_at).total_seconds())
+    #         streak_ratio = min(1.0, streak_seconds / elapsed)
 
-            streak_active_seconds = active_seconds * streak_ratio
-            streak_steps = new_steps * (streak_active_seconds / active_seconds)
-            normal_steps = new_steps - streak_steps
+    #         streak_active_seconds = active_seconds * streak_ratio
+    #         streak_steps = new_steps * (streak_active_seconds / active_seconds)
+    #         normal_steps = new_steps - streak_steps
 
-            fatigue = (
-                (normal_steps * constants.STEP_FATIGUE_PER_STEP)
-                + (streak_steps * constants.STEP_FATIGUE_PER_STEP * constants.STREAK_FATIGUE_MULTIPLIER)
-            )
-            recharge = (
-                (rest_seconds * recharge_per_second)
-                + (streak_active_seconds * streak_recharge_per_second)
-            )
-        else:
-            fatigue = new_steps * constants.STEP_FATIGUE_PER_STEP
-            recharge = rest_seconds * recharge_per_second
+    #         fatigue = (
+    #             (normal_steps * constants.STEP_FATIGUE_PER_STEP)
+    #             + (streak_steps * constants.STEP_FATIGUE_PER_STEP * constants.STREAK_FATIGUE_MULTIPLIER)
+    #         )
+    #         recharge = (
+    #             (rest_seconds * recharge_per_second)
+    #             + (streak_active_seconds * streak_recharge_per_second)
+    #         )
+    #     else:
+    #         fatigue = new_steps * constants.STEP_FATIGUE_PER_STEP
+    #         recharge = rest_seconds * recharge_per_second
 
-        effective_recharge = recharge * stamina
-        effective_fatigue = fatigue / stamina
+    #     effective_recharge = recharge * stamina
+    #     effective_fatigue = fatigue / stamina
 
-        net = effective_recharge - effective_fatigue
+    #     net = effective_recharge - effective_fatigue
 
-        if net >= 0:
-            room_in_main = 1.0 - self.energy
-            if net <= room_in_main:
-                self.energy += net
-            else:
-                self.energy = 1.0
-                self.surplus_energy = min(
-                    constants.SURPLUS_CAP,
-                    self.surplus_energy + (net - room_in_main)
-                )
-        else:
-            drain = -net
-            if self.surplus_energy >= drain:
-                self.surplus_energy -= drain
-            else:
-                drain -= self.surplus_energy
-                self.surplus_energy = 0.0
-                self.energy = max(0.0, self.energy - drain)
+    #     if net >= 0:
+    #         room_in_main = 1.0 - self.energy
+    #         if net <= room_in_main:
+    #             self.energy += net
+    #         else:
+    #             self.energy = 1.0
+    #             self.surplus_energy = min(
+    #                 constants.SURPLUS_CAP,
+    #                 self.surplus_energy + (net - room_in_main)
+    #             )
+    #     else:
+    #         drain = -net
+    #         if self.surplus_energy >= drain:
+    #             self.surplus_energy -= drain
+    #         else:
+    #             drain -= self.surplus_energy
+    #             self.surplus_energy = 0.0
+    #             self.energy = max(0.0, self.energy - drain)
 
-        if self.energy <= 0.0 and self.surplus_energy <= 0.0:
-            if not self.revives_at:
-                self.revives_at = now + timedelta(seconds=self.max_duration_till_revival)
-        else:
-            self.revives_at = None
+    #     if self.energy <= 0.0 and self.surplus_energy <= 0.0:
+    #         if not self.revives_at:
+    #             self.revives_at = now + timedelta(seconds=self.max_duration_till_revival)
+    #     else:
+    #         self.revives_at = None
 
-        self.energy_updated_at = now
-        self.save(update_fields=["energy", "surplus_energy", "energy_updated_at", "revives_at"])
+    #     self.energy_updated_at = now
+    #     self.save(update_fields=["energy", "surplus_energy", "energy_updated_at", "revives_at"])
 
-        latest_session = sessions.order_by('-ended_on').first()
-        combined_data = getattr(self.user, 'geckocombineddata', None)
-        GeckoEnergyLog.objects.create(
-            user=self.user, energy=self.energy,
-            surplus_energy=self.surplus_energy, steps=new_steps,
-            total_steps=combined_data.total_steps if combined_data else 0,
-            friend=latest_session.friend if latest_session else None,
-            recorded_at=now,
-        )
-        if now.hour == 0 and now.minute < 2:
-            GeckoEnergyLog.prune_old(self.user)
+    #     latest_session = sessions.order_by('-ended_on').first()
+    #     combined_data = getattr(self.user, 'geckocombineddata', None)
+    #     GeckoEnergyLog.objects.create(
+    #         user=self.user, energy=self.energy,
+    #         surplus_energy=self.surplus_energy, steps=new_steps,
+    #         total_steps=combined_data.total_steps if combined_data else 0,
+    #         friend=latest_session.friend if latest_session else None,
+    #         recorded_at=now,
+    #     )
+    #     if now.hour == 0 and now.minute < 2:
+    #         GeckoEnergyLog.prune_old(self.user)
 
-    def save(self, *args, **kwargs):
-        if not self.pk and not self.active_hours:
-            self.active_hours = self.build_default_active_hours()
-        super().save(*args, **kwargs)
+    # def save(self, *args, **kwargs):
+    #     if not self.pk and not self.active_hours:
+    #         self.active_hours = self.build_default_active_hours()
+    #     super().save(*args, **kwargs)
 
 class GeckoGameWinPending(models.Model):
     user = models.OneToOneField('users.BadRainbowzUser', on_delete=models.CASCADE)
@@ -1191,6 +1227,7 @@ class GeckoCombinedData(models.Model):
 
 class GeckoPointsLedger(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='gecko_points_ledger')
+    
     friend = models.ForeignKey('friends.Friend', on_delete=models.SET_NULL, null=True, blank=True)
     friend_session = models.ForeignKey(
         'friends.GeckoDataSession',
@@ -1255,7 +1292,7 @@ class GeckoCombinedSession(models.Model):
     
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        self.user.geckoscorestate.recompute_energy()
+        # self.user.geckoscorestate.recompute_energy()
 
 class PointsLedger(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='points_ledger')

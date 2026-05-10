@@ -105,7 +105,7 @@ def load_initial_score_payload(user) -> Dict[str, Any]:
     from .models import GeckoScoreState, GeckoCombinedData
 
     obj, _ = GeckoScoreState.objects.get_or_create(user=user)
-    obj.recompute_energy()
+    # obj.recompute_energy()
 
     combined, _ = GeckoCombinedData.objects.get_or_create(user=user)
     total_steps_all_time = combined.total_steps
@@ -145,181 +145,181 @@ def _load_score_rules() -> Dict[int, Dict[str, Any]]:
     }
 
 
-def _recompute_energy_in_place(score_state: Dict[str, Any], pending_data, user_id: int) -> Dict[str, Any]:
-    """
-    Mirror of consumers._recompute_energy_in_memory, but operating on a
-    plain dict + pending_data list passed in. Returns the debug dict.
-    """
-    from . import constants
+# def _recompute_energy_in_place(score_state: Dict[str, Any], pending_data, user_id: int) -> Dict[str, Any]:
+#     """
+#     Mirror of consumers._recompute_energy_in_memory, but operating on a
+#     plain dict + pending_data list passed in. Returns the debug dict.
+#     """
+#     from . import constants
 
-    ss = score_state
-    debug: Dict[str, Any] = {}
-    now = timezone.now()
-    energy_updated_at = ss["energy_updated_at"]
-    elapsed = (now - energy_updated_at).total_seconds()
+#     ss = score_state
+#     debug: Dict[str, Any] = {}
+#     now = timezone.now()
+#     energy_updated_at = ss["energy_updated_at"]
+#     elapsed = (now - energy_updated_at).total_seconds()
 
-    if elapsed <= 0:
-        return debug
+#     if elapsed <= 0:
+#         return debug
 
-    if (
-        ss["multiplier"] > ss["base_multiplier"]
-        and ss.get("expires_at")
-        and ss["expires_at"] <= now
-    ):
-        ss["multiplier"] = ss["base_multiplier"]
+#     if (
+#         ss["multiplier"] > ss["base_multiplier"]
+#         and ss.get("expires_at")
+#         and ss["expires_at"] <= now
+#     ):
+#         ss["multiplier"] = ss["base_multiplier"]
 
-    prev_energy = ss["energy"]
-    prev_surplus = ss["surplus_energy"]
+#     prev_energy = ss["energy"]
+#     prev_surplus = ss["surplus_energy"]
 
-    revival_seconds = ss.get("max_duration_till_revival", 60)
+#     revival_seconds = ss.get("max_duration_till_revival", 60)
 
-    energy = ss["energy"]
-    surplus_energy = ss["surplus_energy"]
-    revives_at = ss["revives_at"]
+#     energy = ss["energy"]
+#     surplus_energy = ss["surplus_energy"]
+#     revives_at = ss["revives_at"]
 
-    if energy <= 0.0 and surplus_energy <= 0.0:
-        if revives_at and now >= revives_at:
-            ss["energy"] = 0.05
-            ss["revives_at"] = None
-            logger.info("[recompute] revive triggered user=%s", user_id)
-        elif not revives_at:
-            ss["revives_at"] = now + datetime.timedelta(seconds=revival_seconds)
-        ss["energy_updated_at"] = now
-        return debug
+#     if energy <= 0.0 and surplus_energy <= 0.0:
+#         if revives_at and now >= revives_at:
+#             ss["energy"] = 0.05
+#             ss["revives_at"] = None
+#             logger.info("[recompute] revive triggered user=%s", user_id)
+#         elif not revives_at:
+#             ss["revives_at"] = now + datetime.timedelta(seconds=revival_seconds)
+#         ss["energy_updated_at"] = now
+#         return debug
 
-    stamina = ss.get("stamina", 1.0)
-    max_active_hours = ss.get("max_active_hours", 16)
-    full_rest_hours = 24 - max_active_hours
-    recharge_per_second = 1.0 / (full_rest_hours * 3600) if full_rest_hours > 0 else 0.0
-    streak_recharge_per_second = recharge_per_second * 0.5
+#     stamina = ss.get("stamina", 1.0)
+#     max_active_hours = ss.get("max_active_hours", 16)
+#     full_rest_hours = 24 - max_active_hours
+#     recharge_per_second = 1.0 / (full_rest_hours * 3600) if full_rest_hours > 0 else 0.0
+#     streak_recharge_per_second = recharge_per_second * 0.5
 
-    new_steps = 0
-    active_seconds = 0
-    pending_in_window = 0
-    pending_stale = 0
-    pending_steps_all = 0
-    pending_steps_in_window = 0
+#     new_steps = 0
+#     active_seconds = 0
+#     pending_in_window = 0
+#     pending_stale = 0
+#     pending_steps_all = 0
+#     pending_steps_in_window = 0
 
-    for entry in pending_data:
-        started = entry.get("_started_dt")
-        ended = entry.get("_ended_dt")
+#     for entry in pending_data:
+#         started = entry.get("_started_dt")
+#         ended = entry.get("_ended_dt")
 
-        if not started or not ended:
-            continue
+#         if not started or not ended:
+#             continue
 
-        start = max(started, energy_updated_at)
-        end = min(ended, now)
+#         start = max(started, energy_updated_at)
+#         end = min(ended, now)
 
-        entry_steps = entry.get("steps", 0)
-        pending_steps_all += entry_steps
+#         entry_steps = entry.get("steps", 0)
+#         pending_steps_all += entry_steps
 
-        if end > start:
-            active_seconds += (end - start).total_seconds()
-            pending_in_window += 1
-            pending_steps_in_window += entry_steps
-        else:
-            pending_stale += 1
+#         if end > start:
+#             active_seconds += (end - start).total_seconds()
+#             pending_in_window += 1
+#             pending_steps_in_window += entry_steps
+#         else:
+#             pending_stale += 1
 
-        new_steps += entry_steps
+#         new_steps += entry_steps
 
-    rest_seconds = max(0, elapsed - active_seconds)
+#     rest_seconds = max(0, elapsed - active_seconds)
 
-    multiplier = ss["multiplier"]
-    base_multiplier = ss["base_multiplier"]
-    expires_at = ss["expires_at"]
+#     multiplier = ss["multiplier"]
+#     base_multiplier = ss["base_multiplier"]
+#     expires_at = ss["expires_at"]
 
-    streak_is_active = (
-        multiplier > base_multiplier
-        and expires_at
-        and expires_at > energy_updated_at
-    )
+#     streak_is_active = (
+#         multiplier > base_multiplier
+#         and expires_at
+#         and expires_at > energy_updated_at
+#     )
 
-    if streak_is_active and active_seconds > 0:
-        streak_end = min(expires_at, now)
-        streak_seconds = max(0, (streak_end - energy_updated_at).total_seconds())
-        streak_ratio = min(1.0, streak_seconds / elapsed) if elapsed > 0 else 0.0
+#     if streak_is_active and active_seconds > 0:
+#         streak_end = min(expires_at, now)
+#         streak_seconds = max(0, (streak_end - energy_updated_at).total_seconds())
+#         streak_ratio = min(1.0, streak_seconds / elapsed) if elapsed > 0 else 0.0
 
-        streak_active_seconds = active_seconds * streak_ratio
-        streak_steps = (
-            new_steps * (streak_active_seconds / active_seconds)
-            if active_seconds else 0
-        )
-        normal_steps = new_steps - streak_steps
+#         streak_active_seconds = active_seconds * streak_ratio
+#         streak_steps = (
+#             new_steps * (streak_active_seconds / active_seconds)
+#             if active_seconds else 0
+#         )
+#         normal_steps = new_steps - streak_steps
 
-        fatigue = (
-            (normal_steps * constants.STEP_FATIGUE_PER_STEP)
-            + (
-                streak_steps
-                * constants.STEP_FATIGUE_PER_STEP
-                * constants.STREAK_FATIGUE_MULTIPLIER
-            )
-        )
-        recharge = (
-            (rest_seconds * recharge_per_second)
-            + (streak_active_seconds * streak_recharge_per_second)
-        )
-    else:
-        fatigue = new_steps * constants.STEP_FATIGUE_PER_STEP
-        recharge = rest_seconds * recharge_per_second
+#         fatigue = (
+#             (normal_steps * constants.STEP_FATIGUE_PER_STEP)
+#             + (
+#                 streak_steps
+#                 * constants.STEP_FATIGUE_PER_STEP
+#                 * constants.STREAK_FATIGUE_MULTIPLIER
+#             )
+#         )
+#         recharge = (
+#             (rest_seconds * recharge_per_second)
+#             + (streak_active_seconds * streak_recharge_per_second)
+#         )
+#     else:
+#         fatigue = new_steps * constants.STEP_FATIGUE_PER_STEP
+#         recharge = rest_seconds * recharge_per_second
 
-    effective_recharge = recharge * stamina
-    effective_fatigue = fatigue / stamina if stamina > 0 else fatigue
+#     effective_recharge = recharge * stamina
+#     effective_fatigue = fatigue / stamina if stamina > 0 else fatigue
 
-    net = effective_recharge - effective_fatigue
+#     net = effective_recharge - effective_fatigue
 
-    if net >= 0:
-        room_in_main = 1.0 - energy
-        if net <= room_in_main:
-            energy += net
-        else:
-            energy = 1.0
-            surplus_energy = min(
-                constants.SURPLUS_CAP,
-                surplus_energy + (net - room_in_main),
-            )
-    else:
-        drain = -net
-        if surplus_energy >= drain:
-            surplus_energy -= drain
-        else:
-            drain -= surplus_energy
-            surplus_energy = 0.0
-            energy = max(0.0, energy - drain)
+#     if net >= 0:
+#         room_in_main = 1.0 - energy
+#         if net <= room_in_main:
+#             energy += net
+#         else:
+#             energy = 1.0
+#             surplus_energy = min(
+#                 constants.SURPLUS_CAP,
+#                 surplus_energy + (net - room_in_main),
+#             )
+#     else:
+#         drain = -net
+#         if surplus_energy >= drain:
+#             surplus_energy -= drain
+#         else:
+#             drain -= surplus_energy
+#             surplus_energy = 0.0
+#             energy = max(0.0, energy - drain)
 
-    if energy <= 0.0 and surplus_energy <= 0.0:
-        if not revives_at:
-            revives_at = now + datetime.timedelta(seconds=revival_seconds)
-    else:
-        revives_at = None
+#     if energy <= 0.0 and surplus_energy <= 0.0:
+#         if not revives_at:
+#             revives_at = now + datetime.timedelta(seconds=revival_seconds)
+#     else:
+#         revives_at = None
 
-    debug.update({
-        "window_seconds": elapsed,
-        "active_seconds": active_seconds,
-        "new_steps": new_steps,
-        "fatigue": fatigue,
-        "recharge": recharge,
-        "net": net,
-        "prev_energy": prev_energy,
-        "prev_surplus": prev_surplus,
-        "prev_updated_at": energy_updated_at,
-        "new_energy": energy,
-        "new_surplus": surplus_energy,
-        "new_updated_at": now,
-        "pending_entries_count": len(pending_data),
-        "pending_entries_in_window": pending_in_window,
-        "pending_entries_stale": pending_stale,
-        "pending_total_steps_all": pending_steps_all,
-        "pending_total_steps_in_window": pending_steps_in_window,
-        "multiplier_active": multiplier > base_multiplier,
-        "streak_expires_at": expires_at,
-    })
+#     debug.update({
+#         "window_seconds": elapsed,
+#         "active_seconds": active_seconds,
+#         "new_steps": new_steps,
+#         "fatigue": fatigue,
+#         "recharge": recharge,
+#         "net": net,
+#         "prev_energy": prev_energy,
+#         "prev_surplus": prev_surplus,
+#         "prev_updated_at": energy_updated_at,
+#         "new_energy": energy,
+#         "new_surplus": surplus_energy,
+#         "new_updated_at": now,
+#         "pending_entries_count": len(pending_data),
+#         "pending_entries_in_window": pending_in_window,
+#         "pending_entries_stale": pending_stale,
+#         "pending_total_steps_all": pending_steps_all,
+#         "pending_total_steps_in_window": pending_steps_in_window,
+#         "multiplier_active": multiplier > base_multiplier,
+#         "streak_expires_at": expires_at,
+#     })
 
-    ss["energy"] = energy
-    ss["surplus_energy"] = surplus_energy
-    ss["energy_updated_at"] = now
-    ss["revives_at"] = revives_at
+#     ss["energy"] = energy
+#     ss["surplus_energy"] = surplus_energy
+#     ss["energy_updated_at"] = now
+#     ss["revives_at"] = revives_at
 
-    return debug
+#     return debug
 
 
 def _build_pending_entry(
@@ -442,28 +442,24 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
     from .gecko_helpers import process_gecko_data
 
     obj, _ = GeckoScoreState.objects.get_or_create(user=user)
-    obj.recompute_energy()
+    # obj.recompute_energy()
 
     score_state = _score_state_dict_from_obj(obj)
     score_rules = _load_score_rules()
 
     entry = _build_pending_entry(score_state, payload or {}, score_rules, friend_id)
 
-    _recompute_energy_in_place(score_state, [entry], user.id)
+    # _recompute_energy_in_place(score_state, [entry], user.id)
 
+    # Energy is FE-derived; only the streak fields need to survive a session
+    # crash. _build_pending_entry already mutates score_state["multiplier"] /
+    # ["expires_at"] when the FE sends a streak_activate event, so persisting
+    # just those keeps streak resume working without running the recompute.
     obj.multiplier = score_state["multiplier"]
     obj.expires_at = score_state["expires_at"]
-    obj.energy = score_state["energy"]
-    obj.surplus_energy = score_state["surplus_energy"]
-    obj.energy_updated_at = score_state["energy_updated_at"]
-    obj.revives_at = score_state["revives_at"]
     obj.save(update_fields=[
         "multiplier",
         "expires_at",
-        "energy",
-        "surplus_energy",
-        "energy_updated_at",
-        "revives_at",
     ])
 
     if entry["steps"] or entry["distance"] or entry["points_earned"]:

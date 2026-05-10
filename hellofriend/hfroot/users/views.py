@@ -377,7 +377,7 @@ class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         obj, _ = models.GeckoScoreState.objects.get_or_create(user=self.request.user)
-        obj.recompute_energy()
+        # obj.recompute_energy()
         return obj
 
     def update(self, request, *args, **kwargs):
@@ -422,7 +422,7 @@ class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        instance.recompute_energy()
+        # instance.recompute_energy()
         instance.refresh_from_db()
         return response.Response(self.get_serializer(instance).data)
         # return response.Response(serializer.data)

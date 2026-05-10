@@ -215,6 +215,8 @@
 
 
 
+from datetime import timedelta
+
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone as _tz
@@ -226,6 +228,38 @@ from users import models as users_models
 
 import logging
 logger = logging.getLogger('gecko.ws')
+
+
+def update_hourly_steps(user, delta_steps=0, delta_distance=0, delta_points=0):
+    """
+    Rolling 24-hour bucket of activity, keyed by hour-of-day (0-23). Resets
+    a bucket when its updated_at is older than 1 hour ago, otherwise
+    increments. Always exactly 24 rows per user — wraps every day.
+    """
+    if not (delta_steps or delta_distance or delta_points):
+        return
+
+    now = _tz.now()
+    hour = now.hour
+    cutoff = now - timedelta(hours=1)
+
+    obj, created = users_models.GeckoHourlySteps.objects.get_or_create(
+        user=user, hour=hour,
+        defaults={'steps': delta_steps, 'distance': delta_distance, 'points': delta_points},
+    )
+    if created:
+        return
+
+    if obj.updated_at < cutoff:
+        users_models.GeckoHourlySteps.objects.filter(pk=obj.pk).update(
+            steps=delta_steps, distance=delta_distance, points=delta_points,
+        )
+    else:
+        users_models.GeckoHourlySteps.objects.filter(pk=obj.pk).update(
+            steps=F('steps') + delta_steps,
+            distance=F('distance') + delta_distance,
+            points=F('points') + delta_points,
+        )
 
 
 def process_gecko_data(user, friend_id, steps=0, distance=0,

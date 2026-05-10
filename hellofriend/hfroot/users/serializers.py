@@ -63,6 +63,9 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
             'user', 'multiplier', 'expires_at', 'created_on', 'updated_on',
             'base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at',
             'revives_at',
+            'total_steps', 'total_distance', 'total_duration', 'total_gecko_points',
+            'steps_last_24h', 'sustenance_last_24th',
+            'last_steak_expiry',
             'recharge_per_second', 'streak_recharge_per_second',
             'step_fatigue_per_step', 'streak_fatigue_multiplier', 'surplus_cap',
             'personality_type', 'personality_type_label',
@@ -77,6 +80,9 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'base_multiplier', 'energy', 'surplus_energy', 'energy_updated_at', 'revives_at',
+            'total_steps', 'total_distance', 'total_duration', 'total_gecko_points',
+            'steps_last_24h', 'sustenance_last_24th',
+            'last_steak_expiry',
             'personality_type', 'memory_type', 'active_hours_type', 'story_type',
             'stamina', 'max_active_hours', 'max_duration_till_revival',
             'max_score_multiplier', 'max_streak_length_seconds',
@@ -185,8 +191,8 @@ class GeckoScoreStateConfigsSerializer(serializers.ModelSerializer):
             or ('active_hours_type' in attrs and self.instance is not None
                 and attrs['active_hours_type'] != self.instance.active_hours_type)
         )
-        if changing_hours and self.instance is not None:
-            self.instance.recompute_energy()
+        # if changing_hours and self.instance is not None:
+        #     self.instance.recompute_energy()
             # if self.instance.energy < 1.0:
             #     raise serializers.ValidationError(
             #         {'active_hours': 'Gecko must be fully rested to change active hours.'}
