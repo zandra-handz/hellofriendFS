@@ -102,13 +102,11 @@ def load_initial_score_payload(user) -> Dict[str, Any]:
     state row, recomputes energy, and returns the dict the FE expects under
     score_state.data.
     """
-    from .models import GeckoScoreState, GeckoCombinedData
+    from .models import GeckoScoreState
 
     obj, _ = GeckoScoreState.objects.get_or_create(user=user)
     # obj.recompute_energy()
-
-    combined, _ = GeckoCombinedData.objects.get_or_create(user=user)
-    total_steps_all_time = combined.total_steps
+    total_steps_all_time = obj.total_steps
 
     return serialize_score_state(
         user,
@@ -438,7 +436,7 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
     Loads score state, applies the update, persists, runs the gecko_data
     write through process_gecko_data, and returns the FE-bound score_state.
     """
-    from .models import GeckoScoreState, GeckoCombinedData
+    from .models import GeckoScoreState
     from .gecko_helpers import process_gecko_data
 
     obj, _ = GeckoScoreState.objects.get_or_create(user=user)
@@ -481,5 +479,7 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
                 friend_id,
             )
 
-    combined, _ = GeckoCombinedData.objects.get_or_create(user=user)
-    return serialize_score_state(user, score_state, combined.total_steps)
+    # process_gecko_data did an F() increment on GeckoScoreState.total_steps;
+    # the in-memory `obj` doesn't reflect that, so re-read before serializing.
+    obj.refresh_from_db(fields=["total_steps"])
+    return serialize_score_state(user, score_state, obj.total_steps)

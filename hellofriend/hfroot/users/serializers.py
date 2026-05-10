@@ -28,10 +28,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = ['first_name', 'last_name', 'date_of_birth', 'gender', 'total_points']
 
 
-class UserGeckoCombinedSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.GeckoCombinedData
-        fields = ['total_steps', 'total_distance', 'total_duration', 'total_gecko_points', 'updated_on']
+# class UserGeckoCombinedSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = models.GeckoCombinedData
+#         fields = ['total_steps', 'total_distance', 'total_duration', 'total_gecko_points', 'updated_on']
 # class UserCategorySerializer(serializers.ModelSerializer):
 
 #     class Meta:
@@ -43,6 +43,12 @@ class GeckoCombinedDataSessionSerializer(serializers.ModelSerializer):
     class Meta():
         model = models.GeckoCombinedSession
         fields = ['id', 'friend', 'started_on', 'ended_on', 'steps', 'distance']
+
+class GeckoHourlyStepsSerializer(serializers.ModelSerializer):
+
+    class Meta():
+        models = models.GeckoHourlySteps
+        fields = ['user', 'hour', 'steps', 'distance', 'points', 'updated_at']
 
 class GeckoScoreStateSerializer(serializers.ModelSerializer):
     recharge_per_second = serializers.SerializerMethodField()
@@ -532,8 +538,8 @@ class UserSettingsSerializer(serializers.ModelSerializer):
 
 
 class BadRainbowzUserSerializer(serializers.ModelSerializer):
-    profile = UserProfileSerializer(required=False)
-    geckocombineddata = UserGeckoCombinedSerializer(required=False)
+    profile = UserProfileSerializer(required=False) 
+    geckoscorestate = GeckoScoreStateSerializer(required=False)
 
     class Meta:
         model = models.BadRainbowzUser
@@ -541,7 +547,7 @@ class BadRainbowzUserSerializer(serializers.ModelSerializer):
             'user_categories',
             'id', 'created_on', 'is_banned_user', 'is_subscribed_user', 'subscription_expiration_date',
             'username', 'password', 'email', 'app_setup_complete', 'is_test_user', 'phone_number', 'addresses',
-            'profile', 'geckocombineddata',
+            'profile', 'geckoscorestate',
         ]
         extra_kwargs = {"password": {"write_only": True}}
 

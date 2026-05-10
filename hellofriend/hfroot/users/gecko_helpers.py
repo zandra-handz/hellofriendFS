@@ -377,13 +377,17 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
         if total_points:
             combined_data_update['total_gecko_points'] = F('total_gecko_points') + total_points
 
-        combined_rows = users_models.GeckoCombinedData.objects.filter(
+        # combined_rows = users_models.GeckoCombinedData.objects.filter(
+        #     user=user
+        # ).update(**combined_data_update)
+
+        score_rows = users_models.GeckoScoreState.objects.filter(
             user=user
         ).update(**combined_data_update)
 
         logger.info(
-            f'[process_gecko_data] GeckoCombinedData update '
-            f'user={user.id} rows_updated={combined_rows}'
+            f'[process_gecko_data] GeckoScoreState update '
+            f'user={user.id} score_rows={score_rows}'
         )
 
         existing_combined_session = None

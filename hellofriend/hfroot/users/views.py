@@ -72,7 +72,7 @@ def get_current_user(request):
     # Use select_related and prefetch_related to optimize nested fetches
     user_qs = models.BadRainbowzUser.objects.filter(pk=request.user.pk).select_related(
         'profile',
-        'geckocombineddata'
+        'geckoscorestate'
         #,          # assuming OneToOneField to UserProfile
       #  'settings'
     )
@@ -292,12 +292,12 @@ class UserSettingsDetail(generics.RetrieveUpdateAPIView):
 
 
 
-class GeckoCombinedDataDetail(generics.RetrieveAPIView):
-    serializer_class = serializers.UserGeckoCombinedSerializer
-    permission_classes = [IsAuthenticated]
+# class GeckoCombinedDataDetail(generics.RetrieveAPIView):
+#     serializer_class = serializers.UserGeckoCombinedSerializer
+#     permission_classes = [IsAuthenticated]
 
-    def get_object(self):
-        return models.GeckoCombinedData.objects.get(user=self.request.user)
+#     def get_object(self):
+#         return models.GeckoCombinedData.objects.get(user=self.request.user)
 
 class GeckoCombinedDataSessionsAll(generics.ListAPIView):
     
@@ -737,6 +737,13 @@ class AddPointsView(APIView):
             status=status.HTTP_200_OK
         )
 
+
+class GeckoHourlyStepsView(generics.ListAPIView):
+    serializer_class = serializers.GeckoHourlyStepsSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return models.GeckoHourlySteps.object.filter(user=self.request.user)
 
 class PointsLedgerView(generics.ListAPIView):
     serializer_class = serializers.PointsLedgerSerializer

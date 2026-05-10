@@ -2647,14 +2647,13 @@ class GeckoEnergyConsumer(AsyncWebsocketConsumer):
     # WE RIPPED OUT RECOMPUTE_ENERGY SO THIS WON'T WORK ANYMORE
     @database_sync_to_async
     def _load_initial_state(self):
-        from users.models import GeckoScoreState, GeckoCombinedData
+        from users.models import GeckoScoreState
         from geckoscripts.models import ScoreRule
 
         obj, _ = GeckoScoreState.objects.get_or_create(user=self.user)
         obj.recompute_energy()
 
-        combined, _ = GeckoCombinedData.objects.get_or_create(user=self.user)
-        total_steps_all_time = combined.total_steps
+        total_steps_all_time = obj.total_steps
 
         score_state = {
             'multiplier': obj.multiplier,
