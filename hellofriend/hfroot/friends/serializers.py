@@ -50,13 +50,6 @@ class GeckoDataSerializer(serializers.ModelSerializer):
 
 
  
-class GeckoDataSessionSerializer(serializers.ModelSerializer):
-    class Meta():
-        model = models.GeckoDataSession
-        fields = ['user', 'id', 'friend', 'steps', 'distance', 'started_on', 'ended_on', 'points_earned']
-
-
-
 
 
 class FriendAndCapsuleSummarySerializer(serializers.ModelSerializer):

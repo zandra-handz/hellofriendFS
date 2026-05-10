@@ -1229,13 +1229,6 @@ class GeckoPointsLedger(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='gecko_points_ledger')
     
     friend = models.ForeignKey('friends.Friend', on_delete=models.SET_NULL, null=True, blank=True)
-    friend_session = models.ForeignKey(
-        'friends.GeckoDataSession',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='points_ledger_entries'
-    )
     combined_session = models.ForeignKey(
         'users.GeckoCombinedSession',
         on_delete=models.SET_NULL,
@@ -1284,6 +1277,7 @@ class GeckoCombinedSession(models.Model):
             models.Index(fields=['user']),
             models.Index(fields=['user', 'started_on']),
             models.Index(fields=['user', 'ended_on']),
+            models.Index(fields=['user', 'friend']),
         ]
 
     @property

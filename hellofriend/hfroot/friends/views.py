@@ -317,7 +317,7 @@ class FriendGeckoDataDetail(generics.RetrieveAPIView):
 
 
 class FriendGeckoDataSessionsAll(generics.ListAPIView):
-    serializer_class = serializers.GeckoDataSessionSerializer
+    serializer_class = users.serializers.GeckoCombinedDataSessionSerializer
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
     pagination_class = MediumPagination
@@ -325,20 +325,22 @@ class FriendGeckoDataSessionsAll(generics.ListAPIView):
     def get_queryset(self):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
-        return models.GeckoDataSession.objects.filter(user=user, friend_id=friend_id)
+        return users.models.GeckoCombinedSession.objects.filter(
+            user=user, friend_id=friend_id,
+        )
 
     def list(self, request, *args, **kwargs):
         if request.query_params.get("nopaginate") == "true":
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset, many=True)
             return response.Response(serializer.data)
-        
+
         return super().list(request, *args, **kwargs)
 
 
 
 class FriendGeckoDataSessionsTimeRange(generics.ListAPIView):
-    serializer_class = serializers.GeckoDataSessionSerializer
+    serializer_class = users.serializers.GeckoCombinedDataSessionSerializer
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
 
@@ -347,7 +349,9 @@ class FriendGeckoDataSessionsTimeRange(generics.ListAPIView):
         friend_id = self.kwargs['friend_id']
         minutes = self.request.query_params.get('minutes')
 
-        qs = models.GeckoDataSession.objects.filter(user=user, friend_id=friend_id)
+        qs = users.models.GeckoCombinedSession.objects.filter(
+            user=user, friend_id=friend_id,
+        )
 
         if minutes:
             try:

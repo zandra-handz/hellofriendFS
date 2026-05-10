@@ -387,7 +387,6 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
         )
 
         existing_combined_session = None
-        existing_friend_session = None
 
         logger.info(
             f'[process_gecko_data] session check '
@@ -426,56 +425,22 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                     points_earned=total_points,
                 )
 
-            existing_friend_session = friends_models.GeckoDataSession.objects.filter(
-                user=user,
-                friend_id=friend_id,
-                started_on__lte=parsed_start,
-                ended_on__gte=parsed_start,
-            ).first()
-
-            if existing_friend_session:
-                logger.info(
-                    f'[process_gecko_data] updating friend session '
-                    f'id={existing_friend_session.id}'
-                )
-                existing_friend_session.ended_on = parsed_end
-                existing_friend_session.steps += delta_steps
-                existing_friend_session.distance += delta_distance
-                existing_friend_session.points_earned = (
-                    (existing_friend_session.points_earned or 0) + total_points
-                )
-                existing_friend_session.save()
-            else:
-                logger.info(f'[process_gecko_data] creating friend session')
-                existing_friend_session = friends_models.GeckoDataSession.objects.create(
-                    user=user,
-                    friend_id=friend_id,
-                    started_on=parsed_start,
-                    ended_on=parsed_end,
-                    steps=delta_steps,
-                    distance=delta_distance,
-                    points_earned=total_points,
-                )
-
             logger.info(
                 f'[process_gecko_data] session result '
-                f'combined_session_id={getattr(existing_combined_session, "id", None)} '
-                f'friend_session_id={getattr(existing_friend_session, "id", None)}'
+                f'combined_session_id={getattr(existing_combined_session, "id", None)}'
             )
 
         if points_earned_list:
             logger.info(
                 f'[process_gecko_data] creating ledger entries '
                 f'user={user.id} count={len(points_earned_list)} '
-                f'combined_session_id={getattr(existing_combined_session, "id", None)} '
-                f'friend_session_id={getattr(existing_friend_session, "id", None)}'
+                f'combined_session_id={getattr(existing_combined_session, "id", None)}'
             )
 
             users_models.GeckoPointsLedger.objects.bulk_create([
                 users_models.GeckoPointsLedger(
                     user=user,
                     friend_id=friend_id,
-                    friend_session=existing_friend_session,
                     combined_session=existing_combined_session,
                     amount=e.get('amount', 0),
                     reason=e.get('reason', ''),
