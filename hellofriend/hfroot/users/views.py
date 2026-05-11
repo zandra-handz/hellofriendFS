@@ -1501,14 +1501,28 @@ def _gecko_socket_action_dispatch(user_id, action, data):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    User = apps.get_model(settings.AUTH_USER_MODEL.split(".")[0], settings.AUTH_USER_MODEL.split(".")[1])
-    try:
-        user = User.objects.get(pk=user_id)
-    except User.DoesNotExist:
-        return response.Response(
-            {"action": f"{action or 'unknown'}_failed", "data": {"reason": "unknown_user"}},
-            status=status.HTTP_404_NOT_FOUND,
-        )
+    # Lazy user lookup: only the action branches that need a User ORM instance
+    # call _load_user(). Branches that work from user_id alone (flush,
+    # request_capsule_matches, repull_capsule_matches, send_validate_win_request,
+    # not_implemented) skip the DB hit entirely.
+    _user_cache = {}
+
+    def _load_user():
+        if "user" not in _user_cache:
+            User = apps.get_model(
+                settings.AUTH_USER_MODEL.split(".")[0],
+                settings.AUTH_USER_MODEL.split(".")[1],
+            )
+            try:
+                _user_cache["user"] = User.objects.get(pk=user_id)
+                _user_cache["err"] = None
+            except User.DoesNotExist:
+                _user_cache["user"] = None
+                _user_cache["err"] = response.Response(
+                    {"action": f"{action or 'unknown'}_failed", "data": {"reason": "unknown_user"}},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        return _user_cache["user"], _user_cache["err"]
 
     # Score state config moved to REST + react-query. Connect uses get_24h_seed.
     # if action == "get_score_state":
@@ -1519,6 +1533,9 @@ def _gecko_socket_action_dispatch(user_id, action, data):
     #     })
 
     if action == "get_24h_seed":
+        user, err = _load_user()
+        if err:
+            return err
         from .gecko_score_helpers import load_24h_seed
         return response.Response({
             "action": "seed_24h",
@@ -1528,7 +1545,7 @@ def _gecko_socket_action_dispatch(user_id, action, data):
     if action == "flush":
         # The Rust socket has no per-connection pending_data buffer (the
         # consumer's flush model is irrelevant here — every update_gecko_data
-        # commits to DB on the spot). Always ack.
+        # commits to DB on the spot). Always ack. No User row needed.
         return response.Response({
             "action": "flush_ack",
             "data": {"status": "nothing_to_flush"},
@@ -1538,6 +1555,9 @@ def _gecko_socket_action_dispatch(user_id, action, data):
         # The consumer's friend_id comes from set_friend earlier in the
         # connection. The Rust socket forwards it in data.friend_id (it
         # already tracks it on the Client struct after set_friend / hydrate).
+        user, err = _load_user()
+        if err:
+            return err
         from .gecko_score_helpers import apply_gecko_data_update
         friend_id = data.get("friend_id") if isinstance(data, dict) else None
         try:
@@ -1563,6 +1583,9 @@ def _gecko_socket_action_dispatch(user_id, action, data):
         return response.Response(ack, status=http_status)
 
     if action == "propose_gecko_win":
+        user, err = _load_user()
+        if err:
+            return err
         from .gecko_match_helpers import handle_propose_gecko_win
         capsule_id = data.get("capsule_id") if isinstance(data, dict) else None
         try:
@@ -1577,6 +1600,9 @@ def _gecko_socket_action_dispatch(user_id, action, data):
         return response.Response(ack)
 
     if action == "propose_gecko_match_win":
+        user, err = _load_user()
+        if err:
+            return err
         from .gecko_match_helpers import handle_propose_gecko_match_win
         requested_type = data.get("gecko_game_type") if isinstance(data, dict) else None
         try:
