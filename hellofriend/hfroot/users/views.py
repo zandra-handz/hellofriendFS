@@ -1474,11 +1474,25 @@ def gecko_socket_action(request):
     if secret != getattr(settings, "RUST_INTERNAL_SECRET", None):
         return response.Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
 
-    body = request.data or {}
-    user_id = body.get("user_id")
-    action = body.get("action")
-    data = body.get("data") or {}
+    _t0 = time.perf_counter()
+    action = None
+    user_id = None
+    try:
+        body = request.data or {}
+        user_id = body.get("user_id")
+        action = body.get("action")
+        data = body.get("data") or {}
 
+        return _gecko_socket_action_dispatch(user_id, action, data)
+    finally:
+        _elapsed_ms = (time.perf_counter() - _t0) * 1000.0
+        logger.info(
+            "[gecko_socket_action] action=%s user_id=%s took=%.2fms",
+            action, user_id, _elapsed_ms,
+        )
+
+
+def _gecko_socket_action_dispatch(user_id, action, data):
     try:
         user_id = int(user_id)
     except (TypeError, ValueError):

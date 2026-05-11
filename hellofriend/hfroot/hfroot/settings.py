@@ -249,14 +249,29 @@ LOGGING = {
     },
 
     'loggers': {
-        
+
         'gecko.ws': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
             'disabled': not WEBSOCKET_LOGGING,
         },
- 
+
+        # Catches everything in the `users` app: views.gecko_socket_action,
+        # gecko_match_helpers, gecko_score_helpers, consumers, etc. All
+        # socket-related Django code lives under this namespace.
+        #
+        # To TURN OFF (quiet the per-action timing logs): set level to 'WARNING'.
+        #   INFO/DEBUG go silent, real errors still log. Restart gunicorn after.
+        # To TURN ON: set level back to 'INFO' (or 'DEBUG' for verbose).
+        # To DISABLE COMPLETELY: delete this whole 'users' block.
+        # Remember: `sudo systemctl restart gunicorn` after any change here.
+        'users': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+
         'django': {
             'handlers': ['console'],
             'level': 'INFO',

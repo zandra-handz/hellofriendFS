@@ -118,6 +118,7 @@ async fn main() {
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .with_writer(nb_writer)
+        .with_span_events(tracing_subscriber::fmt::format::FmtSpan::CLOSE)
         .init();
 
       let redis_url = std::env::var("REDIS_URL")
@@ -1121,6 +1122,7 @@ async fn proxy_check_host_link_and_load(
     }
 }
 
+#[tracing::instrument(skip(state, data), fields(action = %action, user_id))]
 async fn proxy_action_to_django(
     state: &AppState,
     client_id: &str,
@@ -1129,6 +1131,8 @@ async fn proxy_action_to_django(
 ) {
     let client = get_client(state, client_id).await;
     let Some(client) = client else { return };
+
+    tracing::Span::current().record("user_id", client.user_id);
 
     let url = format!("{}/users/internal/gecko/socket-action/", DJANGO_BASE_URL);
 
