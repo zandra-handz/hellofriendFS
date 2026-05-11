@@ -1,7 +1,3 @@
-
-
-
-
 use axum::{
     extract::{
         ws::{Message, WebSocket, WebSocketUpgrade},
@@ -73,7 +69,7 @@ struct Client {
     friend_light_color: Option<String>,
     friend_dark_color: Option<String>,
     gecko_message: Option<String>,
-    last_seen: Instant,
+    // last_seen: Instant,
 }
 
 #[derive(Debug, Deserialize)]
@@ -258,7 +254,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 friend_light_color: None,
                 friend_dark_color: None,
                 gecko_message: None,
-                last_seen: Instant::now(),
+                // last_seen: Instant::now(),
             },
         );
     }
@@ -1151,16 +1147,40 @@ async fn proxy_action_to_django(
         data_with_ctx.insert("is_host".to_string(), json!(client.is_host));
     }
 
+    let payload = json!({
+        "user_id": client.user_id,
+        "action": action,
+        "data": Value::Object(data_with_ctx),
+    });
+
+    let body_bytes = match rmp_serde::to_vec_named(&payload) {
+        Ok(b) => b,
+        Err(err) => {
+            error!(
+                "proxy_action_to_django: msgpack encode failed action={} err={}",
+                action, err
+            );
+            send_to_client(
+                state,
+                client_id,
+                OutgoingMessage {
+                    action: format!("{}_failed", action),
+                    data: json!({ "reason": "encode_error" }),
+                },
+            )
+            .await;
+            return;
+        }
+    };
+
     let _permit = state.django_concurrency.acquire().await.ok();
     let response = state
         .http
         .post(url)
         .header("X-Rust-Internal-Secret", &state.internal_secret)
-        .json(&json!({
-            "user_id": client.user_id,
-            "action": action,
-            "data": Value::Object(data_with_ctx),
-        }))
+        .header("Content-Type", "application/msgpack")
+        .header("Accept", "application/msgpack")
+        .body(body_bytes)
         .send()
         .await;
 
@@ -1177,7 +1197,23 @@ async fn proxy_action_to_django(
         return;
     };
 
-    let parsed: Result<Value, _> = response.json().await;
+    let bytes = match response.bytes().await {
+        Ok(b) => b,
+        Err(_) => {
+            send_to_client(
+                state,
+                client_id,
+                OutgoingMessage {
+                    action: format!("{}_failed", action),
+                    data: json!({ "reason": "django_unreachable" }),
+                },
+            )
+            .await;
+            return;
+        }
+    };
+
+    let parsed: Result<Value, _> = rmp_serde::from_slice(&bytes);
 
     match parsed {
         Ok(value) => {

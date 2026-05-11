@@ -19,10 +19,13 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import generics, response, status
-from rest_framework.decorators import api_view, permission_classes, throttle_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes, parser_classes, renderer_classes
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import BaseParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.throttling import UserRateThrottle 
+from rest_framework.renderers import BaseRenderer, JSONRenderer
+from rest_framework.throttling import UserRateThrottle
+import ormsgpack
 
  
 
@@ -1438,10 +1441,33 @@ def rust_check_host_link_and_load(request):
 # also need to broadcast to other users (win flow, capsule_matches_ready,
 # etc.), this view should additionally call rust_push.notify_user(...) to
 # push to the partner's socket(s).
+#
+# Wire format: msgpack (ormsgpack on this side, rmp-serde on the Rust side).
+# JSON is also accepted as a fallback so the endpoint stays curl-debuggable.
 # ---------------------------------------------------------------------------
+
+
+class OrmsgpackParser(BaseParser):
+    media_type = "application/msgpack"
+
+    def parse(self, stream, media_type=None, parser_context=None):
+        return ormsgpack.unpackb(stream.read())
+
+
+class OrmsgpackRenderer(BaseRenderer):
+    media_type = "application/msgpack"
+    format = "msgpack"
+    charset = None
+    render_style = "binary"
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        return ormsgpack.packb(data)
+
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
+@parser_classes([OrmsgpackParser, JSONParser])
+@renderer_classes([OrmsgpackRenderer, JSONRenderer])
 @throttle_classes([])
 def gecko_socket_action(request):
     secret = request.headers.get("X-Rust-Internal-Secret")
