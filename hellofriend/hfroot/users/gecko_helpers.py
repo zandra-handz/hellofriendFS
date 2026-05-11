@@ -279,7 +279,8 @@ def update_hourly_steps(user, delta_steps=0, delta_distance=0, delta_points=0):
 def process_gecko_data(user, friend_id, steps=0, distance=0,
                        started_on=None, ended_on=None,
                        points_earned_list=None,
-                       points_pre_resolved=False):
+                       points_pre_resolved=False,
+                       return_gecko_data=False):
     """
     Core logic for recording gecko activity data (steps, distance, duration,
     points) against both per-friend and combined records.
@@ -288,25 +289,21 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
     points_earned_list as-is (expects dicts with 'amount', 'reason',
     'code', 'multiplier', 'timestamp_earned').
 
-    Returns the updated GeckoData instance for the given friend.
+    If return_gecko_data=True, performs a trailing SELECT and returns the
+    updated GeckoData instance. Defaults False — hot socket path skips it.
     """
 
     delta_steps = int(steps or 0)
     delta_distance = int(distance or 0)
 
-
-    logger.info(f'[update_mem] incoming points raw={points_earned_list}')
-
     if not isinstance(points_earned_list, list):
         points_earned_list = []
 
-    logger.info(
-        f'[process_gecko_data] start '
-        f'user={user.id} friend_id={friend_id} '
-        f'steps={delta_steps} distance={delta_distance} '
-        f'started_on={started_on} ended_on={ended_on} '
-        f'points_count={len(points_earned_list)} '
-        f'points_pre_resolved={points_pre_resolved}'
+    logger.debug(
+        '[process_gecko_data] start user=%s friend_id=%s steps=%s distance=%s '
+        'started_on=%s ended_on=%s points_count=%s points_pre_resolved=%s',
+        user.id, friend_id, delta_steps, delta_distance,
+        started_on, ended_on, len(points_earned_list), points_pre_resolved,
     )
 
     if not points_pre_resolved:
@@ -348,7 +345,7 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 'timestamp_earned': ts_raw,
             })
 
-        logger.info(f'[update_mem] resolved points={resolved_points}')
+        logger.debug('[process_gecko_data] resolved points=%s', resolved_points)
         points_earned_list = resolved_points
 
         
@@ -378,9 +375,9 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
             friend_id=friend_id,
         ).update(**gecko_data_update)
 
-        logger.info(
-            f'[process_gecko_data] GeckoData update '
-            f'user={user.id} friend_id={friend_id} rows_updated={updated_rows}'
+        logger.debug(
+            '[process_gecko_data] GeckoData update user=%s friend_id=%s rows_updated=%s',
+            user.id, friend_id, updated_rows,
         )
 
         combined_data_update = {
@@ -399,9 +396,9 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
             user=user
         ).update(**combined_data_update)
 
-        logger.info(
-            f'[process_gecko_data] GeckoScoreState update '
-            f'user={user.id} score_rows={score_rows}'
+        logger.debug(
+            '[process_gecko_data] GeckoScoreState update user=%s score_rows=%s',
+            user.id, score_rows,
         )
 
         update_hourly_steps(
@@ -413,11 +410,6 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
 
         existing_combined_session = None
 
-        logger.info(
-            f'[process_gecko_data] session check '
-            f'user={user.id} started_on={started_on} ended_on={ended_on}'
-        )
-
         if parsed_start and parsed_end:
             existing_combined_session = users_models.GeckoCombinedSession.objects.filter(
                 user=user,
@@ -427,10 +419,6 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
             ).first()
 
             if existing_combined_session:
-                logger.info(
-                    f'[process_gecko_data] updating combined session '
-                    f'id={existing_combined_session.id}'
-                )
                 existing_combined_session.ended_on = parsed_end
                 existing_combined_session.steps += delta_steps
                 existing_combined_session.distance += delta_distance
@@ -439,7 +427,6 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 )
                 existing_combined_session.save()
             else:
-                logger.info(f'[process_gecko_data] creating combined session')
                 existing_combined_session = users_models.GeckoCombinedSession.objects.create(
                     user=user,
                     friend_id=friend_id,
@@ -450,18 +437,7 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                     points_earned=total_points,
                 )
 
-            logger.info(
-                f'[process_gecko_data] session result '
-                f'combined_session_id={getattr(existing_combined_session, "id", None)}'
-            )
-
         if points_earned_list:
-            logger.info(
-                f'[process_gecko_data] creating ledger entries '
-                f'user={user.id} count={len(points_earned_list)} '
-                f'combined_session_id={getattr(existing_combined_session, "id", None)}'
-            )
-
             users_models.GeckoPointsLedger.objects.bulk_create([
                 users_models.GeckoPointsLedger(
                     user=user,
@@ -479,6 +455,6 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 for e in points_earned_list
             ])
 
-    if friend_id is None:
+    if not return_gecko_data or friend_id is None:
         return None
     return friends_models.GeckoData.objects.get(user=user, friend_id=friend_id)

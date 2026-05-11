@@ -381,6 +381,7 @@ def update_gecko_data(request, friend_id):
             started_on=request.data.get('started_on'),
             ended_on=request.data.get('ended_on'),
             points_earned_list=request.data.get('points_earned'),
+            return_gecko_data=True,
         )
     except Exception as e:
         return response.Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

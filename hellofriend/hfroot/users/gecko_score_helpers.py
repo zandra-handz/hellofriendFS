@@ -181,12 +181,25 @@ from django.utils.dateparse import parse_datetime
 logger = logging.getLogger(__name__)
 
 
+_score_rules_cache: Dict[str, Any] = {"value": None, "expires_at": 0.0}
+_SCORE_RULES_TTL_SECONDS = 300  # 5 min; ScoreRule is reference data, changes rarely
+
+
 def _load_score_rules() -> Dict[int, Dict[str, Any]]:
+    import time as _time
+    now = _time.monotonic()
+    cached = _score_rules_cache["value"]
+    if cached is not None and now < _score_rules_cache["expires_at"]:
+        return cached
+
     from geckoscripts.models import ScoreRule
-    return {
+    rules = {
         r.code: {"code": r.code, "label": r.label, "points": r.points}
         for r in ScoreRule.objects.filter(version=1)
     }
+    _score_rules_cache["value"] = rules
+    _score_rules_cache["expires_at"] = now + _SCORE_RULES_TTL_SECONDS
+    return rules
 
 
 # def _recompute_energy_in_place(score_state: Dict[str, Any], pending_data, user_id: int) -> Dict[str, Any]:
