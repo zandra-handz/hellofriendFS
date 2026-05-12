@@ -57,6 +57,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '5/minute',
     },
+    'EXCEPTION_HANDLER': 'hfroot.api_errors.custom_exception_handler',
 }
 
 SIMPLE_JWT = {

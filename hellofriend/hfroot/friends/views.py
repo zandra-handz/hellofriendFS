@@ -31,6 +31,7 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 
 from .utils import Distance, NearbyDetails, PlaceDetailsFetcher, GeocodingFetcher
+from hfroot.api_errors import error_response
 
 class MediumPagination(PageNumberPagination):
     page_size = 30
@@ -112,18 +113,15 @@ def link_user_to_friend_with_code(request, friend_id):
     code_value = request.data.get('code')
 
     if not code_value:
-        return response.Response(
-            {'error': 'code is required'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return error_response("code is required")
 
     try:
         link = users.models.FriendLinkCode.objects.select_related('user').get(code=code_value)
     except users.models.FriendLinkCode.DoesNotExist:
-        return response.Response({'error': 'Invalid code'}, status=status.HTTP_400_BAD_REQUEST)
+        return error_response("Invalid code")
 
     if link.expires_at < timezone.now():
-        return response.Response({'error': 'Code expired'}, status=status.HTTP_400_BAD_REQUEST)
+        return error_response("Code expired")
 
     try:
         friend = models.Friend.objects.get(
@@ -131,10 +129,10 @@ def link_user_to_friend_with_code(request, friend_id):
             user=user_b   # must belong to the requester
         )
     except models.Friend.DoesNotExist:
-        return response.Response({'error': 'Invalid friend'}, status=status.HTTP_400_BAD_REQUEST)
+        return error_response("Invalid friend")
 
     if friend.linked_user is not None:
-        return response.Response({'error': 'Already linked'}, status=status.HTTP_400_BAD_REQUEST)
+        return error_response("Already linked")
 
     existing = models.Friend.objects.filter(
         user=user_b,
@@ -142,13 +140,10 @@ def link_user_to_friend_with_code(request, friend_id):
     ).exists()
 
     if existing:
-        return response.Response(
-            {'error': 'User already linked to another friend'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return error_response("User already linked to another friend")
 
     if user_b == link.user:
-        return response.Response({'error': 'Cannot link to yourself'}, status=status.HTTP_400_BAD_REQUEST)
+        return error_response("Cannot link to yourself")
 
     friend.linked_user = link.user
     friend.save()
@@ -166,20 +161,14 @@ def create_live_sesh_invite(request, friend_id):
             id=friend_id, user=user,
         )
     except models.Friend.DoesNotExist:
-        return response.Response({'error': 'Invalid friend'}, status=status.HTTP_400_BAD_REQUEST)
+        return error_response("Invalid friend")
 
     recipient = friend.linked_user
     if recipient is None:
-        return response.Response(
-            {'error': 'Friend has no linked user'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return error_response("Friend has no linked user")
 
     if recipient == user:
-        return response.Response(
-            {'error': 'Cannot invite yourself'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return error_response("Cannot invite yourself")
 
     invite, _ = users.models.UserFriendLiveSeshInvite.objects.update_or_create(
         sender=user,
@@ -372,19 +361,16 @@ from django.utils.dateparse import parse_datetime
 def update_gecko_data(request, friend_id):
     from users.gecko_helpers import process_gecko_data
 
-    try:
-        gecko_data = process_gecko_data(
-            user=request.user,
-            friend_id=friend_id,
-            steps=request.data.get('steps'),
-            distance=request.data.get('distance'),
-            started_on=request.data.get('started_on'),
-            ended_on=request.data.get('ended_on'),
-            points_earned_list=request.data.get('points_earned'),
-            return_gecko_data=True,
-        )
-    except Exception as e:
-        return response.Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    gecko_data = process_gecko_data(
+        user=request.user,
+        friend_id=friend_id,
+        steps=request.data.get('steps'),
+        distance=request.data.get('distance'),
+        started_on=request.data.get('started_on'),
+        ended_on=request.data.get('ended_on'),
+        points_earned_list=request.data.get('points_earned'),
+        return_gecko_data=True,
+    )
 
     serializer = serializers.GeckoDataSerializer(gecko_data)
     return response.Response(serializer.data, status=status.HTTP_200_OK)
@@ -431,8 +417,10 @@ class FriendFavesDetail(generics.RetrieveUpdateAPIView):
 
         # Ensure the user is authorized to update this instance
         if request.user != instance.user:
-            return response.Response({"error": "User is not authorized to update this friend faves."},
-                                     status=status.HTTP_403_FORBIDDEN)
+            return error_response(
+                "User is not authorized to update this friend faves.",
+                status.HTTP_403_FORBIDDEN,
+            )
 
         # Update instance with validated data
         serializer.save()
@@ -447,10 +435,10 @@ class FriendFavesEnableManualTheme(APIView):
         try:
             faves = models.FriendFaves.objects.get(user=request.user, friend_id=friend_id)
         except models.FriendFaves.DoesNotExist:
-            return response.Response({"error": "FriendFaves not found"}, status=status.HTTP_404_NOT_FOUND)
+            return error_response("FriendFaves not found", status.HTTP_404_NOT_FOUND)
 
         if not faves.saved_color_dark or not faves.saved_color_light:
-            return response.Response({"error": "No saved colors to restore"}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response("No saved colors to restore")
 
         # restore saved into active
         faves.dark_color = faves.saved_color_dark
@@ -490,9 +478,9 @@ class FriendFavesLocationAdd(generics.RetrieveUpdateAPIView):
                 serializer = self.get_serializer(instance)
                 return response.Response(serializer.data)
             else:
-                return response.Response({"error": "location_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+                return error_response("location_id is required")
         else:
-            return response.Response({"error": "User or Friend mismatch"}, status=status.HTTP_403_FORBIDDEN)
+            return error_response("User or Friend mismatch", status.HTTP_403_FORBIDDEN)
 
 
 
@@ -521,12 +509,12 @@ class FriendFavesLocationRemove(generics.UpdateAPIView):
                 serializer = serializers.FriendFavesSerializer(friend_faves)
                 return response.Response(serializer.data)
             else:
-                return response.Response({"error": "Location not found in friend's favorites"}, status=status.HTTP_400_BAD_REQUEST)
+                return error_response("Location not found in friend's favorites")
 
         except models.FriendFaves.DoesNotExist:
-            return response.Response({"error": "Friend faves not found"}, status=status.HTTP_404_NOT_FOUND)
+            return error_response("Friend faves not found", status.HTTP_404_NOT_FOUND)
         except models.Location.DoesNotExist:
-            return response.Response({"error": "Location not found"}, status=status.HTTP_404_NOT_FOUND)
+            return error_response("Location not found", status.HTTP_404_NOT_FOUND)
 
 
 # class CategoriesView(generics.ListAPIView):
@@ -1323,10 +1311,7 @@ class ThoughtCapsulesUpdateMultiple(APIView):
         capsules_data = request.data.get('capsules', [])
         
         if not capsules_data:
-            return response.Response(
-                {"error": "Capsules data is required."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            return error_response("Capsules data is required.")
         
         # Initialize lists to store updated capsules and potential errors
         updated_capsules = []
@@ -1622,12 +1607,10 @@ class HelloDetail(generics.RetrieveUpdateDestroyAPIView):
             instance.delete()
             return response.Response({
                 "message": "PastMeet deleted successfully",
-                "id": instance.id 
+                "id": instance.id
             }, status=status.HTTP_200_OK)
         except ValidationError as e:
-            return response.Response({
-                "message": str(e),
-            }, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(str(e))
 
 
 
@@ -1736,7 +1719,7 @@ class ValidateLocation(APIView):
                 'longitude': location.longitude
             }, status=status.HTTP_200_OK)
         else:
-            return response.Response({'error': 'Address not provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response("Address not provided")
 
     
 
@@ -1772,7 +1755,7 @@ def consider_the_drive(request):
         try:
             distance_object = Distance(origin_a=origin_a, destination=destination, search=search, radius=radius, suggested_length=length, perform_search=perform_search, **friend_origins)
         except ValueError as e:
-            return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(str(e))
  
         response_data = {
             'origin_a': distance_object.origin_a,
@@ -1813,7 +1796,7 @@ def consider_midpoint_locations(request):
         try:
             distance_object = Distance(origin_a=origin_a, search=search, radius=radius, suggested_length=length, perform_search=True, search_only=True, **friend_origins)
         except ValueError as e:
-            return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response(str(e))
 
         response_data = {
             'origin_a': distance_object.origin_a,
@@ -1849,7 +1832,7 @@ def place_id(request):
         origin_lon = data.get('origin_lon')
 
         if not origin_address and (not origin_lat or not origin_lon):
-            return response.Response({'detail': 'Either origin address or coordinates are required.'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response("Either origin address or coordinates are required.")
 
         try:
             place_details = PlaceDetailsFetcher(
@@ -1859,15 +1842,13 @@ def place_id(request):
             )
 
             place_id = place_details.get_nearest_place_id()  # Get the nearest place ID
-            
+
             response_data = {
                 'place_id': place_id
             }
 
         except ValueError as e:
-            return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return response.Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return error_response(str(e))
 
         return response.Response(response_data, status=status.HTTP_200_OK)
 
@@ -1893,9 +1874,9 @@ def place_details(request):
         lon = data.get('lon')
 
         if not address and (not lat or not lon):
-            return response.Response({'detail': 'Either address or coordinates are required.'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response("Either address or coordinates are required.")
 
-        try: 
+        try:
             geocoding_fetcher = GeocodingFetcher(address=address, lat=lat, lon=lon)
             place_id = geocoding_fetcher.get_place_id()  # Get the place ID
 
@@ -1909,9 +1890,7 @@ def place_details(request):
                 response_data = {'detail': 'No details found for the place.'}
 
         except ValueError as e:
-            return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return response.Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return error_response(str(e))
 
         return response.Response(response_data, status=status.HTTP_200_OK)
 
@@ -1938,7 +1917,7 @@ def place_details_new(request):
         origin_lon = data.get('origin_lon')
 
         if not origin_address and (not origin_lat or not origin_lon):
-            return response.Response({'detail': 'Either origin address or coordinates are required.'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response("Either origin address or coordinates are required.")
 
         try:
             place_details_fetcher = PlaceDetailsFetcher(
@@ -1958,9 +1937,7 @@ def place_details_new(request):
                 response_data = {'detail': 'No details found for the place.'}
 
         except ValueError as e:
-            return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return response.Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return error_response(str(e))
 
         return response.Response(response_data, status=status.HTTP_200_OK)
 
@@ -1992,7 +1969,7 @@ def place_details_newer(request):
         return_items = data.get('return_items', 3)
 
         if not origin_address and (not origin_lat or not origin_lon):
-            return response.Response({'detail': 'Either origin address or coordinates are required.'}, status=status.HTTP_400_BAD_REQUEST)
+            return error_response("Either origin address or coordinates are required.")
 
         try:
             nearby_details = NearbyDetails(
@@ -2004,13 +1981,11 @@ def place_details_newer(request):
                 use_search=use_search,
                 return_items=return_items
             )
-            
+
             places = nearby_details.find_places()  # Call find_places to get the nearby places
 
         except ValueError as e:
-            return response.Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        except Exception as e:
-            return response.Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return error_response(str(e))
 
         response_data = {
             'origin_address': nearby_details.origin_address,
@@ -2143,10 +2118,7 @@ def groq_chat(request):
     prompt = request.data.get('prompt')
 
     if not role or not prompt:
-        return response.Response(
-            {'error': 'Role and prompt are required.'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return error_response("Role and prompt are required.")
 
     print(f"GROQ KEY LOADED: {bool(settings.GROQ_API_KEY)}")
     try:
@@ -2168,13 +2140,10 @@ def groq_chat(request):
         data = groq_response.json()
         content = data['choices'][0]['message']['content']
 
-        return Response({'response': content}, status=status.HTTP_200_OK)
+        return response.Response({'response': content}, status=status.HTTP_200_OK)
 
-    except requests.exceptions.RequestException as e:
-        return Response(
-            {'error': str(e)},
-            status=status.HTTP_502_BAD_GATEWAY
-        )
+    except requests.exceptions.RequestException:
+        return error_response("Upstream service error", status.HTTP_502_BAD_GATEWAY)
     
 
 # need view for helloes/need to load gecko with (at least recent) past helloes info

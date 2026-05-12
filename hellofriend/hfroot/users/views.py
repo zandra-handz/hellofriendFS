@@ -29,9 +29,11 @@ import ormsgpack
 
  
 
-from rest_framework.views import APIView 
+from rest_framework.views import APIView
 
 from django.conf import settings
+
+from hfroot.api_errors import error_response
 
 
 # Create your views here.
@@ -70,7 +72,7 @@ class CreateUserView(generics.CreateAPIView):
 @permission_classes([IsAuthenticated])
 def get_current_user(request):
     if not request.user.is_authenticated:
-        return response.Response({'error': 'User not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+        return error_response("User not authenticated", status.HTTP_401_UNAUTHORIZED)
 
     # Use select_related and prefetch_related to optimize nested fetches
     user_qs = models.BadRainbowzUser.objects.filter(pk=request.user.pk).select_related(
@@ -122,7 +124,7 @@ def add_address_to_current_user(request):
     serializer = serializers.BadRainbowzUserAddressSerializer(user, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()  # Save the updated user object with the added address
-        return response.Response("Address added successfully", status=status.HTTP_201_CREATED)
+        return response.Response({"detail": "Address added successfully"}, status=status.HTTP_201_CREATED)
     else:
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -198,7 +200,7 @@ class AddAddressView(APIView):
                 user.add_address(address_data)
                 return response.Response(address_data, status=status.HTTP_201_CREATED)
             else:
-                return response.Response("Unauthorized", status=status.HTTP_403_FORBIDDEN)
+                return error_response("Unauthorized", status.HTTP_403_FORBIDDEN)
         return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, *args, **kwargs):
@@ -211,11 +213,11 @@ class AddAddressView(APIView):
                 addresses[address_index].update(address_data)
                 user.addresses = addresses
                 user.save()
-                return response.Response("Address updated successfully", status=status.HTTP_200_OK)
+                return response.Response({"detail": "Address updated successfully"}, status=status.HTTP_200_OK)
             else:
-                return response.Response("Address index out of range", status=status.HTTP_404_NOT_FOUND)
+                return error_response("Address index out of range", status.HTTP_404_NOT_FOUND)
         else:
-            return response.Response("Address index not provided", status=status.HTTP_400_BAD_REQUEST)
+            return error_response("Address index not provided")
 
 
 class DeleteAddressView(APIView):
@@ -235,11 +237,11 @@ class DeleteAddressView(APIView):
                 # An address was deleted
                 user.addresses = updated_addresses
                 user.save()
-                return response.Response("Address deleted successfully", status=status.HTTP_200_OK)
+                return response.Response({"detail": "Address deleted successfully"}, status=status.HTTP_200_OK)
             else:
-                return response.Response("Address not found", status=status.HTTP_404_NOT_FOUND)
+                return error_response("Address not found", status.HTTP_404_NOT_FOUND)
         else:
-            return response.Response("Title not provided", status=status.HTTP_400_BAD_REQUEST)
+            return error_response("Title not provided")
 
 
 
@@ -269,8 +271,8 @@ class UserSettingsDetail(generics.RetrieveUpdateAPIView):
         if 'expo_push_token' in request.data:
             instance.expo_push_token = None
             instance.save()
-            return response.Response({'status': 'Expo push token cleared'}, status=status.HTTP_204_NO_CONTENT)
-        return response.Response({'error': 'Expo push token not provided'}, status=status.HTTP_400_BAD_REQUEST)
+            return response.Response({"detail": "Expo push token cleared"}, status=status.HTTP_200_OK)
+        return error_response("Expo push token not provided")
 
     # def get(self, request, *args, **kwargs):
     #     user = request.user
@@ -1043,19 +1045,16 @@ def send_email_to_user(request):
     email_address = request.data.get('email')
     
     if not email_address:
-        return response.Response({'error': 'Email address is required'}, status=400)
+        return error_response("Email address is required")
 
-    try:
-        resend.api_key = settings.RESEND_API_KEY
-        resend.Emails.send({
-            "from": "onboarding@resend.dev",
-            "to": [email_address],
-            "subject": "Welcome to Our Service",
-            "text": "Thank you for joining us! We are excited to have you as part of our community.",
-        })
-        return response.Response({'success': 'Email successfully sent'}, status=200)
-    except Exception as e:
-        return response.Response({'error': f'Failed to send email: {str(e)}'}, status=500)
+    resend.api_key = settings.RESEND_API_KEY
+    resend.Emails.send({
+        "from": "onboarding@resend.dev",
+        "to": [email_address],
+        "subject": "Welcome to Our Service",
+        "text": "Thank you for joining us! We are excited to have you as part of our community.",
+    })
+    return response.Response({"detail": "Email successfully sent"}, status=status.HTTP_200_OK)
 
 # @api_view(['POST'])
 # @permission_classes([AllowAny])

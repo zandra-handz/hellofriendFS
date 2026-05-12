@@ -12,6 +12,8 @@ from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.pagination import PageNumberPagination
 
+from hfroot.api_errors import error_response
+
 
 class MediumPagination(PageNumberPagination):
     page_size = 30
@@ -97,7 +99,7 @@ def log_welcome_scripts(request):
     user = request.user
     entries = request.data.get('entries')
     if not isinstance(entries, list):
-        return Response({'error': 'entries must be a list'}, status=status.HTTP_400_BAD_REQUEST)
+        return error_response("entries must be a list")
 
     records = []
     for e in entries:

@@ -51,6 +51,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSIONS_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'EXCEPTION_HANDLER': 'hfroot.api_errors.custom_exception_handler',
 }
 
 SIMPLE_JWT = {
