@@ -224,7 +224,9 @@ DATABASES = {
         'PASSWORD': os.getenv('DB_PWD'),
         'HOST': os.getenv('DB_HOST'),
         'PORT': os.getenv('DB_PORT'),
-         'CONN_MAX_AGE': 60, # readded to prevent django side of socket from opening a ton of new connections
+       #  'CONN_MAX_AGE': 60, # readded to prevent django side of socket from opening a ton of new connections
+        # edit on above: nevermind still causes exhaustions/timeouts
+            # in future use DO's pooling stuff
     }
 } 
 

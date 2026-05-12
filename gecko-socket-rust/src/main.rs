@@ -327,6 +327,25 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
             .await;
 
             if !client.is_host {
+                // New guest just landed (initial connect or reconnect). The host's
+                // FE design is "full moment dump once on connect, deltas via
+                // position frames after" — so the host needs an explicit signal
+                // to re-send the full dump. FE responds by firing
+                // send_all_host_capsules. broadcast_to_room with exclude_self
+                // delivers this to the host (the only other peer in the room).
+                broadcast_to_room(
+                    &bg_state,
+                    &client.shared_room,
+                    Some(client.user_id),
+                    OutgoingMessage {
+                        action: "partner_reconnected".to_string(),
+                        data: json!({
+                            "user_id": client.user_id,
+                        }),
+                    },
+                )
+                .await;
+
                 proxy_check_host_link_and_load(&bg_state, &bg_client_id, partner_id).await;
             }
         });
