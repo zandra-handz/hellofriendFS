@@ -32,11 +32,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+# Which deployed environment this is. Set DJANGO_ENV=prod on the prod droplet
+# (in ~/.bashrc AND in /etc/systemd/system/gunicorn.service Environment=...).
+# Default is 'staging' so a freshly-provisioned box can't accidentally serve as prod.
+# Local dev uses localsettings.py (copy-pasted in), not this file.
+DJANGO_ENV = os.getenv("DJANGO_ENV", "staging")
 
-# ALLOWED_HOSTS = ['*']
-ALLOWED_HOSTS = ['badrainbowz.com', 'www.badrainbowz.com']
+if DJANGO_ENV == "prod":
+    DEBUG = False
+    ALLOWED_HOSTS = ['badrainbowz.com', 'www.badrainbowz.com']
+elif DJANGO_ENV == "staging":
+    DEBUG = False
+    ALLOWED_HOSTS = ['staging.badrainbowz.com']  # adjust once the staging domain is set
+else:
+    raise RuntimeError(f"Unknown DJANGO_ENV: {DJANGO_ENV!r} (expected 'prod' or 'staging')")
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (

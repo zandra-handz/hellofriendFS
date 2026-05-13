@@ -22,7 +22,7 @@ from rest_framework.response import Response
 
 
 from django.shortcuts import render, get_object_or_404
-from rest_framework import generics, response, status, viewsets
+from rest_framework import generics, status, viewsets
 from rest_framework.authentication import SessionAuthentication, TokenAuthentication
 from rest_framework.decorators import api_view, throttle_classes, authentication_classes, permission_classes
 from rest_framework.pagination import PageNumberPagination
@@ -71,11 +71,11 @@ class UpdateAppSetupComplete(APIView):
             if not user.app_setup_complete:
                 user.app_setup_complete = True
                 user.save()
-                return response.Response({"message": "User's app setup is now complete."}, status=status.HTTP_200_OK)
+                return Response({"message": "User's app setup is now complete."}, status=status.HTTP_200_OK)
             else:
-                return response.Response({"message": "User's app setup was already complete."}, status=status.HTTP_200_OK)
+                return Response({"message": "User's app setup was already complete."}, status=status.HTTP_200_OK)
         else:
-            return response.Response({"message": "User does not have any friends."}, status=status.HTTP_200_OK)
+            return Response({"message": "User does not have any friends."}, status=status.HTTP_200_OK)
 
 
 
@@ -91,8 +91,8 @@ class FriendCreateView(APIView):
         if serializer.is_valid(): 
             friend = serializer.save()
             
-            return response.Response(serializer.data, status=status.HTTP_201_CREATED)
-        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
     '''
@@ -148,7 +148,7 @@ def link_user_to_friend_with_code(request, friend_id):
     friend.linked_user = link.user
     friend.save()
 
-    return response.Response({'success': True}, status=status.HTTP_200_OK)
+    return Response({'success': True}, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -181,7 +181,7 @@ def create_live_sesh_invite(request, friend_id):
     from users.notifications import notify_user
     notify_user(recipient.id, 'live_sesh_invite')
 
-    return response.Response(
+    return Response(
         users.serializers.UserFriendLiveSeshInviteSerializer(invite).data,
         status=status.HTTP_200_OK,
     )
@@ -200,7 +200,7 @@ class FriendDetail(generics.RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         id = instance.id
         self.perform_destroy(instance)
-        return response.Response({
+        return Response({
             "message": "Friend deleted successfully",
             "id": id 
         }, status=200)
@@ -231,7 +231,7 @@ class FriendAddressesAll(generics.GenericAPIView):
 
         # TEMP AND CHOSEN ARE JUST STORAGE PLACES FOR FRONT END TANSTACK
         # DO NOT REFACTOR
-        return response.Response({
+        return Response({
             "saved": saved,
             "temp": [],     
             "chosen": None   
@@ -273,7 +273,7 @@ class FriendAddressDetail(generics.RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         id = instance.id
         self.perform_destroy(instance)
-        return response.Response({
+        return Response({
             "message": "Friend address deleted successfully",
             "id": id 
         }, status=200)
@@ -322,7 +322,7 @@ class FriendGeckoDataSessionsAll(generics.ListAPIView):
         if request.query_params.get("nopaginate") == "true":
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset, many=True)
-            return response.Response(serializer.data)
+            return Response(serializer.data)
 
         return super().list(request, *args, **kwargs)
 
@@ -373,7 +373,7 @@ def update_gecko_data(request, friend_id):
     )
 
     serializer = serializers.GeckoDataSerializer(gecko_data)
-    return response.Response(serializer.data, status=status.HTTP_200_OK)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 class FriendSuggestionSettingsDetail(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.FriendSuggestionSettingsSerializer
     permission_classes = [IsAuthenticated]
@@ -425,7 +425,7 @@ class FriendFavesDetail(generics.RetrieveUpdateAPIView):
         # Update instance with validated data
         serializer.save()
 
-        return response.Response(serializer.data)
+        return Response(serializer.data)
 
 
 class FriendFavesEnableManualTheme(APIView):
@@ -447,7 +447,7 @@ class FriendFavesEnableManualTheme(APIView):
         faves.save()
 
         serializer = serializers.FriendFavesSerializer(faves)
-        return response.Response(serializer.data)
+        return Response(serializer.data)
 
     
 class FriendFavesLocationAdd(generics.RetrieveUpdateAPIView):
@@ -476,7 +476,7 @@ class FriendFavesLocationAdd(generics.RetrieveUpdateAPIView):
                 instance.locations.add(location)
                 instance.save()
                 serializer = self.get_serializer(instance)
-                return response.Response(serializer.data)
+                return Response(serializer.data)
             else:
                 return error_response("location_id is required")
         else:
@@ -507,7 +507,7 @@ class FriendFavesLocationRemove(generics.UpdateAPIView):
             if location in friend_faves.locations.all():
                 friend_faves.locations.remove(location)
                 serializer = serializers.FriendFavesSerializer(friend_faves)
-                return response.Response(serializer.data)
+                return Response(serializer.data)
             else:
                 return error_response("Location not found in friend's favorites")
 
@@ -545,7 +545,7 @@ class NextMeetView(generics.ListAPIView):
 
 #     # Check if user is authenticated
 #     if not user.is_authenticated:
-#         return response.Response({"message": "User is not authenticated."}, status=status.HTTP_401_UNAUTHORIZED)
+#         return Response({"message": "User is not authenticated."}, status=status.HTTP_401_UNAUTHORIZED)
 
 #     next_meets = models.NextMeet.objects.filter(user=user)
 
@@ -554,7 +554,7 @@ class NextMeetView(generics.ListAPIView):
 #         next_meet.create_new_date_if_needed(manual_reset=True)
 #         next_meet.save()
 
-#     return response.Response({"message": "All next meets have been remixed successfully."})
+#     return Response({"message": "All next meets have been remixed successfully."})
 
 
 @api_view(['POST'])
@@ -574,7 +574,7 @@ def remix_all_next_meets(request):
             upcoming_friend=soonest.friend  # duplicating what the combined friends + upcoming view does but it just ensures consistency
         )
 
-    return response.Response({"message": "All next meets have been remixed successfully."})
+    return Response({"message": "All next meets have been remixed successfully."})
 
 # class FriendDashboardView(generics.ListAPIView):
 #     serializer_class = serializers.FriendDashboardSerializer
@@ -876,7 +876,7 @@ class CombinedFriendsUpcomingView(APIView):
             context={"user_capsules": user_capsules}
         ).data
 
-        return response.Response({
+        return Response({
             "user": user.id,
             "friends": friends_data,
             "upcoming": upcoming_data,
@@ -1036,7 +1036,7 @@ class CompletedCapsulesHistoryView(generics.ListAPIView):
         ]
 
         grouped_list.sort(key=lambda g: g["hello"]["date"], reverse=True)
-        return response.Response(grouped_list, status=status.HTTP_200_OK)
+        return Response(grouped_list, status=status.HTTP_200_OK)
     
 class CompletedCapsulesHistoryViewOldTwo(generics.ListAPIView):
     serializer_class = serializers.CompletedThoughtCapsuleSerializer
@@ -1096,7 +1096,7 @@ class CompletedCapsulesHistoryViewOldTwo(generics.ListAPIView):
             grouped[item.get("hello")].append(item)
         grouped_list = [{"hello": k, "capsules": v} for k, v in grouped.items()]
         grouped_list.sort(key=lambda g: g["capsules"][0]["created_on"], reverse=True)
-        return response.Response(grouped_list, status=status.HTTP_200_OK)
+        return Response(grouped_list, status=status.HTTP_200_OK)
 
 
  
@@ -1217,7 +1217,7 @@ class ThoughtCapsuleDetail(generics.RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         id = instance.id
         self.perform_destroy(instance)
-        return response.Response({
+        return Response({
             "message": "Moment deleted successfully",
             "id": id 
         }, status=200)
@@ -1265,7 +1265,7 @@ class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
             except models.ThoughtCapsulez.DoesNotExist:
                 continue
 
-        return response.Response({"updated": updated}, status=status.HTTP_200_OK)
+        return Response({"updated": updated}, status=status.HTTP_200_OK)
     
 
 
@@ -1302,7 +1302,7 @@ class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
 #             except models.ThoughtCapsulez.DoesNotExist:
 #                 continue
 
-#         return response.Response({"updated": updated}, status=status.HTTP_200_OK)
+#         return Response({"updated": updated}, status=status.HTTP_200_OK)
 
 class ThoughtCapsulesUpdateMultiple(APIView):
     permission_classes = [IsAuthenticated]
@@ -1380,13 +1380,13 @@ class ThoughtCapsulesUpdateMultiple(APIView):
         
         # If there are errors, return them along with successful updates
         if errors:
-            return response.Response({
+            return Response({
                 "updated_capsules": serializers.ThoughtCapsuleSerializer(updated_capsules, many=True).data,
                 "errors": errors
             }, status=status.HTTP_207_MULTI_STATUS)
 
         # If no errors, return only the updated capsules
-        return response.Response(serializers.ThoughtCapsuleSerializer(updated_capsules, many=True).data, status=status.HTTP_200_OK)
+        return Response(serializers.ThoughtCapsuleSerializer(updated_capsules, many=True).data, status=status.HTTP_200_OK)
 
 class ImagesAll(generics.ListAPIView):
     serializer_class = serializers.ImageSerializer
@@ -1415,7 +1415,7 @@ class ImageCreate(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return response.Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
     
 
 class ImageDetail(generics.RetrieveUpdateDestroyAPIView):
@@ -1431,7 +1431,7 @@ class ImageDetail(generics.RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         id = instance.id
         self.perform_destroy(instance)
-        return response.Response({
+        return Response({
             "message": "Image deleted successfully",
             "id": id 
         }, status=200)
@@ -1464,7 +1464,7 @@ class HelloesAll(generics.ListAPIView):
         if request.query_params.get("nopaginate") == "true":
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset, many=True)
-            return response.Response(serializer.data)
+            return Response(serializer.data)
         
         return super().list(request, *args, **kwargs)
 class HelloesLightAll(generics.ListAPIView):
@@ -1510,7 +1510,7 @@ class CombinedHelloesLightAll(generics.ListAPIView):
             else:
                 serializer = serializers.PastMeetLightSerializer(instance, context=self.get_serializer_context())
             serialized_data.append(serializer.data)
-        return response.Response(serialized_data)
+        return Response(serialized_data)
     
 class ImagesByCategoryView(APIView):
 
@@ -1534,7 +1534,7 @@ class ImagesByCategoryView(APIView):
             serializer = serializers.ImageSerializer(image, context={'request': request})
             images_by_category[category].append(serializer.data)
 
-        return response.Response(images_by_category, status=status.HTTP_200_OK)
+        return Response(images_by_category, status=status.HTTP_200_OK)
 
 # class HelloCreate(generics.ListCreateAPIView):
 #     serializer_class = serializers.PastMeetSerializer
@@ -1587,7 +1587,7 @@ class HelloCreate(generics.ListCreateAPIView):
             context=self.get_serializer_context()
         ).data
 
-        return response.Response({
+        return Response({
             'hello': hello_response.data,
             'hello_light': light_data,
         }, status=hello_response.status_code)
@@ -1605,7 +1605,7 @@ class HelloDetail(generics.RetrieveUpdateDestroyAPIView):
         
         try:
             instance.delete()
-            return response.Response({
+            return Response({
                 "message": "PastMeet deleted successfully",
                 "id": instance.id
             }, status=status.HTTP_200_OK)
@@ -1621,7 +1621,7 @@ class HelloTypeChoices(APIView):
     def get(self, request, format=None):
         type_choices = models.PastMeet.TYPE_CHOICES
         serializer = serializers.PastMeetTypeChoicesSerializer({'type_choices': type_choices})
-        return response.Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 
@@ -1639,7 +1639,7 @@ class LocationParkingTypeChoices(APIView):
     def get(self, request, format=None):
         type_choices = models.Location.TYPE_CHOICES
         serializer = serializers.LocationParkingTypeChoicesSerializer({'type_choices': type_choices})
-        return response.Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class UserLocationsValidated(generics.ListAPIView):
@@ -1713,7 +1713,7 @@ class ValidateLocation(APIView):
         if address:
             location = models.Location(address=address)
             location.calculate_coordinates()
-            return response.Response({
+            return Response({
                 'address': location.address,
                 'latitude': location.latitude,
                 'longitude': location.longitude
@@ -1729,15 +1729,15 @@ def consider_the_drive(request):
 
 
     if request.method == 'OPTIONS':
-        return response.Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_200_OK)
 
 
     if request.method == 'GET':
 
         if not request.user.is_authenticated:
-            return response.Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        return response.Response({'message': 'Enter address'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Enter address'}, status=status.HTTP_200_OK)
 
 
     if request.method == 'POST':
@@ -1766,22 +1766,22 @@ def consider_the_drive(request):
             'suggested_places': distance_object.get_directions_to_midpoint_places(),
         }
 
-        return response.Response(response_data, status=status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_200_OK)
  
-    return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @api_view(['POST', 'GET', 'OPTIONS'])
 @permission_classes([IsAuthenticated])
 def consider_midpoint_locations(request):
     
     if request.method == 'OPTIONS':
-        return response.Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_200_OK)
 
     if request.method == 'GET':
         if not request.user.is_authenticated:
-            return response.Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        return response.Response({'message': 'Enter address'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Enter address'}, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
         data = request.data
@@ -1805,9 +1805,9 @@ def consider_midpoint_locations(request):
             'suggested_places': distance_object.get_directions_to_midpoint_places(many=False),  # Call with many=False
         }
 
-        return response.Response(response_data, status=status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_200_OK)
 
-    return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
  
 
@@ -1816,13 +1816,13 @@ def consider_midpoint_locations(request):
 def place_id(request):
     
     if request.method == 'OPTIONS':
-        return response.Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_200_OK)
 
     if request.method == 'GET':
         if not request.user.is_authenticated:
-            return response.Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        return response.Response({'message': 'Provide origin address and search criteria'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Provide origin address and search criteria'}, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
         data = request.data
@@ -1850,22 +1850,22 @@ def place_id(request):
         except ValueError as e:
             return error_response(str(e))
 
-        return response.Response(response_data, status=status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_200_OK)
 
-    return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @api_view(['POST', 'GET', 'OPTIONS'])
 @permission_classes([IsAuthenticated])
 def place_details(request):
     if request.method == 'OPTIONS':
-        return response.Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_200_OK)
 
     if request.method == 'GET':
         if not request.user.is_authenticated:
-            return response.Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        return response.Response({'message': 'Provide address or coordinates to retrieve place details'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Provide address or coordinates to retrieve place details'}, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
         data = request.data
@@ -1892,22 +1892,22 @@ def place_details(request):
         except ValueError as e:
             return error_response(str(e))
 
-        return response.Response(response_data, status=status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_200_OK)
 
-    return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @api_view(['POST', 'GET', 'OPTIONS'])
 @permission_classes([IsAuthenticated])
 def place_details_new(request):
     
     if request.method == 'OPTIONS':
-        return response.Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_200_OK)
 
     if request.method == 'GET':
         if not request.user.is_authenticated:
-            return response.Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        return response.Response({'message': 'Provide origin address and search criteria'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Provide origin address and search criteria'}, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
         data = request.data
@@ -1939,9 +1939,9 @@ def place_details_new(request):
         except ValueError as e:
             return error_response(str(e))
 
-        return response.Response(response_data, status=status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_200_OK)
 
-    return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 @api_view(['POST', 'GET', 'OPTIONS'])
@@ -1949,13 +1949,13 @@ def place_details_new(request):
 def place_details_newer(request):
     
     if request.method == 'OPTIONS':
-        return response.Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_200_OK)
 
     if request.method == 'GET':
         if not request.user.is_authenticated:
-            return response.Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'detail': 'Authentication credentials were not provided.'}, status=status.HTTP_401_UNAUTHORIZED)
 
-        return response.Response({'message': 'Provide origin address and search criteria'}, status=status.HTTP_200_OK)
+        return Response({'message': 'Provide origin address and search criteria'}, status=status.HTTP_200_OK)
 
     if request.method == 'POST':
         data = request.data
@@ -1992,9 +1992,9 @@ def place_details_newer(request):
             'search_results': places
         }
 
-        return response.Response(response_data, status=status.HTTP_200_OK)
+        return Response(response_data, status=status.HTTP_200_OK)
 
-    return response.Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    return Response({'detail': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 
@@ -2014,7 +2014,7 @@ class LocationDetail(generics.RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         id = instance.id
         self.perform_destroy(instance)
-        return response.Response({
+        return Response({
             "message": "Location deleted successfully",
             "id": id 
         }, status=200)
@@ -2140,7 +2140,7 @@ def groq_chat(request):
         data = groq_response.json()
         content = data['choices'][0]['message']['content']
 
-        return response.Response({'response': content}, status=status.HTTP_200_OK)
+        return Response({'response': content}, status=status.HTTP_200_OK)
 
     except requests.exceptions.RequestException:
         return error_response("Upstream service error", status.HTTP_502_BAD_GATEWAY)
@@ -2168,7 +2168,7 @@ class GeckoReadMomentsOnly(generics.GenericAPIView):
         ).select_related("user_category").order_by("created_on")
 
         if not capsules.exists():
-            return response.Response(
+            return Response(
                 {"moments": [], "summary": None},
                 status=status.HTTP_200_OK,
             )
@@ -2187,7 +2187,7 @@ class GeckoReadMomentsOnly(generics.GenericAPIView):
             "time_range_days": (capsules.last().created_on - capsules.first().created_on).days,
         }
 
-        return response.Response(
+        return Response(
             {"moments": serializer.data, "summary": summary},
             status=status.HTTP_200_OK,
         )

@@ -18,7 +18,8 @@ from django.shortcuts import render
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
-from rest_framework import generics, response, status
+from rest_framework import generics, status
+from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes, throttle_classes, parser_classes, renderer_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import BaseParser, JSONParser
@@ -57,7 +58,7 @@ class CreateUserView(generics.CreateAPIView):
 # @permission_classes([IsAuthenticated])
 # def get_current_user(request):
 #     if not request.user.is_authenticated:
-#         return response.Response({'error': 'User not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
+#         return Response({'error': 'User not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
     
 #     request.user.check_subscription_active()
     
@@ -110,7 +111,7 @@ def create_or_reset_friend_link_code(request):
         }
     )
 
-    return response.Response({
+    return Response({
         'code': obj.code,
         'expires_at': obj.expires_at,
     }, status=status.HTTP_200_OK)
@@ -124,9 +125,9 @@ def add_address_to_current_user(request):
     serializer = serializers.BadRainbowzUserAddressSerializer(user, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()  # Save the updated user object with the added address
-        return response.Response({"detail": "Address added successfully"}, status=status.HTTP_201_CREATED)
+        return Response({"detail": "Address added successfully"}, status=status.HTTP_201_CREATED)
     else:
-        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
 class PasswordResetCodeValidationView(APIView):
@@ -136,7 +137,7 @@ class PasswordResetCodeValidationView(APIView):
          
         validated_data = serializer.validated_data
          
-        return response.Response({
+        return Response({
             "detail": "Reset code and email are valid.",
             "email": validated_data['email'],
             "reset_code": validated_data['reset_code']
@@ -151,7 +152,7 @@ class UpdateSubscriptionView(APIView):
         serializer = serializers.UpdateSubscriptionSerializer(instance=user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return response.Response({"detail": "Subscription updated successfully."}, status=status.HTTP_200_OK)
+        return Response({"detail": "Subscription updated successfully."}, status=status.HTTP_200_OK)
 
 class PasswordResetConfirmView(APIView):
     def post(self, request, *args, **kwargs):
@@ -161,7 +162,7 @@ class PasswordResetConfirmView(APIView):
         user = serializer.validated_data
         serializer.save(user, request.data.get('new_password'))
 
-        return response.Response({"detail": "Password has been reset successfully."}, status=status.HTTP_200_OK)
+        return Response({"detail": "Password has been reset successfully."}, status=status.HTTP_200_OK)
 
 
 class ChangePasswordView(APIView):
@@ -181,9 +182,9 @@ class ChangePasswordView(APIView):
             # Update the session authentication hash to avoid the user being logged out
             update_session_auth_hash(request, user)
 
-            return response.Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
+            return Response({"detail": "Password updated successfully."}, status=status.HTTP_200_OK)
         
-        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
 
@@ -198,10 +199,10 @@ class AddAddressView(APIView):
             user = request.user
             if user_id == user.id:  # Ensure the authenticated user matches the provided user_id
                 user.add_address(address_data)
-                return response.Response(address_data, status=status.HTTP_201_CREATED)
+                return Response(address_data, status=status.HTTP_201_CREATED)
             else:
                 return error_response("Unauthorized", status.HTTP_403_FORBIDDEN)
-        return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def put(self, request, *args, **kwargs):
         user = request.user
@@ -213,7 +214,7 @@ class AddAddressView(APIView):
                 addresses[address_index].update(address_data)
                 user.addresses = addresses
                 user.save()
-                return response.Response({"detail": "Address updated successfully"}, status=status.HTTP_200_OK)
+                return Response({"detail": "Address updated successfully"}, status=status.HTTP_200_OK)
             else:
                 return error_response("Address index out of range", status.HTTP_404_NOT_FOUND)
         else:
@@ -237,7 +238,7 @@ class DeleteAddressView(APIView):
                 # An address was deleted
                 user.addresses = updated_addresses
                 user.save()
-                return response.Response({"detail": "Address deleted successfully"}, status=status.HTTP_200_OK)
+                return Response({"detail": "Address deleted successfully"}, status=status.HTTP_200_OK)
             else:
                 return error_response("Address not found", status.HTTP_404_NOT_FOUND)
         else:
@@ -271,7 +272,7 @@ class UserSettingsDetail(generics.RetrieveUpdateAPIView):
         if 'expo_push_token' in request.data:
             instance.expo_push_token = None
             instance.save()
-            return response.Response({"detail": "Expo push token cleared"}, status=status.HTTP_200_OK)
+            return Response({"detail": "Expo push token cleared"}, status=status.HTTP_200_OK)
         return error_response("Expo push token not provided")
 
     # def get(self, request, *args, **kwargs):
@@ -319,7 +320,7 @@ class GeckoCombinedDataSessionsAll(generics.ListAPIView):
         if request.query_params.get("nopaginate") == "true":
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset, many=True)
-            return response.Response(serializer.data)
+            return Response(serializer.data)
         
         return super().list(request, *args, **kwargs)
 
@@ -373,7 +374,7 @@ class GeckoCombinedDataSessionsAll(generics.ListAPIView):
 #             return resp
 
 #         serializer = self.get_serializer(queryset, many=True)
-#         return response.Response({'results': serializer.data, 'totals': totals})
+#         return Response({'results': serializer.data, 'totals': totals})
 
 
 
@@ -432,7 +433,7 @@ class GeckoCombinedDataSessionsTimeRange(generics.ListAPIView):
             return resp
 
         serializer = self.get_serializer(queryset, many=True)
-        return response.Response({'results': serializer.data, 'totals': totals})
+        return Response({'results': serializer.data, 'totals': totals})
 
 class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.GeckoScoreStateSerializer
@@ -449,7 +450,7 @@ class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
         # If a streak is currently active, lock updates and return current state
         if instance.expires_at and instance.expires_at > timezone.now():
             serializer = self.get_serializer(instance)
-            return response.Response(serializer.data)
+            return Response(serializer.data)
 
     
         max_multiplier = instance.max_score_multiplier  
@@ -460,7 +461,7 @@ class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
             try:
                 requested = int(data['multiplier'])
             except (TypeError, ValueError):
-                return response.Response(
+                return Response(
                     {'multiplier': 'Must be an integer.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
@@ -490,36 +491,36 @@ class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
         instance.save(update_fields=['last_steak_expiry'])
         # instance.recompute_energy()
         instance.refresh_from_db()
-        return response.Response(self.get_serializer(instance).data)
-        # return response.Response(serializer.data)
+        return Response(self.get_serializer(instance).data)
+        # return Response(serializer.data)
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def dev_reset_energy(request):
     if not request.user.is_superuser:
-        return response.Response(status=status.HTTP_403_FORBIDDEN)
+        return Response(status=status.HTTP_403_FORBIDDEN)
     obj, _ = models.GeckoScoreState.objects.get_or_create(user=request.user)
     obj.energy = 1.0
     obj.surplus_energy = 0.0
     obj.revives_at = None
     obj.energy_updated_at = timezone.now()
     obj.save(update_fields=['energy', 'surplus_energy', 'revives_at', 'energy_updated_at'])
-    return response.Response(serializers.GeckoScoreStateSerializer(obj).data)
+    return Response(serializers.GeckoScoreStateSerializer(obj).data)
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def dev_deplete_energy(request):
     if not request.user.is_superuser:
-        return response.Response(status=status.HTTP_403_FORBIDDEN)
+        return Response(status=status.HTTP_403_FORBIDDEN)
     obj, _ = models.GeckoScoreState.objects.get_or_create(user=request.user)
     obj.energy = 0.0
     obj.surplus_energy = 0.0
     obj.revives_at = None
     obj.energy_updated_at = timezone.now()
     obj.save(update_fields=['energy', 'surplus_energy', 'revives_at', 'energy_updated_at'])
-    return response.Response(serializers.GeckoScoreStateSerializer(obj).data)
+    return Response(serializers.GeckoScoreStateSerializer(obj).data)
 
 
 class GeckoEnergyLogView(generics.ListAPIView):
@@ -536,7 +537,7 @@ class GeckoEnergyLogView(generics.ListAPIView):
         if request.query_params.get("nopaginate") == "true":
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset, many=True)
-            return response.Response(serializer.data)
+            return Response(serializer.data)
         return super().list(request, *args, **kwargs)
 
 
@@ -572,7 +573,7 @@ class GeckoEnergyLogAnalyticsView(generics.ListAPIView):
     def list(self, request, *args, **kwargs):
         if request.query_params.get('nopaginate') == 'true':
             serializer = self.get_serializer(self.filter_queryset(self.get_queryset()), many=True)
-            return response.Response(serializer.data)
+            return Response(serializer.data)
         return super().list(request, *args, **kwargs)
 
 
@@ -604,7 +605,7 @@ class GeckoEnergySyncSampleAnalyticsView(generics.ListAPIView):
     def list(self, request, *args, **kwargs):
         if request.query_params.get('nopaginate') == 'true':
             serializer = self.get_serializer(self.filter_queryset(self.get_queryset()), many=True)
-            return response.Response(serializer.data)
+            return Response(serializer.data)
         return super().list(request, *args, **kwargs)
 
 
@@ -644,7 +645,7 @@ class GeckoEnergySyncSampleView(generics.ListAPIView):
         if request.query_params.get("nopaginate") == "true":
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset, many=True)
-            return response.Response(serializer.data)
+            return Response(serializer.data)
         return super().list(request, *args, **kwargs)
 
 
@@ -702,7 +703,7 @@ class GeckoScoreStateConfigsView(generics.RetrieveUpdateAPIView):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def gecko_config_choices(request):
-    return response.Response({
+    return Response({
         'personality_types': [{'value': v, 'label': l} for v, l in models.Personality.choices],
         'memory_types': [{'value': v, 'label': l} for v, l in models.Memory.choices],
         'active_hours_types': [{'value': v, 'label': l} for v, l in models.ActivityHours.choices],
@@ -724,7 +725,7 @@ class AddPointsView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = serializers.AddPointsSerializer(data=request.data)
         if not serializer.is_valid():
-            return response.Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         amount = serializer.validated_data['amount']
         reason = serializer.validated_data['reason']
@@ -740,7 +741,7 @@ class AddPointsView(APIView):
             )
 
         profile = models.UserProfile.objects.get(user=request.user)
-        return response.Response(
+        return Response(
             {'total_points': profile.total_points},
             status=status.HTTP_200_OK
         )
@@ -773,7 +774,7 @@ class GeckoPointsLedgerView(generics.ListAPIView):
         if request.query_params.get("nopaginate") == "true":
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset, many=True)
-            return response.Response(serializer.data)
+            return Response(serializer.data)
         
         return super().list(request, *args, **kwargs)
 
@@ -976,7 +977,7 @@ class UserCategoryDetail(generics.RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         id = instance.id
         self.perform_destroy(instance)
-        return response.Response({
+        return Response({
             "message": "Moment deleted successfully",
             "id": id 
         }, status=200)
@@ -1005,7 +1006,7 @@ class UserAddressesAll(generics.GenericAPIView):
 
         # TEMP AND CHOSEN ARE JUST STORAGE PLACES FOR FRONT END TANSTACK
         # DO NOT REFACTOR
-        return response.Response({
+        return Response({
             "saved": saved,
             "temp": [],       
             "chosen": None 
@@ -1054,7 +1055,7 @@ def send_email_to_user(request):
         "subject": "Welcome to Our Service",
         "text": "Thank you for joining us! We are excited to have you as part of our community.",
     })
-    return response.Response({"detail": "Email successfully sent"}, status=status.HTTP_200_OK)
+    return Response({"detail": "Email successfully sent"}, status=status.HTTP_200_OK)
 
 # @api_view(['POST'])
 # @permission_classes([AllowAny])
@@ -1071,7 +1072,7 @@ def send_email_to_user(request):
 #         # print(request.content_type)
 #         # print(request.data)
 
-#         return response.Response({'error': 'Email address is required'}, status=400)
+#         return Response({'error': 'Email address is required'}, status=400)
 
 #     subject = 'Welcome to Our Service'  # Predefined subject
 #     message = 'Thank you for joining us! We are excited to have you as part of our community.'  # Predefined message
@@ -1085,9 +1086,9 @@ def send_email_to_user(request):
 #             settings.DEFAULT_FROM_EMAIL,  # Ensure this is set in your settings.py
 #             [email_address],
 #         )
-#         return response.Response({'success': f'Email successfully sent'}, status=200) #to {email_address}
+#         return Response({'success': f'Email successfully sent'}, status=200) #to {email_address}
 #     except Exception as e:
-#         return response.Response({'error': f'Failed to send email: {str(e)}'}, status=500)
+#         return Response({'error': f'Failed to send email: {str(e)}'}, status=500)
     
 
 
@@ -1096,12 +1097,12 @@ class RequestPasswordResetCodeView(APIView):
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
         if not email:
-            return response.Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             user = models.BadRainbowzUser.objects.get(email=email)
         except models.BadRainbowzUser.DoesNotExist:
-            return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
+            return Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
 
         reset_code = user.generate_password_reset_code()
 
@@ -1113,7 +1114,7 @@ class RequestPasswordResetCodeView(APIView):
             "text": f"Your password reset code is: {reset_code}",
         })
 
-        return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
+        return Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
 
 
 # class RequestPasswordResetCodeView(APIView):
@@ -1121,13 +1122,13 @@ class RequestPasswordResetCodeView(APIView):
 #     def post(self, request, *args, **kwargs):
 #         email = request.data.get('email')
 #         if not email:
-#             return response.Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+#             return Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
 
 #         try:
 #             user = models.BadRainbowzUser.objects.get(email=email)
 #         except models.BadRainbowzUser.DoesNotExist:
 #             # Do not disclose if the email exists to prevent user enumeration
-#             return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
+#             return Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
 
 #         # Generate and save the reset code
 #         reset_code = user.generate_password_reset_code()
@@ -1140,7 +1141,7 @@ class RequestPasswordResetCodeView(APIView):
 #             recipient_list=[email],
 #         )
 
-#         return response.Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
+#         return Response({"detail": "If the email exists, a reset code has been sent."}, status=status.HTTP_200_OK)
 
 
 LIVE_SESH_DURATION = datetime.timedelta(hours=24)
@@ -1155,7 +1156,7 @@ def end_current_live_sesh(request):
     user = request.user
     sesh = models.UserFriendCurrentLiveSesh.objects.filter(user=user).first()
     if not sesh:
-        return response.Response(
+        return Response(
             {'detail': 'No active sesh.'},
             status=status.HTTP_404_NOT_FOUND,
         )
@@ -1175,7 +1176,7 @@ def end_current_live_sesh(request):
     for uid in (user.id, partner_id):
         refresh_sesh_context(uid, None)
 
-    return response.Response(
+    return Response(
         {'detail': 'Live sesh ended.', 'partner_id': partner_id},
         status=status.HTTP_200_OK,
     )
@@ -1187,7 +1188,7 @@ def cancel_current_live_sesh(request):
     user = request.user
     sesh = models.UserFriendCurrentLiveSesh.objects.filter(user=user).first()
     if not sesh:
-        return response.Response(
+        return Response(
             {'detail': 'No active sesh.'},
             status=status.HTTP_404_NOT_FOUND,
         )
@@ -1210,7 +1211,7 @@ def cancel_current_live_sesh(request):
     for uid in (user.id, partner_id):
         cancel_live_sesh(uid, payload)
 
-    return response.Response(
+    return Response(
         {'detail': 'Live sesh cancelled.', 'partner_id': partner_id},
         status=status.HTTP_200_OK,
     )
@@ -1226,14 +1227,14 @@ def rust_live_sesh_context(request):
 
     secret = request.headers.get("X-Rust-Internal-Secret")
     if secret != getattr(settings, "RUST_INTERNAL_SECRET", None):
-        return response.Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
 
     user_id = request.query_params.get("user_id")
 
     try:
         user_id = int(user_id)
     except (TypeError, ValueError):
-        return response.Response({"detail": "Invalid user_id"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"detail": "Invalid user_id"}, status=status.HTTP_400_BAD_REQUEST)
 
     sesh = (
         models.UserFriendCurrentLiveSesh.objects
@@ -1266,7 +1267,7 @@ def rust_live_sesh_context(request):
             "partner_friend_name": None,
         }
         sesh_cache.write(user_id, empty)
-        return response.Response(empty)
+        return Response(empty)
 
     partner_friend = (
         Friend.objects
@@ -1289,7 +1290,7 @@ def rust_live_sesh_context(request):
         "partner_friend_name": partner_friend["name"] if partner_friend else None,
     }
     sesh_cache.write(user_id, payload)
-    return response.Response(payload)
+    return Response(payload)
 
 
 @api_view(["GET"])
@@ -1297,7 +1298,7 @@ def rust_live_sesh_context(request):
 def gecko_socket_token(request):
     secret = settings.GECKO_WS_JWT_SECRET
     if not secret:
-        return response.Response({"detail": "socket auth not configured"}, status=500)
+        return Response({"detail": "socket auth not configured"}, status=500)
 
     now = int(time.time())
     payload = {
@@ -1306,7 +1307,7 @@ def gecko_socket_token(request):
         "exp": now + 300,  # 5 minutes
     }
     token = jwt.encode(payload, secret, algorithm="HS256")
-    return response.Response({"token": token, "expires_at": payload["exp"]})
+    return Response({"token": token, "expires_at": payload["exp"]})
 
 
 
@@ -1320,7 +1321,7 @@ def gecko_socket_token(request):
 def rust_check_host_link_and_load(request):
     secret = request.headers.get("X-Rust-Internal-Secret")
     if secret != getattr(settings, "RUST_INTERNAL_SECRET", None):
-        return response.Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
 
     body = request.data or {}
     user_id = body.get("user_id")
@@ -1330,7 +1331,7 @@ def rust_check_host_link_and_load(request):
         user_id = int(user_id)
         partner_id = int(partner_id)
     except (TypeError, ValueError):
-        return response.Response(
+        return Response(
             {
                 "action": "capsule_matches_ready",
                 "data": {
@@ -1349,7 +1350,7 @@ def rust_check_host_link_and_load(request):
     try:
         user = User.objects.get(pk=user_id)
     except User.DoesNotExist:
-        return response.Response(
+        return Response(
             {
                 "action": "capsule_matches_ready",
                 "data": {
@@ -1372,7 +1373,7 @@ def rust_check_host_link_and_load(request):
     )
 
     if sesh is None:
-        return response.Response({
+        return Response({
             "action": "capsule_matches_ready",
             "data": {
                 "completed": False,
@@ -1385,7 +1386,7 @@ def rust_check_host_link_and_load(request):
         })
 
     if sesh.is_host:
-        return response.Response({
+        return Response({
             "action": "capsule_matches_ready",
             "data": {
                 "completed": False,
@@ -1410,7 +1411,7 @@ def rust_check_host_link_and_load(request):
             user_id,
             partner_id,
         )
-        return response.Response(
+        return Response(
             {
                 "action": "capsule_matches_ready",
                 "data": {
@@ -1425,7 +1426,7 @@ def rust_check_host_link_and_load(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-    return response.Response(payload)
+    return Response(payload)
 
 
 
@@ -1471,7 +1472,7 @@ class OrmsgpackRenderer(BaseRenderer):
 def gecko_socket_action(request):
     secret = request.headers.get("X-Rust-Internal-Secret")
     if secret != getattr(settings, "RUST_INTERNAL_SECRET", None):
-        return response.Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
+        return Response({"detail": "Forbidden"}, status=status.HTTP_403_FORBIDDEN)
 
     _t0 = time.perf_counter()
     action = None
@@ -1495,7 +1496,7 @@ def _gecko_socket_action_dispatch(user_id, action, data):
     try:
         user_id = int(user_id)
     except (TypeError, ValueError):
-        return response.Response(
+        return Response(
             {"action": f"{action or 'unknown'}_failed", "data": {"reason": "invalid_user_id"}},
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -1517,7 +1518,7 @@ def _gecko_socket_action_dispatch(user_id, action, data):
                 _user_cache["err"] = None
             except User.DoesNotExist:
                 _user_cache["user"] = None
-                _user_cache["err"] = response.Response(
+                _user_cache["err"] = Response(
                     {"action": f"{action or 'unknown'}_failed", "data": {"reason": "unknown_user"}},
                     status=status.HTTP_404_NOT_FOUND,
                 )
@@ -1526,7 +1527,7 @@ def _gecko_socket_action_dispatch(user_id, action, data):
     # Score state config moved to REST + react-query. Connect uses get_24h_seed.
     # if action == "get_score_state":
     #     from .gecko_score_helpers import load_initial_score_payload
-    #     return response.Response({
+    #     return Response({
     #         "action": "score_state",
     #         "data": load_initial_score_payload(user),
     #     })
@@ -1536,7 +1537,7 @@ def _gecko_socket_action_dispatch(user_id, action, data):
         if err:
             return err
         from .gecko_score_helpers import load_24h_seed
-        return response.Response({
+        return Response({
             "action": "seed_24h",
             "data": load_24h_seed(user),
         })
@@ -1545,7 +1546,7 @@ def _gecko_socket_action_dispatch(user_id, action, data):
         # The Rust socket has no per-connection pending_data buffer (the
         # consumer's flush model is irrelevant here — every update_gecko_data
         # commits to DB on the spot). Always ack. No User row needed.
-        return response.Response({
+        return Response({
             "action": "flush_ack",
             "data": {"status": "nothing_to_flush"},
         })
@@ -1566,20 +1567,20 @@ def _gecko_socket_action_dispatch(user_id, action, data):
                 "[gecko_socket_action] update_gecko_data failed user=%s",
                 user_id,
             )
-            return response.Response({
+            return Response({
                 "action": "update_gecko_data_failed",
                 "data": {"reason": "internal_error"},
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        return response.Response({"action": "score_state", "data": new_state})
+        return Response({"action": "score_state", "data": new_state})
 
     if action == "request_capsule_matches":
         from .gecko_match_helpers import handle_request_capsule_matches
-        return response.Response(handle_request_capsule_matches(user_id))
+        return Response(handle_request_capsule_matches(user_id))
 
     if action == "repull_capsule_matches":
         from .gecko_match_helpers import handle_repull_capsule_matches
         ack, http_status = handle_repull_capsule_matches(user_id)
-        return response.Response(ack, status=http_status)
+        return Response(ack, status=http_status)
 
     if action == "propose_gecko_win":
         user, err = _load_user()
@@ -1596,7 +1597,7 @@ def _gecko_socket_action_dispatch(user_id, action, data):
                 capsule_id,
             )
             ack = {"action": "propose_gecko_win_failed", "data": {"reason": "db_error"}}
-        return response.Response(ack)
+        return Response(ack)
 
     if action == "propose_gecko_match_win":
         user, err = _load_user()
@@ -1612,22 +1613,22 @@ def _gecko_socket_action_dispatch(user_id, action, data):
                 user_id,
             )
             ack = {"action": "propose_gecko_match_win_failed", "data": {"reason": "db_error"}}
-        return response.Response(ack)
+        return Response(ack)
 
     if action == "send_validate_win_request":
         # Consumer treats this as a no-op when validate is True (consumers.py:1326).
-        return response.Response({"action": "send_validate_win_request_ack", "data": {}})
+        return Response({"action": "send_validate_win_request_ack", "data": {}})
 
     # Not implemented in the consumer either — keep parity by returning a
     # deterministic failure so the FE can surface it.
     not_implemented = {"send_match_request", "send_validate_match_win_request"}
     if action in not_implemented:
-        return response.Response({
+        return Response({
             "action": f"{action}_failed",
             "data": {"reason": "not_implemented"},
         })
 
-    return response.Response(
+    return Response(
         {"action": f"{action or 'unknown'}_failed", "data": {"reason": "unknown_action"}},
         status=status.HTTP_400_BAD_REQUEST,
     )
@@ -1640,9 +1641,9 @@ def get_current_live_sesh(request):
     try:
         sesh = models.UserFriendCurrentLiveSesh.objects.select_related('other_user').get(user=user)
     except models.UserFriendCurrentLiveSesh.DoesNotExist:
-        return response.Response(None, status=status.HTTP_200_OK)
+        return Response(None, status=status.HTTP_200_OK)
 
-    return response.Response(
+    return Response(
         serializers.UserFriendCurrentLiveSeshSerializer(sesh).data,
         status=status.HTTP_200_OK,
     )
@@ -1671,7 +1672,7 @@ def get_live_sesh_invites(request):
         for choice in models.GeckoPlayMode
     ]
 
-    return response.Response({
+    return Response({
         'sent': serializers.UserFriendLiveSeshInviteSerializer(sent_qs, many=True).data,
         'pending': serializers.UserFriendLiveSeshInviteSerializer(pending_qs, many=True).data,
         'play_modes': play_modes,
@@ -1696,7 +1697,7 @@ def accept_live_sesh_invite(request, invite_id):
             accepted_on__isnull=True,
         )
     except models.UserFriendLiveSeshInvite.DoesNotExist:
-        return response.Response(
+        return Response(
             {'detail': 'Invite not found or already accepted.'},
             status=status.HTTP_404_NOT_FOUND,
         )
@@ -1705,7 +1706,7 @@ def accept_live_sesh_invite(request, invite_id):
 
     # optional safety check (don’t change flow, just reject expired)
     if invite.invite_expires_on and invite.invite_expires_on <= now:
-        return response.Response(
+        return Response(
             {'detail': 'Invite expired.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
@@ -1785,7 +1786,7 @@ def accept_live_sesh_invite(request, invite_id):
         'expires_at': expires_at.isoformat(),
     })
 
-    return response.Response(
+    return Response(
         serializers.UserFriendCurrentLiveSeshSerializer(my_sesh).data,
         status=status.HTTP_200_OK,
     )
@@ -1802,7 +1803,7 @@ def decline_live_sesh_invite(request, invite_id):
             accepted_on__isnull=True,
         )
     except models.UserFriendLiveSeshInvite.DoesNotExist:
-        return response.Response(
+        return Response(
             {'detail': 'Invite not found or already handled.'},
             status=status.HTTP_404_NOT_FOUND,
         )
@@ -1816,7 +1817,7 @@ def decline_live_sesh_invite(request, invite_id):
         'declined_by_username': user.username,
     })
 
-    return response.Response({'status': 'declined'}, status=status.HTTP_200_OK)
+    return Response({'status': 'declined'}, status=status.HTTP_200_OK)
 
 
 class GeckoGameWinsList(generics.ListAPIView):
@@ -1848,7 +1849,7 @@ class GeckoGameWinPinDetail(APIView):
     def patch(self, request, pk):
         pinned = request.data.get('pinned')
         if not isinstance(pinned, bool):
-            return response.Response(
+            return Response(
                 {'detail': 'pinned must be true or false'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -1861,7 +1862,7 @@ class GeckoGameWinPinDetail(APIView):
                 .first()
             )
             if win is None:
-                return response.Response(
+                return Response(
                     {'detail': 'not_found'},
                     status=status.HTTP_404_NOT_FOUND,
                 )
@@ -1880,7 +1881,7 @@ class GeckoGameWinPinDetail(APIView):
 
             win.save(update_fields=update_fields)
 
-        return response.Response(
+        return Response(
             serializers.GeckoGameWinSerializer(win).data,
             status=status.HTTP_200_OK,
         )
@@ -1942,7 +1943,7 @@ class GeckoGameWinPendingDetail(APIView):
         pending = self._get_pending(request.user)
 
         if pending is None:
-            return response.Response(
+            return Response(
                 {'detail': 'no_pending'},
                 status=status.HTTP_404_NOT_FOUND,
             )
@@ -1950,12 +1951,12 @@ class GeckoGameWinPendingDetail(APIView):
         self._clear_if_expired(pending)
 
         if pending.sender_id is None:
-            return response.Response(
+            return Response(
                 {'detail': 'no_pending'},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        return response.Response(
+        return Response(
             serializers.GeckoGameWinPendingSerializer(pending).data,
             status=status.HTTP_200_OK,
         )
@@ -1975,7 +1976,7 @@ class GeckoGameWinPendingDetail(APIView):
         if source_capsule is None:
             # Source is gone — clear the pending so the user can be re-proposed.
             self._clear_locked(pending)
-            return response.Response(
+            return Response(
                 {'detail': 'capsule_missing'},
                 status=status.HTTP_409_CONFLICT,
             )
@@ -2028,7 +2029,7 @@ class GeckoGameWinPendingDetail(APIView):
 
         if decision not in ('accept', 'decline'):
             logger.warning("[GWP.post] 400 invalid_decision decision=%r", decision)
-            return response.Response(
+            return Response(
                 {'detail': 'decision must be "accept" or "decline"'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -2047,7 +2048,7 @@ class GeckoGameWinPendingDetail(APIView):
 
             if pending is None:
                 logger.warning("[GWP.post] 404 no_pending (row missing) user_id=%s", request.user.id)
-                return response.Response(
+                return Response(
                     {'detail': 'no_pending'},
                     status=status.HTTP_404_NOT_FOUND,
                 )
@@ -2056,21 +2057,21 @@ class GeckoGameWinPendingDetail(APIView):
 
             if pending.sender_id is None:
                 logger.warning("[GWP.post] 404 no_pending (sender_id None after expire-check) pending_id=%s", pending.id)
-                return response.Response(
+                return Response(
                     {'detail': 'no_pending'},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
             if pending.sender_capsule_id is None:
                 logger.warning("[GWP.post] 409 no_capsule_to_accept pending_id=%s", pending.id)
-                return response.Response(
+                return Response(
                     {'detail': 'no_capsule_to_accept'},
                     status=status.HTTP_409_CONFLICT,
                 )
 
             if pending.accepted_on is not None:
                 logger.warning("[GWP.post] 409 already_accepted pending_id=%s accepted_on=%s", pending.id, pending.accepted_on)
-                return response.Response(
+                return Response(
                     {'detail': 'already_accepted'},
                     status=status.HTTP_409_CONFLICT,
                 )
@@ -2092,14 +2093,14 @@ class GeckoGameWinPendingDetail(APIView):
                 )
 
                 logger.warning("[GWP.post] 200 declined pending_id=%s", pending_id)
-                return response.Response(
+                return Response(
                     {'detail': 'declined'},
                     status=status.HTTP_200_OK,
                 )
 
             finalize_result = self._finalize_locked(pending)
 
-            if isinstance(finalize_result, response.Response):
+            if isinstance(finalize_result, Response):
                 return finalize_result
 
             deleted_capsule_id = finalize_result
@@ -2115,7 +2116,7 @@ class GeckoGameWinPendingDetail(APIView):
             )
 
             logger.warning("[GWP.post] 200 finalized pending_id=%s", pending_id)
-            return response.Response(
+            return Response(
                 {
                     'detail': 'finalized',
                     'pending_id': pending_id,
@@ -2147,7 +2148,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
         try:
             pending_id = int(pending_id)
         except (TypeError, ValueError):
-            return response.Response(
+            return Response(
                 {'detail': 'invalid_pending_id'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -2159,13 +2160,13 @@ class GeckoGameMatchWinPendingDetail(APIView):
         )
 
         if pending is None:
-            return response.Response(
+            return Response(
                 {'detail': 'pending_not_found'},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
         if request.user.id not in (pending.host_id, pending.guest_id):
-            return response.Response(
+            return Response(
                 {'detail': 'not_participant'},
                 status=status.HTTP_403_FORBIDDEN,
             )
@@ -2189,7 +2190,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                 ),
             }
 
-        return response.Response(
+        return Response(
             {
                 'id': pending.id,
                 'pending_id': pending.id,
@@ -2211,7 +2212,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
         decision = request.data.get('decision')
 
         if decision not in ('accept', 'decline'):
-            return response.Response(
+            return Response(
                 {'detail': 'decision must be "accept" or "decline"'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -2219,7 +2220,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
         try:
             pending_id = int(pending_id)
         except (TypeError, ValueError):
-            return response.Response(
+            return Response(
                 {'detail': 'invalid_pending_id'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -2233,7 +2234,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
             )
 
             if pending is None:
-                return response.Response(
+                return Response(
                     {'detail': 'pending_not_found'},
                     status=status.HTTP_404_NOT_FOUND,
                 )
@@ -2241,19 +2242,19 @@ class GeckoGameMatchWinPendingDetail(APIView):
             now = timezone.now()
 
             if request.user.id not in (pending.host_id, pending.guest_id):
-                return response.Response(
+                return Response(
                     {'detail': 'not_participant'},
                     status=status.HTTP_403_FORBIDDEN,
                 )
 
             if pending.finalized_on is not None:
-                return response.Response(
+                return Response(
                     {'detail': 'already_finalized'},
                     status=status.HTTP_409_CONFLICT,
                 )
 
             if pending.declined_on is not None:
-                return response.Response(
+                return Response(
                     {
                         'detail': 'already_declined',
                         'pending_id': pending.id,
@@ -2266,7 +2267,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                 pending.declined_on = now
                 pending.save(update_fields=['declined_on', 'updated_on'])
 
-                return response.Response(
+                return Response(
                     {'detail': 'expired'},
                     status=status.HTTP_410_GONE,
                 )
@@ -2290,7 +2291,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                     },
                 )
 
-                return response.Response(
+                return Response(
                     {
                         'detail': 'declined',
                         'pending_id': pending.id,
@@ -2328,7 +2329,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                     },
                 )
 
-                return response.Response(
+                return Response(
                     {
                         'detail': 'awaiting_partner',
                         'pending_id': pending.id,
@@ -2362,7 +2363,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                 },
             )
 
-            return response.Response(
+            return Response(
                 {
                     'detail': 'match_finalized',
                     'pending_id': pending.id,
@@ -2392,7 +2393,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
             pending.declined_on = timezone.now()
             pending.save(update_fields=['declined_on', 'updated_on'])
 
-            return response.Response(
+            return Response(
                 {'detail': 'capsule_missing'},
                 status=status.HTTP_409_CONFLICT,
             )
