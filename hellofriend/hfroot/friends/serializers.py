@@ -3,6 +3,7 @@ from . import models
 import users.models
 import users.serializers
   
+from django.db import transaction
 from django.db.models import Count
  
 
@@ -169,14 +170,16 @@ class LocationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         friends_data = validated_data.pop('friends', [])
-        location = models.Location.objects.create(**validated_data)
-        location.friends.set(friends_data)
+        with transaction.atomic():
+            location = models.Location.objects.create(**validated_data)
+            location.friends.set(friends_data)
         return location
 
     def update(self, instance, validated_data):
         friends_data = validated_data.pop('friends', [])
-        instance.friends.set(friends_data)
-        return super().update(instance, validated_data)
+        with transaction.atomic():
+            instance.friends.set(friends_data)
+            return super().update(instance, validated_data)
 
 
 class LocationParkingTypeChoicesSerializer(serializers.Serializer):

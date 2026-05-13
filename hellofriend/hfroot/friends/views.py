@@ -170,16 +170,19 @@ def create_live_sesh_invite(request, friend_id):
     if recipient == user:
         return error_response("Cannot invite yourself")
 
-    invite, _ = users.models.UserFriendLiveSeshInvite.objects.update_or_create(
-        sender=user,
-        recipient=recipient,
-        defaults={'accepted_on': None},
-    )
-
-    invite.reset_expiration_to_six_hours()
-
     from users.notifications import notify_user
-    notify_user(recipient.id, 'live_sesh_invite')
+
+    with transaction.atomic():
+        invite, _ = users.models.UserFriendLiveSeshInvite.objects.update_or_create(
+            sender=user,
+            recipient=recipient,
+            defaults={'accepted_on': None},
+        )
+
+        invite.reset_expiration_to_six_hours()
+
+        recipient_id = recipient.id
+        transaction.on_commit(lambda: notify_user(recipient_id, 'live_sesh_invite'))
 
     return Response(
         users.serializers.UserFriendLiveSeshInviteSerializer(invite).data,
@@ -386,13 +389,14 @@ class FriendSuggestionSettingsDetail(generics.RetrieveUpdateAPIView):
     
 
     def perform_update(self, serializer):
-        instance = serializer.save()  # Save the FriendSuggestionSettings instance first
-        friend = instance.friend
-        next_meet = models.NextMeet.objects.filter(user=self.request.user, friend=friend).first()
- 
-        if next_meet:
-            next_meet.create_new_date_clean()
-            next_meet.save()
+        with transaction.atomic():
+            instance = serializer.save()  # Save the FriendSuggestionSettings instance first
+            friend = instance.friend
+            next_meet = models.NextMeet.objects.filter(user=self.request.user, friend=friend).first()
+
+            if next_meet:
+                next_meet.create_new_date_clean()
+                next_meet.save()
 
         return instance
 
@@ -473,8 +477,10 @@ class FriendFavesLocationAdd(generics.RetrieveUpdateAPIView):
         if user == instance.user.id and friend == instance.friend.id:
             if location_id:
                 location = models.Location.objects.get(id=location_id)
-                instance.locations.add(location)
-                instance.save()
+                with transaction.atomic():
+                    instance = models.FriendFaves.objects.select_for_update().get(pk=instance.pk)
+                    instance.locations.add(location)
+                    instance.save()
                 serializer = self.get_serializer(instance)
                 return Response(serializer.data)
             else:
@@ -727,13 +733,14 @@ class UpcomingMeetsView(generics.ListCreateAPIView):
         today = timezone.now().date()
         ten_days_from_now = today + datetime.timedelta(days=10)
 
-        expired_meets = models.NextMeet.objects.expired_dates().filter(user=user)
-        for meet in expired_meets:
-            meet.save()
+        with transaction.atomic():
+            expired_meets = models.NextMeet.objects.expired_dates().filter(user=user)
+            for meet in expired_meets:
+                meet.save()
 
-        update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
-        if update_tracker.last_upcoming_update != today:
-            update_tracker.upcoming_updated()
+            update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
+            if update_tracker.last_upcoming_update != today:
+                update_tracker.upcoming_updated()
 
         
         queryset = models.NextMeet.objects.filter(user=user, date__range=[today, ten_days_from_now])
@@ -762,12 +769,13 @@ class UpcomingMeetsLightView(generics.ListCreateAPIView):
         # get last update date, if today then do not re-update
         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
         if update_tracker.last_upcoming_update != today:
-            expired_meets = models.NextMeet.objects.user_expired_dates(user)
-            for meet in expired_meets:
-                meet.save()
+            with transaction.atomic():
+                expired_meets = models.NextMeet.objects.user_expired_dates(user)
+                for meet in expired_meets:
+                    meet.save()
 
-            # mark as last updated on today's date:
-            update_tracker.upcoming_updated()
+                # mark as last updated on today's date:
+                update_tracker.upcoming_updated()
 
 
         ten_days_from_now = today + datetime.timedelta(days=10)
@@ -809,14 +817,15 @@ class UpcomingMeetsQuickView(generics.ListCreateAPIView):
         # get last update date, if today then do not re-update
         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
         if update_tracker.last_upcoming_update != today:
-            expired_meets = models.NextMeet.objects.user_expired_dates(user)
-            for meet in expired_meets:
-                meet.save()
+            with transaction.atomic():
+                expired_meets = models.NextMeet.objects.user_expired_dates(user)
+                for meet in expired_meets:
+                    meet.save()
 
-            # mark as last updated on today's date:
-            update_tracker.upcoming_updated()
+                # mark as last updated on today's date:
+                update_tracker.upcoming_updated()
 
- 
+
         return models.NextMeet.objects.filter(user=user).select_related('friend', 'previous')
 
 # THIS IS THE ONE CURRENTLY USING 4/25/2026
@@ -837,11 +846,12 @@ class CombinedFriendsUpcomingView(APIView):
 
         update_tracker, _ = models.UpdatesTracker.objects.get_or_create(user=user)
         if update_tracker.last_upcoming_update != today:
-            expired_meets = models.NextMeet.objects.user_expired_dates(user)
-            for meet in expired_meets:
-                meet.save()
-            update_tracker.last_upcoming_update = today
-            update_tracker.save()
+            with transaction.atomic():
+                expired_meets = models.NextMeet.objects.user_expired_dates(user)
+                for meet in expired_meets:
+                    meet.save()
+                update_tracker.last_upcoming_update = today
+                update_tracker.save()
 
         upcoming_qs = (
             models.NextMeet.objects
@@ -1233,37 +1243,38 @@ class ThoughtCapsuleBatchUpdateCoords(generics.GenericAPIView):
         Updates only if values differ
         """
         user = request.user
-        payload = request.data  
+        payload = request.data
         updated = []
 
-        for item in payload:
-            try:
-                capsule = models.ThoughtCapsulez.objects.get(
-                    user=user, 
-                    friend_id=friend_id,
-                    id=item['id']
-                )
-                
-                # Check if anything changed
-                if (
-                    abs(capsule.screen_x - item['screen_x']) > 1e-5
-                    or abs(capsule.screen_y - item['screen_y']) > 1e-5
-                    or ('stored_index' in item and capsule.stored_index != item['stored_index'])
-                ):
-                    capsule.screen_x = item['screen_x']
-                    capsule.screen_y = item['screen_y']
-                    if 'stored_index' in item:
-                        capsule.stored_index = item['stored_index']
-                    
-                    capsule.save()
-                    updated.append({
-                        "id": str(capsule.id),
-                        "screen_x": capsule.screen_x,
-                        "screen_y": capsule.screen_y,
-                        "stored_index": capsule.stored_index,
-                    })
-            except models.ThoughtCapsulez.DoesNotExist:
-                continue
+        with transaction.atomic():
+            for item in payload:
+                try:
+                    capsule = models.ThoughtCapsulez.objects.select_for_update().get(
+                        user=user,
+                        friend_id=friend_id,
+                        id=item['id']
+                    )
+
+                    # Check if anything changed
+                    if (
+                        abs(capsule.screen_x - item['screen_x']) > 1e-5
+                        or abs(capsule.screen_y - item['screen_y']) > 1e-5
+                        or ('stored_index' in item and capsule.stored_index != item['stored_index'])
+                    ):
+                        capsule.screen_x = item['screen_x']
+                        capsule.screen_y = item['screen_y']
+                        if 'stored_index' in item:
+                            capsule.stored_index = item['stored_index']
+
+                        capsule.save()
+                        updated.append({
+                            "id": str(capsule.id),
+                            "screen_x": capsule.screen_x,
+                            "screen_y": capsule.screen_y,
+                            "stored_index": capsule.stored_index,
+                        })
+                except models.ThoughtCapsulez.DoesNotExist:
+                    continue
 
         return Response({"updated": updated}, status=status.HTTP_200_OK)
     

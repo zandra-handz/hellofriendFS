@@ -1769,22 +1769,28 @@ def accept_live_sesh_invite(request, invite_id):
             },
         )
 
-    from . import sesh_cache
-    sesh_cache.invalidate(sender.id, recipient.id, *displaced_partner_ids)
+        displaced_ids_snapshot = tuple(displaced_partner_ids)
 
-    from .rust_push import refresh_sesh_context, cancel_live_sesh
-    for uid, partner_id in ((sender.id, recipient.id), (recipient.id, sender.id)):
-        refresh_sesh_context(uid, partner_id)
-    for displaced_uid in displaced_partner_ids:
-        cancel_live_sesh(displaced_uid, {'cancelled_by': 'partner_started_new_sesh'})
+        def _send_side_effects():
+            from . import sesh_cache
+            from .rust_push import refresh_sesh_context, cancel_live_sesh
 
-    notify_user(sender.id, 'live_sesh_invite_accepted', {
-        'invite_id': invite.id,
-        'accepted_by': recipient.id,
-        'accepted_by_username': recipient.username,
-        'session_start': now.isoformat(),
-        'expires_at': expires_at.isoformat(),
-    })
+            sesh_cache.invalidate(sender.id, recipient.id, *displaced_ids_snapshot)
+
+            for uid, partner_id in ((sender.id, recipient.id), (recipient.id, sender.id)):
+                refresh_sesh_context(uid, partner_id)
+            for displaced_uid in displaced_ids_snapshot:
+                cancel_live_sesh(displaced_uid, {'cancelled_by': 'partner_started_new_sesh'})
+
+            notify_user(sender.id, 'live_sesh_invite_accepted', {
+                'invite_id': invite.id,
+                'accepted_by': recipient.id,
+                'accepted_by_username': recipient.username,
+                'session_start': now.isoformat(),
+                'expires_at': expires_at.isoformat(),
+            })
+
+        transaction.on_commit(_send_side_effects)
 
     return Response(
         serializers.UserFriendCurrentLiveSeshSerializer(my_sesh).data,
