@@ -15,7 +15,7 @@ use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
     sync::Arc,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use tokio::sync::{mpsc, RwLock, Semaphore};
 use uuid::Uuid;
@@ -69,6 +69,9 @@ struct Client {
     friend_light_color: Option<String>,
     friend_dark_color: Option<String>,
     gecko_message: Option<String>,
+    gecko_message_kind: Option<String>,
+    gecko_message_ref_id: Option<String>,
+    gecko_message_timestamp: Option<i64>,
     // last_seen: Instant,
 }
 
@@ -255,6 +258,9 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 friend_light_color: None,
                 friend_dark_color: None,
                 gecko_message: None,
+                gecko_message_kind: None,
+                gecko_message_ref_id: None,
+                gecko_message_timestamp: None,
                 // last_seen: Instant::now(),
             },
         );
@@ -463,6 +469,9 @@ async fn handle_incoming(state: &AppState, client_id: &str, value: Value) {
         }
         "send_read_status_to_gecko" => {
             handle_send_read_status_to_gecko(state, client_id, data).await
+        }
+        "send_losing_warning_to_gecko" => {
+            handle_send_losing_warning_to_gecko(state, client_id, data).await
         }
 
         "get_gecko_screen_position" => handle_get_gecko_screen_position(state, client_id).await,
@@ -827,6 +836,9 @@ async fn handle_get_gecko_message(state: &AppState, client_id: &str) {
             data: json!({
                 "from_user": client.user_id,
                 "message": client.gecko_message,
+                "kind": client.gecko_message_kind,
+                "ref_id": client.gecko_message_ref_id,
+                "timestamp": client.gecko_message_timestamp,
             }),
         },
     )
@@ -843,11 +855,26 @@ async fn handle_send_front_end_text_to_gecko(
         .get("message")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
+    let kind = payload
+        .get("kind")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let ref_id = payload
+        .get("ref_id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .ok();
 
     {
         let mut clients = state.clients.write().await;
         if let Some(client) = clients.get_mut(client_id) {
             client.gecko_message = message.clone();
+            client.gecko_message_kind = kind.clone();
+            client.gecko_message_ref_id = ref_id.clone();
+            client.gecko_message_timestamp = timestamp;
         }
     }
 
@@ -862,12 +889,44 @@ async fn handle_send_front_end_text_to_gecko(
             data: json!({
                 "from_user": client.user_id,
                 "message": message,
+                "kind": kind,
+                "ref_id": ref_id,
+                "timestamp": timestamp,
             }),
         },
     )
     .await;
 }
 
+
+async fn handle_send_losing_warning_to_gecko(
+    state: &AppState,
+    client_id: &str,
+    data: Option<Value>,
+) {
+    let payload = data.unwrap_or_else(|| json!({}));
+    let code = payload.get("message_code").and_then(|v | v.as_i64());
+    let kind = payload.get("kind").cloned();
+    let ref_id = payload.get("ref_id").cloned();
+
+
+    let message = match code {
+        Some(0) => "Huh? What was that??",
+        Some(1) => "They're digging up one of our moments! Gotta do something!",
+        Some(2) => "My man we are losin' the fight here!! They're gonna be able to read it!",
+        Some(3) => "MOMENT STOLEN!",
+        _ => "????",
+    }
+    .to_string();
+
+    handle_send_front_end_text_to_gecko(
+        state,
+        client_id,
+        Some(json!({ "message": message, "kind": kind, "ref_id": ref_id })),
+    )
+    .await;
+
+}
 async fn handle_send_read_status_to_gecko(
     state: &AppState,
     client_id: &str,
@@ -875,6 +934,8 @@ async fn handle_send_read_status_to_gecko(
 ) {
     let payload = data.unwrap_or_else(|| json!({}));
     let code = payload.get("message_code").and_then(|v| v.as_i64());
+    let kind = payload.get("kind").cloned();
+    let ref_id = payload.get("ref_id").cloned();
 
     let message = match code {
         Some(0) => "Hi! I'm going to start reading this, if ya don't mind!",
@@ -884,7 +945,13 @@ async fn handle_send_read_status_to_gecko(
     }
     .to_string();
 
-    handle_send_front_end_text_to_gecko(state, client_id, Some(json!({ "message": message }))).await;
+    handle_send_front_end_text_to_gecko(
+        state,
+        client_id,
+        Some(json!({ "message": message, "kind": kind, "ref_id": ref_id })),
+    )
+    .await;
+
 }
 
 async fn handle_get_gecko_screen_position(state: &AppState, client_id: &str) {
