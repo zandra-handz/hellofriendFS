@@ -915,6 +915,7 @@ async fn handle_send_losing_warning_to_gecko(
         Some(1) => "They're digging up one of our moments! Gotta do something!",
         Some(2) => "My man we are losin' the fight here!! They're gonna be able to read it!",
         Some(3) => "MOMENT STOLEN!",
+        Some(4) => "Whew! False alarm. No moment taken - we're in the clear.",
         _ => "????",
     }
     .to_string();
