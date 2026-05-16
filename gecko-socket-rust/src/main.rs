@@ -31,7 +31,20 @@ type RoomName = String;
 // type Tx = mpsc::UnboundedSender<Message>;
 type Tx = mpsc::Sender<Message>;
 
-const DEFAULT_DJANGO_BASE_URL: &str = "https://badrainbowz.com";
+const PROD_DJANGO_BASE_URL: &str = "https://badrainbowz.com";
+const STAGING_DJANGO_BASE_URL: &str = "https://staging.badrainbowz.com";
+
+/// Resolve the Django base URL. Explicit `DJANGO_BASE_URL` wins; otherwise
+/// derive from `DJANGO_ENV` (already set per-droplet); default to prod.
+fn resolve_django_base_url() -> String {
+    if let Ok(url) = std::env::var("DJANGO_BASE_URL") {
+        return url;
+    }
+    match std::env::var("DJANGO_ENV").as_deref() {
+        Ok("staging") => STAGING_DJANGO_BASE_URL.to_string(),
+        _ => PROD_DJANGO_BASE_URL.to_string(),
+    }
+}
 
 const BINARY_OUTBOUND_ACTIONS: &[&str] = &[
     "gecko_coords",
@@ -145,8 +158,7 @@ async fn main() {
         .expect("failed to build reqwest client"),
         internal_secret: std::env::var("RUST_INTERNAL_SECRET").unwrap_or_default(),
         jwt_secret: std::env::var("GECKO_WS_JWT_SECRET").unwrap_or_default(),
-        django_base_url: std::env::var("DJANGO_BASE_URL")
-            .unwrap_or_else(|_| DEFAULT_DJANGO_BASE_URL.to_string()),
+        django_base_url: resolve_django_base_url(),
         django_concurrency: Arc::new(Semaphore::new(10)),
         redis,
     };
