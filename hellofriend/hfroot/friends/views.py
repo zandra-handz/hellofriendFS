@@ -1584,7 +1584,29 @@ class HelloCreate(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
-        self.instance = serializer.save(user=user, friend_id=friend_id)
+        now = timezone.now()
+ 
+        try:
+            sesh = users.models.UserFriendCurrentLiveSesh.objects.get(user=user)
+        except users.models.UserFriendCurrentLiveSesh.DoesNotExist:
+            sesh = None
+
+        if sesh and sesh.expires_at > now:
+            
+            partner_id = sesh.other_user_id
+            with transaction.atomic():
+                users.models.UserFriendCurrentLiveSesh.objects.filter(
+                    user_id__in=[user.id, partner_id],
+                ).update(expires_at=now)
+                self.instance = serializer.save(user=user, friend_id=friend_id)
+
+            from users import sesh_cache
+            sesh_cache.invalidate(user.id, partner_id)
+             
+        else:
+            self.instance = serializer.save(user=user, friend_id=friend_id)
+
+ 
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
@@ -1592,6 +1614,10 @@ class HelloCreate(generics.ListCreateAPIView):
         return context
 
     def post(self, request, *args, **kwargs):
+ 
+
+
+
         hello_response = super().post(request, *args, **kwargs)
         light_data = serializers.PastMeetLightSerializer(
             self.instance,
