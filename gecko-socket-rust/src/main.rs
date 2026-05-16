@@ -31,7 +31,7 @@ type RoomName = String;
 // type Tx = mpsc::UnboundedSender<Message>;
 type Tx = mpsc::Sender<Message>;
 
-const DJANGO_BASE_URL: &str = "https://badrainbowz.com";
+const DEFAULT_DJANGO_BASE_URL: &str = "https://badrainbowz.com";
 
 const BINARY_OUTBOUND_ACTIONS: &[&str] = &[
     "gecko_coords",
@@ -48,6 +48,7 @@ struct AppState {
     http: reqwest::Client,
     internal_secret: String,
     jwt_secret: String,
+    django_base_url: String,
     django_concurrency: Arc<Semaphore>,
     redis: redis::aio::ConnectionManager,
 }
@@ -144,6 +145,8 @@ async fn main() {
         .expect("failed to build reqwest client"),
         internal_secret: std::env::var("RUST_INTERNAL_SECRET").unwrap_or_default(),
         jwt_secret: std::env::var("GECKO_WS_JWT_SECRET").unwrap_or_default(),
+        django_base_url: std::env::var("DJANGO_BASE_URL")
+            .unwrap_or_else(|_| DEFAULT_DJANGO_BASE_URL.to_string()),
         django_concurrency: Arc::new(Semaphore::new(10)),
         redis,
     };
@@ -1147,7 +1150,7 @@ async fn proxy_check_host_link_and_load(
 
     let url = format!(
         "{}/users/internal/gecko/check-host-link-and-load/",
-        DJANGO_BASE_URL
+        state.django_base_url
     );
 
     let _permit = state.django_concurrency.acquire().await.ok();
@@ -1221,7 +1224,7 @@ async fn proxy_action_to_django(
 
     tracing::Span::current().record("user_id", client.user_id);
 
-    let url = format!("{}/users/internal/gecko/socket-action/", DJANGO_BASE_URL);
+    let url = format!("{}/users/internal/gecko/socket-action/", state.django_base_url);
 
     let mut data_with_ctx = match data.unwrap_or_else(|| json!({})) {
         Value::Object(map) => map,
@@ -1410,7 +1413,7 @@ async fn hydrate_live_sesh_context(
 
     let url = format!(
         "{}/users/internal/gecko/live-sesh-context/?user_id={}",
-        DJANGO_BASE_URL, user_id
+        state.django_base_url, user_id
     );
 
     let _permit = state.django_concurrency.acquire().await.ok();
