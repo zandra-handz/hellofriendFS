@@ -465,7 +465,7 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
         # effects (no log create/trim).
         if total_points:
             users_models.UserFriendLiveSeshLog.objects.filter(
-                current_sesh__user_id=user.id,
+                current_seshes__user_id=user.id,
             ).update(
                 host_points=Case(
                     When(host_id=user.id, then=F('host_points') + total_points),
@@ -480,7 +480,7 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
             # Read-back: authoritative post-update totals for the FE payload.
             row = (
                 users_models.UserFriendLiveSeshLog.objects
-                .filter(current_sesh__user_id=user.id)
+                .filter(current_seshes__user_id=user.id)
                 .values('host_id', 'guest_id', 'host_points', 'guest_points')
                 .first()
             )
