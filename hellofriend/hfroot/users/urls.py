@@ -9,7 +9,8 @@ urlpatterns = [
     path('settings/update/', views.UserSettingsDetail.as_view()), 
     path('gecko/steps/last-24-hrs/', views.GeckoHourlyStepsView.as_view()), 
     path('gecko/sessions/', views.GeckoCombinedDataSessionsAll.as_view()), 
-    path('gecko/sessions/range/', views.GeckoCombinedDataSessionsTimeRange.as_view()), 
+    path('gecko/sessions/range/', views.GeckoCombinedDataSessionsTimeRange.as_view()),
+    path('gecko/sessions/paired/<int:live_sesh_log_id>/', views.GeckoPairedSessions.as_view()),
     
     
     path('<int:user_id>/profile/', views.UserProfileDetail.as_view()),

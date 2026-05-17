@@ -45,6 +45,18 @@ class GeckoCombinedDataSessionSerializer(serializers.ModelSerializer):
         model = models.GeckoCombinedSession
         fields = ['id', 'friend', 'started_on', 'ended_on', 'steps', 'distance']
 
+
+class GeckoPairedSessionSerializer(serializers.ModelSerializer):
+    """Per-side row for a shared live co-op session. Includes `user` so the
+    caller can attribute each row to its owner (self vs partner)."""
+
+    class Meta():
+        model = models.GeckoCombinedSession
+        fields = [
+            'id', 'user', 'friend', 'live_sesh_log',
+            'started_on', 'ended_on', 'steps', 'distance', 'points_earned',
+        ]
+
 class GeckoHourlyStepsSerializer(serializers.ModelSerializer):
 
     class Meta():

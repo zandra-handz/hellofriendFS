@@ -431,13 +431,16 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 existing_combined_session.save()
             else:
                 # Shared parent for live co-op: both participants' rows get
-                # the same current live-sesh log id. Null for solo/non-live.
-                live_log_id = (
-                    users_models.UserFriendCurrentLiveSesh.objects
-                    .filter(user_id=user.id)
-                    .values_list('current_log_id', flat=True)
-                    .first()
-                )
+                # the same current live-sesh log id. Only when the peer was
+                # present for this window (FE sends friend_id, else null).
+                live_log_id = None
+                if friend_id is not None:
+                    live_log_id = (
+                        users_models.UserFriendCurrentLiveSesh.objects
+                        .filter(user_id=user.id)
+                        .values_list('current_log_id', flat=True)
+                        .first()
+                    )
                 existing_combined_session = users_models.GeckoCombinedSession.objects.create(
                     user=user,
                     friend_id=friend_id,
@@ -474,7 +477,11 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
         # guest write different rows, so there is no cross-user row contention
         # and no host/guest Case branching. F() keeps repeated same-user
         # frames race-safe. The scoreboard is a read across both side rows.
-        if total_points:
+        # Only accrue to the SHARED sesh scoreboard when the peer was present
+        # for this window. The FE pins attribution by sending friend_id (peer
+        # present) vs null (solo / peer absent). friend_id None => skip the
+        # shared write; the user's own per-user data above still recorded.
+        if total_points and friend_id is not None:
             log_id = (
                 users_models.UserFriendCurrentLiveSesh.objects
                 .filter(user_id=user.id)

@@ -24,6 +24,7 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import BaseParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.throttling import UserRateThrottle
 import ormsgpack
@@ -376,6 +377,35 @@ class GeckoCombinedDataSessionsAll(generics.ListAPIView):
 #         serializer = self.get_serializer(queryset, many=True)
 #         return Response({'results': serializer.data, 'totals': totals})
 
+
+
+class GeckoPairedSessions(generics.ListAPIView):
+    """Both participants' GeckoCombinedSession rows for one shared live
+    co-op session, accessible by either participant of that sesh log."""
+
+    serializer_class = serializers.GeckoPairedSessionSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'live_sesh_log_id'
+
+    def get_queryset(self):
+        user = self.request.user
+        log_id = self.kwargs['live_sesh_log_id']
+
+        # Authorize: requester must be host or guest on this sesh log.
+        log = (
+            models.UserFriendLiveSeshLog.objects
+            .filter(pk=log_id)
+            .values('host_id', 'guest_id')
+            .first()
+        )
+        if not log or user.id not in (log['host_id'], log['guest_id']):
+            raise PermissionDenied("Not a participant of this session.")
+
+        return (
+            models.GeckoCombinedSession.objects
+            .filter(live_sesh_log_id=log_id)
+            .order_by('user_id', 'started_on')
+        )
 
 
 class GeckoCombinedDataSessionsTimeRange(generics.ListAPIView):
