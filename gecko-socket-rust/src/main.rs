@@ -1258,7 +1258,7 @@ async fn proxy_action_to_django(
     if !data_with_ctx.contains_key("is_host") {
         data_with_ctx.insert("is_host".to_string(), json!(client.is_host));
     }
-
+    
     let payload = json!({
         "user_id": client.user_id,
         "action": action,

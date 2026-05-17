@@ -458,6 +458,8 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 for e in points_earned_list
             ])
 
+        #added comment
+
         # Accrue this user's points onto the shared live-sesh log (the single
         # record both participants reference via current_sesh). Single
         # conditional UPDATE: branches host vs guest in-DB so no role-lookup
