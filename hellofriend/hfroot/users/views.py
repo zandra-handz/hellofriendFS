@@ -1192,7 +1192,7 @@ def rust_live_sesh_context(request):
     sesh = (
         models.UserFriendCurrentLiveSesh.objects
         .filter(user_id=user_id, expires_at__gt=timezone.now())
-        .select_related("friend", "other_user")
+        .select_related("friend", "other_user", "current_log")
         .only(
             "other_user_id",
             "is_host",
@@ -1201,6 +1201,8 @@ def rust_live_sesh_context(request):
             "friend__theme_color_light",
             "friend__theme_color_dark",
             "other_user__username",
+            "current_log__host_points",
+            "current_log__guest_points",
         )
         .first()
     )
@@ -1218,6 +1220,8 @@ def rust_live_sesh_context(request):
             "partner_username": None,
             "partner_friend_id": None,
             "partner_friend_name": None,
+            "my_points": 0,
+            "partner_points": 0,
         }
         sesh_cache.write(user_id, empty)
         return Response(empty)
@@ -1229,10 +1233,21 @@ def rust_live_sesh_context(request):
         .first()
     )
 
+    log = sesh.current_log
+    if log:
+        if sesh.is_host:
+            my_points, partner_points = log.host_points, log.guest_points
+        else:
+            my_points, partner_points = log.guest_points, log.host_points
+    else:
+        my_points = partner_points = 0
+
     payload = {
         "user_id": user_id,
         "partner_id": sesh.other_user_id,
         "is_host": sesh.is_host,
+        "my_points": my_points,
+        "partner_points": partner_points,
         "friend_id": sesh.friend_id,
         "sesh_friend_id": sesh.friend_id,
         "friend_light_color": sesh.friend.theme_color_light if sesh.friend else None,

@@ -77,6 +77,8 @@ struct Client {
     partner_friend_id: Option<u64>,
     partner_friend_name: Option<String>,
     sesh_friend_id: Option<u64>,
+    my_points: u64,
+    partner_points: u64,
     own_room: RoomName,
     shared_room: RoomName,
     partner_room: Option<RoomName>,
@@ -267,6 +269,8 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 partner_friend_id: None,
                 partner_friend_name: None,
                 sesh_friend_id: None,
+                my_points: 0,
+                partner_points: 0,
                 own_room: own_room.clone(),
                 shared_room: shared_room.clone(),
                 partner_room: None,
@@ -645,6 +649,8 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
                     "partner_username": client.partner_username,
                     "partner_friend_id": client.partner_friend_id,
                     "partner_friend_name": client.partner_friend_name,
+                    "my_points": client.my_points,
+                    "partner_points": client.partner_points,
                 }),
             },
         )
@@ -1496,6 +1502,12 @@ async fn apply_hydrate_value(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
+    let my_points = value.get("my_points").and_then(|v| v.as_u64()).unwrap_or(0);
+    let partner_points = value
+        .get("partner_points")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+
     let partner_room = partner_id.map(|pid| format!("gecko_shared_with_friend_{}", pid));
 
     {
@@ -1508,6 +1520,8 @@ async fn apply_hydrate_value(
                 c.partner_username = partner_username;
                 c.partner_friend_id = partner_friend_id;
                 c.partner_friend_name = partner_friend_name;
+                c.my_points = my_points;
+                c.partner_points = partner_points;
                 c.partner_room = partner_room.clone();
                 if friend_id.is_some() {
                     c.friend_id = friend_id;

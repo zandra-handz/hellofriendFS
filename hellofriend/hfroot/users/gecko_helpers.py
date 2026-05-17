@@ -218,13 +218,14 @@
 from datetime import timedelta
 
 from django.db import transaction
-from django.db.models import F, Sum
+from django.db.models import Case, F, Sum, When
 from django.utils import timezone as _tz
 from django.utils.dateparse import parse_datetime
 
 import geckoscripts.models
 from friends import models as friends_models
 from users import models as users_models
+from users import sesh_cache
 
 import logging
 logger = logging.getLogger('gecko.ws')
@@ -361,6 +362,8 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
         if parsed_start and parsed_end:
             delta_duration = int((parsed_end - parsed_start).total_seconds())
 
+    live_points = None
+
     with transaction.atomic():
         gecko_data_update = {
             'total_steps': F('total_steps') + delta_steps,
@@ -455,6 +458,52 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 for e in points_earned_list
             ])
 
+        # Accrue this user's points onto the shared live-sesh log (the single
+        # record both participants reference via current_sesh). Single
+        # conditional UPDATE: branches host vs guest in-DB so no role-lookup
+        # SELECT. Atomic + F() => race-safe; .update() bypasses save() side
+        # effects (no log create/trim).
+        if total_points:
+            users_models.UserFriendLiveSeshLog.objects.filter(
+                current_sesh__user_id=user.id,
+            ).update(
+                host_points=Case(
+                    When(host_id=user.id, then=F('host_points') + total_points),
+                    default=F('host_points'),
+                ),
+                guest_points=Case(
+                    When(guest_id=user.id, then=F('guest_points') + total_points),
+                    default=F('guest_points'),
+                ),
+            )
+
+            # Read-back: authoritative post-update totals for the FE payload.
+            row = (
+                users_models.UserFriendLiveSeshLog.objects
+                .filter(current_sesh__user_id=user.id)
+                .values('host_id', 'guest_id', 'host_points', 'guest_points')
+                .first()
+            )
+            if row:
+                if row['host_id'] == user.id:
+                    my_points = row['host_points']
+                    partner_points = row['guest_points']
+                    partner_id = row['guest_id']
+                else:
+                    my_points = row['guest_points']
+                    partner_points = row['host_points']
+                    partner_id = row['host_id']
+                live_points = {
+                    'my_points': my_points,
+                    'partner_points': partner_points,
+                    'partner_id': partner_id,
+                }
+                # Reconnect reads Redis first; drop the stale cached payload
+                # for both sides so the next hydrate re-pulls fresh totals.
+                transaction.on_commit(
+                    lambda uid=user.id, pid=partner_id: sesh_cache.invalidate(uid, pid)
+                )
+
     if not return_gecko_data or friend_id is None:
-        return None
+        return live_points
     return friends_models.GeckoData.objects.get(user=user, friend_id=friend_id)

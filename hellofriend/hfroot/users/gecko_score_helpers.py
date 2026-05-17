@@ -521,9 +521,10 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
         "last_steak_expiry",
     ])
 
+    live_points = None
     if entry["steps"] or entry["distance"] or entry["points_earned"]:
         try:
-            process_gecko_data(
+            live_points = process_gecko_data(
                 user=user,
                 friend_id=entry["friend_id"],
                 steps=entry["steps"],
@@ -543,4 +544,32 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
     # FE no longer reads score_state from the WS — config goes through REST,
     # 24h seed comes from get_24h_seed (Redis-cached). Saves a SELECT
     # (refresh_from_db) and a serialize trip on every update_gecko_data.
-    return {"status": "ok"}
+    result = {"status": "ok"}
+
+    if live_points:
+        my_points = live_points["my_points"]
+        partner_points = live_points["partner_points"]
+        partner_id = live_points.get("partner_id")
+
+        # This user's FE gets both totals on the update_gecko_data response.
+        result["my_points"] = my_points
+        result["partner_points"] = partner_points
+
+        # Partner's FE: push with perspective swapped. process_gecko_data's
+        # atomic block has already committed by here, so push directly.
+        if partner_id:
+            try:
+                from .rust_push import notify_user
+                notify_user(
+                    partner_id,
+                    "points_update",
+                    {"my_points": partner_points, "partner_points": my_points},
+                )
+            except Exception:
+                logger.exception(
+                    "[apply_gecko_data_update] partner points push failed user=%s partner=%s",
+                    user.id,
+                    partner_id,
+                )
+
+    return result
