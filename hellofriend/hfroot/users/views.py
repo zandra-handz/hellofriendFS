@@ -1192,12 +1192,13 @@ def rust_live_sesh_context(request):
     sesh = (
         models.UserFriendCurrentLiveSesh.objects
         .filter(user_id=user_id, expires_at__gt=timezone.now())
-        .select_related("friend", "other_user", "current_log")
+        .select_related("friend", "other_user")
         .only(
             "other_user_id",
             "is_host",
             "friend_id",
             "gecko_play_mode",
+            "current_log",
             "friend__theme_color_light",
             "friend__theme_color_dark",
             "other_user__username",
