@@ -116,8 +116,8 @@ Paths are relative to `hellofriend/`. Line numbers drift — treat them as hints
 
 ## Shared-owner relationships to double-check before merging
 
-- `GeckoSleepChangeLog` (`hfroot/users/models.py:944+`) — currently has config-shape fields (`active_hours_type`, `max_active_hours`, `active_hours`); confirm its FK to `user` rather than to either of these models.
-- `GeckoEnergyLog` — referenced from `recompute_energy`; uses `user` + `GeckoCombinedData`, no direct FK to either model.
+- `GeckoSleepChangeLog` (`hfroot/users/models.py:1181`) — **orphaned.** As of 2026-05-17 the views/serializers/URLs/admin registration were removed; nothing reads or writes it anywhere (incl. the Rust socket). Only the model definition (`models.py:1181`) and migration `0037` remain. Pending model/migration removal by the model owner.
+- `GeckoEnergyLog` (`hfroot/users/models.py:1155`) — **zombie.** All writes (`.objects.create()` / `.prune_old()` in the old `recompute_energy` body, `models.py:738/824/832`) are commented out, so no new rows are ever recorded. As of 2026-05-17 the read endpoints (`GeckoEnergyLogView`, `GeckoEnergyLogAnalyticsView`), serializers, URL routes, and admin registration were removed. Only the model definition and migration `0043` remain. Pending model/migration removal by the model owner. **FE caveat:** clients calling `gecko/energy-log/` or `gecko/analytics/energy-log/` now 404.
 - `GeckoCombinedData` — fetched alongside `GeckoScoreState` in `_load_initial_state`; separate model, out of scope for this merge but worth noting the consumer already does two `get_or_create` calls side by side.
 - `GeckoEnergySyncSample` — telemetry table, stores snapshots, no FK.
 - `ScoreRule` (`geckoscripts`) — loaded once per consumer connect, unrelated.

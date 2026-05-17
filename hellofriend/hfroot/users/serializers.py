@@ -745,18 +745,6 @@ class BadRainbowzUserAddressSerializer(serializers.ModelSerializer):
         fields = ['addresses']
 
 
-class GeckoEnergyLogSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.GeckoEnergyLog
-        fields = ['id', 'energy', 'surplus_energy', 'steps', 'total_steps', 'friend', 'recorded_at']
-
-
-class GeckoEnergyLogAnalyticsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.GeckoEnergyLog
-        fields = ['id', 'user', 'energy', 'surplus_energy', 'steps', 'total_steps', 'friend', 'recorded_at']
-
-
 class GeckoEnergySyncSampleSerializer(serializers.ModelSerializer):
     client_window_seconds = serializers.SerializerMethodField()
 

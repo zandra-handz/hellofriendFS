@@ -1151,63 +1151,6 @@ class GeckoEnergySyncSample(models.Model):
             models.Index(fields=['-phantom_steps']),
         ]
         ordering = ['-id']
-
-class GeckoEnergyLog(models.Model):
-    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='geckoenergylog_set')
-    energy = models.FloatField()
-    surplus_energy = models.FloatField()
-    steps = models.PositiveIntegerField(default=0)
-    total_steps = models.PositiveIntegerField(default=0)
-    friend = models.ForeignKey('friends.Friend', on_delete=models.SET_NULL, null=True, blank=True)
-    recorded_at = models.DateTimeField()
-
-    class Meta:
-        indexes = [
-            models.Index(fields=['user', 'recorded_at']),
-        ]
-
-    @classmethod
-    def prune_old(cls, user, cutoff_days=365):
-        cls.objects.filter(
-            user=user,
-            recorded_at__lt=timezone.now() - timedelta(days=cutoff_days),
-        ).delete()
-
-
-
-
-
-        
-class GeckoSleepChangeLog(models.Model):
-    user = models.ForeignKey(
-        'users.BadRainbowzUser',
-        on_delete=models.CASCADE,
-        related_name='gecko_sleep_change_logs',
-    )
-
-    active_hours_type = models.IntegerField(
-        choices=ActivityHours.choices,
-        default=ActivityHours.DAY,
-    )
-
-    max_active_hours = models.SmallIntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(20)],
-        default=16,
-    )
-
-    active_hours = models.JSONField(default=list, blank=True)
-
-    created_on = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-created_on']
-        indexes = [
-            models.Index(fields=['user', 'created_on']),
-        ]
-
-    def __str__(self):
-        return f"Sleep change for {self.user.username} on {self.created_on}"
-    
  
 
 

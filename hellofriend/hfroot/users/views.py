@@ -523,58 +523,11 @@ def dev_deplete_energy(request):
     return Response(serializers.GeckoScoreStateSerializer(obj).data)
 
 
-class GeckoEnergyLogView(generics.ListAPIView):
-    serializer_class = serializers.GeckoEnergyLogSerializer
-    permission_classes = [IsAuthenticated]
-    pagination_class = MediumPagination
-
-    def get_queryset(self):
-        return models.GeckoEnergyLog.objects.filter(
-            user=self.request.user
-        ).order_by('-recorded_at')
-
-    def list(self, request, *args, **kwargs):
-        if request.query_params.get("nopaginate") == "true":
-            queryset = self.get_queryset()
-            serializer = self.get_serializer(queryset, many=True)
-            return Response(serializer.data)
-        return super().list(request, *args, **kwargs)
-
-
 def gecko_analytics_dashboard(request):
     User = models.GeckoEnergySyncSample._meta.get_field('user').related_model
     user_ids = models.GeckoEnergySyncSample.objects.values_list('user_id', flat=True).distinct()
     users = User.objects.filter(id__in=user_ids).order_by('username')
     return render(request, 'gecko_analytics.html', {'users': users})
-
-
-class GeckoEnergyLogAnalyticsView(generics.ListAPIView):
-    serializer_class = serializers.GeckoEnergyLogAnalyticsSerializer
-    permission_classes = [AllowAny]
-    pagination_class = MediumPagination
-
-    def get_queryset(self):
-        qs = models.GeckoEnergyLog.objects.all().order_by('recorded_at')
-        since = self.request.query_params.get('since')
-        until = self.request.query_params.get('until')
-        user_id = self.request.query_params.get('user_id')
-        if since:
-            parsed = parse_datetime(since)
-            if parsed:
-                qs = qs.filter(recorded_at__gte=parsed)
-        if until:
-            parsed = parse_datetime(until)
-            if parsed:
-                qs = qs.filter(recorded_at__lt=parsed)
-        if user_id:
-            qs = qs.filter(user_id=user_id)
-        return qs
-
-    def list(self, request, *args, **kwargs):
-        if request.query_params.get('nopaginate') == 'true':
-            serializer = self.get_serializer(self.filter_queryset(self.get_queryset()), many=True)
-            return Response(serializer.data)
-        return super().list(request, *args, **kwargs)
 
 
 class GeckoEnergySyncSampleAnalyticsView(generics.ListAPIView):
