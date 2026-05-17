@@ -1237,6 +1237,16 @@ class GeckoPointsLedger(models.Model):
 class GeckoCombinedSession(models.Model):
     user = models.ForeignKey('users.BadRainbowzUser', on_delete=models.CASCADE)
     friend = models.ForeignKey('friends.Friend', on_delete=models.SET_NULL, null=True, blank=True)
+    # Shared parent for live co-op sessions: both participants' rows carry the
+    # same live_sesh_log, so "same session" is a real FK instead of a
+    # timestamp guess. Null for solo / non-live sessions (unchanged behavior).
+    live_sesh_log = models.ForeignKey(
+        'users.UserFriendLiveSeshLog',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='combined_sessions',
+    )
     points_earned = models.PositiveIntegerField(default=0)
     steps = models.PositiveIntegerField(default=0)
     distance = models.PositiveIntegerField(default=0)

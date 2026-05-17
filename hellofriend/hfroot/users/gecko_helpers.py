@@ -430,9 +430,18 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 )
                 existing_combined_session.save()
             else:
+                # Shared parent for live co-op: both participants' rows get
+                # the same current live-sesh log id. Null for solo/non-live.
+                live_log_id = (
+                    users_models.UserFriendCurrentLiveSesh.objects
+                    .filter(user_id=user.id)
+                    .values_list('current_log_id', flat=True)
+                    .first()
+                )
                 existing_combined_session = users_models.GeckoCombinedSession.objects.create(
                     user=user,
                     friend_id=friend_id,
+                    live_sesh_log_id=live_log_id,
                     started_on=parsed_start,
                     ended_on=parsed_end,
                     steps=delta_steps,
