@@ -218,7 +218,7 @@
 from datetime import timedelta
 
 from django.db import transaction
-from django.db.models import Case, F, Sum, When
+from django.db.models import F, Sum
 from django.utils import timezone as _tz
 from django.utils.dateparse import parse_datetime
 
@@ -460,51 +460,65 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
 
         #added comment
 
-        # Accrue this user's points onto the shared live-sesh log (the single
-        # record both participants reference via current_sesh). Single
-        # conditional UPDATE: branches host vs guest in-DB so no role-lookup
-        # SELECT. Atomic + F() => race-safe; .update() bypasses save() side
-        # effects (no log create/trim).
+        # Accrue this user's points onto THEIR OWN per-side row
+        # (UserFriendLiveSeshPoints, one row per (sesh_log, user)). Host and
+        # guest write different rows, so there is no cross-user row contention
+        # and no host/guest Case branching. F() keeps repeated same-user
+        # frames race-safe. The scoreboard is a read across both side rows.
         if total_points:
-            users_models.UserFriendLiveSeshLog.objects.filter(
-                current_seshes__user_id=user.id,
-            ).update(
-                host_points=Case(
-                    When(host_id=user.id, then=F('host_points') + total_points),
-                    default=F('host_points'),
-                ),
-                guest_points=Case(
-                    When(guest_id=user.id, then=F('guest_points') + total_points),
-                    default=F('guest_points'),
-                ),
-            )
-
-            # Read-back: authoritative post-update totals for the FE payload.
-            row = (
-                users_models.UserFriendLiveSeshLog.objects
-                .filter(current_seshes__user_id=user.id)
-                .values('host_id', 'guest_id', 'host_points', 'guest_points')
+            log_id = (
+                users_models.UserFriendCurrentLiveSesh.objects
+                .filter(user_id=user.id)
+                .values_list('current_log_id', flat=True)
                 .first()
             )
-            if row:
-                if row['host_id'] == user.id:
-                    my_points = row['host_points']
-                    partner_points = row['guest_points']
-                    partner_id = row['guest_id']
-                else:
-                    my_points = row['guest_points']
-                    partner_points = row['host_points']
-                    partner_id = row['host_id']
-                live_points = {
-                    'my_points': my_points,
-                    'partner_points': partner_points,
-                    'partner_id': partner_id,
-                }
-                # Reconnect reads Redis first; drop the stale cached payload
-                # for both sides so the next hydrate re-pulls fresh totals.
-                transaction.on_commit(
-                    lambda uid=user.id, pid=partner_id: sesh_cache.invalidate(uid, pid)
+            if log_id:
+                side, _ = users_models.UserFriendLiveSeshPoints.objects.get_or_create(
+                    sesh_log_id=log_id,
+                    user_id=user.id,
                 )
+                users_models.UserFriendLiveSeshPoints.objects.filter(
+                    pk=side.pk,
+                ).update(
+                    points=F('points') + total_points,
+                    steps=F('steps') + delta_steps,
+                    distance=F('distance') + delta_distance,
+                )
+
+                # Partner identity comes from the log's host/guest (the
+                # partner may not have a side row yet).
+                log = (
+                    users_models.UserFriendLiveSeshLog.objects
+                    .filter(pk=log_id)
+                    .values('host_id', 'guest_id')
+                    .first()
+                )
+                partner_id = None
+                if log:
+                    partner_id = (
+                        log['guest_id'] if log['host_id'] == user.id
+                        else log['host_id']
+                    )
+
+                # Read-back: authoritative post-update totals for the FE
+                # payload, one query across both side rows.
+                totals = {
+                    r['user_id']: r['points']
+                    for r in users_models.UserFriendLiveSeshPoints.objects
+                    .filter(sesh_log_id=log_id)
+                    .values('user_id', 'points')
+                }
+                if partner_id is not None:
+                    live_points = {
+                        'my_points': totals.get(user.id, total_points),
+                        'partner_points': totals.get(partner_id, 0),
+                        'partner_id': partner_id,
+                    }
+                    # Reconnect reads Redis first; drop the stale cached
+                    # payload for both sides so next hydrate re-pulls fresh.
+                    transaction.on_commit(
+                        lambda uid=user.id, pid=partner_id: sesh_cache.invalidate(uid, pid)
+                    )
 
     if not return_gecko_data or friend_id is None:
         return live_points

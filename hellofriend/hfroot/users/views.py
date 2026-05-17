@@ -1201,8 +1201,6 @@ def rust_live_sesh_context(request):
             "friend__theme_color_light",
             "friend__theme_color_dark",
             "other_user__username",
-            "current_log__host_points",
-            "current_log__guest_points",
         )
         .first()
     )
@@ -1222,6 +1220,7 @@ def rust_live_sesh_context(request):
             "partner_friend_name": None,
             "my_points": 0,
             "partner_points": 0,
+            "scoreboard": {},
         }
         sesh_cache.write(user_id, empty)
         return Response(empty)
@@ -1233,14 +1232,19 @@ def rust_live_sesh_context(request):
         .first()
     )
 
-    log = sesh.current_log
-    if log:
-        if sesh.is_host:
-            my_points, partner_points = log.host_points, log.guest_points
-        else:
-            my_points, partner_points = log.guest_points, log.host_points
-    else:
-        my_points = partner_points = 0
+    # Per-side points live in UserFriendLiveSeshPoints (one row per
+    # (sesh_log, user)). One query, keyed by user_id — no host/guest branch.
+    log_id = sesh.current_log_id
+    scoreboard = {}
+    if log_id:
+        scoreboard = {
+            r["user_id"]: r["points"]
+            for r in models.UserFriendLiveSeshPoints.objects
+            .filter(sesh_log_id=log_id)
+            .values("user_id", "points")
+        }
+    my_points = scoreboard.get(user_id, 0)
+    partner_points = scoreboard.get(sesh.other_user_id, 0)
 
     payload = {
         "user_id": user_id,
@@ -1248,6 +1252,7 @@ def rust_live_sesh_context(request):
         "is_host": sesh.is_host,
         "my_points": my_points,
         "partner_points": partner_points,
+        "scoreboard": scoreboard,
         "friend_id": sesh.friend_id,
         "sesh_friend_id": sesh.friend_id,
         "friend_light_color": sesh.friend.theme_color_light if sesh.friend else None,

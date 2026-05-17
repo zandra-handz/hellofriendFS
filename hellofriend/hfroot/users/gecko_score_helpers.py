@@ -551,11 +551,20 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
         partner_points = live_points["partner_points"]
         partner_id = live_points.get("partner_id")
 
+        # Neutral, identity-keyed scoreboard: same object for everyone, each
+        # FE picks "me" vs "them" by user_id. Legacy my_points/partner_points
+        # kept alongside as a back-compat shim until the FE switches.
+        scoreboard = {user.id: my_points}
+        if partner_id is not None:
+            scoreboard[partner_id] = partner_points
+
         # This user's FE gets both totals on the update_gecko_data response.
         result["my_points"] = my_points
         result["partner_points"] = partner_points
+        result["scoreboard"] = scoreboard
 
-        # Partner's FE: push with perspective swapped. process_gecko_data's
+        # Partner's FE: identical scoreboard (no perspective swap needed).
+        # Legacy keys still swapped for old clients. process_gecko_data's
         # atomic block has already committed by here, so push directly.
         if partner_id:
             try:
@@ -563,7 +572,11 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
                 notify_user(
                     partner_id,
                     "points_update",
-                    {"my_points": partner_points, "partner_points": my_points},
+                    {
+                        "my_points": partner_points,
+                        "partner_points": my_points,
+                        "scoreboard": scoreboard,
+                    },
                 )
             except Exception:
                 logger.exception(
