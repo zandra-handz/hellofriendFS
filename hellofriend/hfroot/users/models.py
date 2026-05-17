@@ -337,6 +337,44 @@ class UserFriendLiveSeshLog(models.Model):
     def __str__(self):
         return f"Session hosted by {self.host.username} with {self.guest.username} from {self.start} to {self.end}"
 
+
+class UserFriendLiveSeshPoints(models.Model):
+    """One row per (live sesh log, participant). Each user writes only their
+    own row, so host and guest never contend on the same record. The shared
+    scoreboard is a read across the rows for a given sesh_log."""
+
+    sesh_log = models.ForeignKey(
+        'users.UserFriendLiveSeshLog',
+        on_delete=models.CASCADE,
+        related_name='side_points',
+    )
+    user = models.ForeignKey(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        related_name='live_sesh_side_points',
+    )
+
+    points = models.IntegerField(default=0)
+    steps = models.PositiveIntegerField(default=0)
+    distance = models.PositiveIntegerField(default=0)
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['sesh_log', 'user'],
+                name='uniq_seshlog_user_side',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['sesh_log', 'user']),
+        ]
+
+    def __str__(self):
+        return f"SidePoints log={self.sesh_log_id} user={self.user_id} points={self.points}"
+
     
 
 
