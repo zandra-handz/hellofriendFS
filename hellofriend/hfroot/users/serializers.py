@@ -840,7 +840,7 @@ class UserFriendLiveSeshLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.UserFriendLiveSeshLog
         fields = [
-            'id', 'host', 'guest', 'host_username', 'guest_username',
+            'id', 'host', 'guest', 'host_points', 'guest_points', 'host_username', 'guest_username',
             'start', 'end', 'created_on', 'updated_on',
         ]
 

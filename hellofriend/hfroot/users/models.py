@@ -246,6 +246,8 @@ class GeckoPlayMode(models.IntegerChoices):
     DIG = 1, "Dig",
     INTUIT = 2, "Intuit"
 
+
+# ephemeral context holder, no session data is ultimately stored here
 class UserFriendCurrentLiveSesh(models.Model):
 
     user = models.OneToOneField(
@@ -253,6 +255,8 @@ class UserFriendCurrentLiveSesh(models.Model):
         on_delete=models.CASCADE,
         related_name='user_friend_current_live_sesh',
     )
+ 
+
     is_host = models.BooleanField(default=False)
     other_user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='other_user_friend_current_live_sesh')
     friend = models.ForeignKey(
@@ -319,6 +323,9 @@ class UserFriendLiveSeshLog(models.Model):
     host = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='host_sesh_log')
     guest = models.ForeignKey(get_user_model(), on_delete=models.CASCADE, related_name='guest_sesh_log')
    
+    host_points = models.IntegerField(default=0)
+    guest_points = models.IntegerField(default=0)
+
     start = models.DateTimeField()
     end = models.DateTimeField()
 
