@@ -482,13 +482,18 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
         # present) vs null (solo / peer absent). friend_id None => skip the
         # shared write; the user's own per-user data above still recorded.
         if total_points and friend_id is not None:
-            log_id = (
+            sesh = (
                 users_models.UserFriendCurrentLiveSesh.objects
                 .filter(user_id=user.id)
-                .values_list('current_log_id', flat=True)
+                .values('current_log_id', 'friend_id')
                 .first()
             )
-            if log_id:
+            log_id = sesh['current_log_id'] if sesh else None
+            # The screen can be open for friend B while the user's live
+            # sesh is with friend A. Only accrue to the shared scoreboard
+            # when the FE-attributed friend IS the sesh's friend; otherwise
+            # fall through to the personal ledger only.
+            if log_id and sesh['friend_id'] == friend_id:
                 side, _ = users_models.UserFriendLiveSeshPoints.objects.get_or_create(
                     sesh_log_id=log_id,
                     user_id=user.id,
