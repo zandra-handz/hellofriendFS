@@ -540,8 +540,6 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
             )
         )
 
-    score_state_cache.write(user.id, score_state["multiplier"], score_state["expires_at"])
-
     live_points = None
     if entry["steps"] or entry["distance"] or entry["points_earned"]:
         try:
