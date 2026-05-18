@@ -1138,6 +1138,7 @@ async fn handle_update_capsule_progress(
 }
 
 
+#[tracing::instrument(skip(state, data), fields(client_id = %client_id, user_id))]
 async fn handle_request_points(
     state: &AppState,
     client_id: &str,
@@ -1146,6 +1147,8 @@ async fn handle_request_points(
     // get_client clones a snapshot and drops the lock, so we never hold the
     // clients read guard across the Django await / broadcast.
     let Some(client) = get_client(state, client_id).await else { return };
+    tracing::Span::current().record("user_id", client.user_id);
+    info!("handle_request_points: received, forwarding to Django");
 
     // Django is the authoritative scorer: it validates `code`/`proof`,
     // resolves the ScoreRule + multiplier, writes the ledger, and (only if
