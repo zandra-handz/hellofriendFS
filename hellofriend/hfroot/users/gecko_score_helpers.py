@@ -20,6 +20,7 @@ from typing import Any, Dict
 from . import constants
 
 
+
 # Score state serialization moved off the WS path entirely. FE uses REST +
 # react-query for config and get_24h_seed for the 24h aggregates. Kept
 # commented in case we want it back.
@@ -495,8 +496,11 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
     Loads score state, applies the update, persists, runs the gecko_data
     write through process_gecko_data, and returns the FE-bound score_state.
     """
+    from django.db import transaction
+
     from .models import GeckoScoreState
     from .gecko_helpers import process_gecko_data
+    from . import score_state_cache
 
     obj, _ = GeckoScoreState.objects.get_or_create(user=user)
     # obj.recompute_energy()
@@ -512,14 +516,31 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
     # crash. _build_pending_entry already mutates score_state["multiplier"] /
     # ["expires_at"] when the FE sends a streak_activate event, so persisting
     # just those keeps streak resume working without running the recompute.
-    obj.multiplier = score_state["multiplier"]
-    obj.expires_at = score_state["expires_at"]
-    obj.last_steak_expiry = score_state["expires_at"]
-    obj.save(update_fields=[
-        "multiplier",
-        "expires_at",
-        "last_steak_expiry",
-    ])
+    with transaction.atomic():
+        obj.multiplier = score_state["multiplier"]
+        obj.expires_at = score_state["expires_at"]
+        obj.last_steak_expiry = score_state["expires_at"]
+        obj.save(update_fields=[
+            "multiplier",
+            "expires_at",
+            "last_steak_expiry",
+        ])
+        # Write-through: only update the cache once the multiplier row has
+        # actually committed, so Redis can never be ahead of Postgres.
+        # Read back by the per-point scoring path (Task 3).
+        cached_multiplier = score_state["multiplier"]
+        cached_base_multiplier = score_state["base_multiplier"]
+        cached_expires_at = score_state["expires_at"]
+        transaction.on_commit(
+            lambda: score_state_cache.write(
+                user.id,
+                cached_multiplier,
+                cached_base_multiplier,
+                cached_expires_at,
+            )
+        )
+
+    score_state_cache.write(user.id, score_state["multiplier"], score_state["expires_at"])
 
     live_points = None
     if entry["steps"] or entry["distance"] or entry["points_earned"]:
@@ -603,6 +624,7 @@ def award_requested_points(user, friend_id, payload: Dict[str, Any]) -> Dict[str
     """
     from .models import GeckoScoreState
     from .gecko_helpers import process_gecko_data
+    from . import score_state_cache
 
     try:
         code = int(payload.get("code"))
@@ -614,16 +636,34 @@ def award_requested_points(user, friend_id, payload: Dict[str, Any]) -> Dict[str
     if rule is None:
         return {"status": "invalid_code", "reason": "unknown_code", "code": code}
 
-    obj, _ = GeckoScoreState.objects.get_or_create(user=user)
-    ss = _score_state_dict_from_obj(obj)
-
     ts = timezone.now()
-    streak_expires_at = ss.get("expires_at")
-    applied_multiplier = (
-        ss["multiplier"]
-        if (streak_expires_at and ts < streak_expires_at)
-        else ss["base_multiplier"]
-    )
+
+    # Hot path: resolve the effective multiplier from Redis so steady-state
+    # point scoring never reads GeckoScoreState from Postgres. On a cold
+    # cache, fall back to the DB once and backfill so the next point is hot.
+    cached = score_state_cache.read(user.id)
+    if cached is not None:
+        cached_expires_at = cached.get("expires_at")
+        streak_active = (
+            cached_expires_at is not None
+            and ts.timestamp() < cached_expires_at
+        )
+        applied_multiplier = (
+            cached["multiplier"] if streak_active else cached["base_multiplier"]
+        )
+    else:
+        obj, _ = GeckoScoreState.objects.get_or_create(user=user)
+        ss = _score_state_dict_from_obj(obj)
+        streak_expires_at = ss.get("expires_at")
+        applied_multiplier = (
+            ss["multiplier"]
+            if (streak_expires_at and ts < streak_expires_at)
+            else ss["base_multiplier"]
+        )
+        score_state_cache.write(
+            user.id, ss["multiplier"], ss["base_multiplier"], ss["expires_at"]
+        )
+
     amount = rule["points"] * applied_multiplier
 
     entry = {
