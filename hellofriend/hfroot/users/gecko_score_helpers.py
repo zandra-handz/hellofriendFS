@@ -586,3 +586,111 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
                 )
 
     return result
+
+
+def award_requested_points(user, friend_id, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Backend-authoritative scorer for the `request_points` socket action.
+
+    Django (not the FE) resolves the ScoreRule from `code`, applies the
+    user's current multiplier/streak, then reuses process_gecko_data for the
+    EXACT same GeckoPointsLedger + UserFriendLiveSeshPoints handling as
+    update_gecko_data (including the friend_id presence gate — shared sesh
+    accrual only when the peer was present). No steps/distance/session row.
+
+    Returns the FE-bound payload for the `points_awarded` broadcast. On a
+    bad/unknown code returns {"status": "invalid_code"} (no write).
+    """
+    from .models import GeckoScoreState
+    from .gecko_helpers import process_gecko_data
+
+    try:
+        code = int(payload.get("code"))
+    except (TypeError, ValueError):
+        return {"status": "invalid_code", "reason": "code_not_int"}
+
+    score_rules = _load_score_rules()
+    rule = score_rules.get(code)
+    if rule is None:
+        return {"status": "invalid_code", "reason": "unknown_code", "code": code}
+
+    obj, _ = GeckoScoreState.objects.get_or_create(user=user)
+    ss = _score_state_dict_from_obj(obj)
+
+    ts = timezone.now()
+    streak_expires_at = ss.get("expires_at")
+    applied_multiplier = (
+        ss["multiplier"]
+        if (streak_expires_at and ts < streak_expires_at)
+        else ss["base_multiplier"]
+    )
+    amount = rule["points"] * applied_multiplier
+
+    entry = {
+        "amount": amount,
+        "reason": rule["label"],
+        "code": rule["code"],
+        "multiplier": applied_multiplier,
+        "timestamp_earned": ts.isoformat(),
+    }
+
+    # Reuses the existing ledger + side-row scoreboard write + friend_id
+    # gate. No started_on/ended_on => no GeckoCombinedSession row created.
+    live_points = process_gecko_data(
+        user=user,
+        friend_id=friend_id,
+        steps=0,
+        distance=0,
+        started_on=None,
+        ended_on=None,
+        points_earned_list=[entry],
+        points_pre_resolved=True,
+    )
+
+    result: Dict[str, Any] = {
+        "status": "ok",
+        "awarded_user_id": user.id,
+        "code": rule["code"],
+        "label": rule["label"],
+        "points": amount,
+        "multiplier": applied_multiplier,
+    }
+
+    if live_points:
+        my_points = live_points["my_points"]
+        partner_points = live_points["partner_points"]
+        partner_id = live_points.get("partner_id")
+
+        # Requester's oriented copy (Rust relays this back to them).
+        result["my_points"] = my_points
+        result["partner_points"] = partner_points
+
+        # Partner's oriented copy, pushed directly with my/partner swapped —
+        # same per-recipient model as apply_gecko_data_update's points_update.
+        # Both sides end up seeing both scores, each labelled from their own
+        # perspective; no neutral scoreboard / client-side user_id needed.
+        if partner_id is not None:
+            try:
+                from .rust_push import notify_user
+                notify_user(
+                    partner_id,
+                    "points_awarded",
+                    {
+                        "status": "ok",
+                        "awarded_user_id": user.id,
+                        "code": result["code"],
+                        "label": result["label"],
+                        "points": result["points"],
+                        "multiplier": result["multiplier"],
+                        "my_points": partner_points,
+                        "partner_points": my_points,
+                    },
+                )
+            except Exception:
+                logger.exception(
+                    "[award_requested_points] partner push failed user=%s partner=%s",
+                    user.id,
+                    partner_id,
+                )
+
+    return result

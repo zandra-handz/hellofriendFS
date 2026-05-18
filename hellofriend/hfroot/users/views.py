@@ -1577,6 +1577,36 @@ def _gecko_socket_action_dispatch(user_id, action, data):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response({"action": "score_state", "data": new_state})
 
+    if action == "request_points":
+        # Backend-authoritative scorer. Resolves the ScoreRule from `code`,
+        # writes ledger + (peer-gated) shared scoreboard via the same
+        # process_gecko_data path as update_gecko_data. Rust broadcasts the
+        # `points_awarded` frame to the shared room (requester + partner).
+        user, err = _load_user()
+        if err:
+            return err
+        from .gecko_score_helpers import award_requested_points
+        friend_id = data.get("friend_id") if isinstance(data, dict) else None
+        try:
+            awarded = award_requested_points(user, friend_id, data or {})
+        except Exception:
+            logger.exception(
+                "[gecko_socket_action] request_points failed user=%s",
+                user_id,
+            )
+            return Response({
+                "action": "request_points_failed",
+                "data": {"reason": "internal_error"},
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if awarded.get("status") != "ok":
+            return Response({
+                "action": "request_points_failed",
+                "data": awarded,
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"action": "points_awarded", "data": awarded})
+
     if action == "request_capsule_matches":
         from .gecko_match_helpers import handle_request_capsule_matches
         return Response(handle_request_capsule_matches(user_id))

@@ -308,6 +308,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
             hydrate_live_sesh_context(&bg_state, &bg_client_id).await;
 
             let Some(client) = get_client(&bg_state, &bg_client_id).await else { return };
+            
             let Some(partner_id) = client.partner_id else { return };
 
             let partner_snapshot = {
@@ -506,6 +507,16 @@ async fn handle_incoming(state: &AppState, client_id: &str, value: Value) {
         }
         "send_all_host_capsules" => {
             handle_send_all_host_capsules(state, client_id, data).await
+        }
+
+        "request_points" => {
+            // Spawned so the Django round-trip never stalls this client's
+            // message loop (mirrors handle_join_live_sesh).
+            let st = state.clone();
+            let cid = client_id.to_string();
+            tokio::spawn(async move {
+                handle_request_points(&st, &cid, data).await;
+            });
         }
 
         "get_24h_seed" => {
@@ -1124,6 +1135,133 @@ async fn handle_update_capsule_progress(
     };
 
     broadcast_to_room_with_clients(state, &clients, &shared_room, user_id, encoded).await;
+}
+
+
+async fn handle_request_points(
+    state: &AppState,
+    client_id: &str,
+    data: Option<Value>,
+) {
+    // get_client clones a snapshot and drops the lock, so we never hold the
+    // clients read guard across the Django await / broadcast.
+    let Some(client) = get_client(state, client_id).await else { return };
+
+    // Django is the authoritative scorer: it validates `code`/`proof`,
+    // resolves the ScoreRule + multiplier, writes the ledger, and (only if
+    // the peer is present, decided server-side via the friend_id gate)
+    // accrues to the shared sesh scoreboard. It also pushes the partner's
+    // oriented copy directly (notify_user). Rust just relays the requester's
+    // copy back — same per-recipient model as update_gecko_data.
+    let mut data_with_ctx = match data.unwrap_or_else(|| json!({})) {
+        Value::Object(map) => map,
+        _ => serde_json::Map::new(),
+    };
+    if !data_with_ctx.contains_key("friend_id") {
+        if let Some(fid) = client.friend_id {
+            data_with_ctx.insert("friend_id".to_string(), json!(fid));
+        }
+    }
+    if !data_with_ctx.contains_key("is_host") {
+        data_with_ctx.insert("is_host".to_string(), json!(client.is_host));
+    }
+
+    let body = json!({
+        "user_id": client.user_id,
+        "action": "request_points",
+        "data": Value::Object(data_with_ctx),
+    });
+
+    let body_bytes = match rmp_serde::to_vec_named(&body) {
+        Ok(b) => b,
+        Err(err) => {
+            error!("handle_request_points: msgpack encode failed err={}", err);
+            send_to_client(
+                state,
+                client_id,
+                OutgoingMessage {
+                    action: "request_points_failed".to_string(),
+                    data: json!({ "reason": "encode_error" }),
+                },
+            )
+            .await;
+            return;
+        }
+    };
+
+    let url = format!("{}/users/internal/gecko/socket-action/", state.django_base_url);
+    let _permit = state.django_concurrency.acquire().await.ok();
+    let response = state
+        .http
+        .post(url)
+        .header("X-Rust-Internal-Secret", &state.internal_secret)
+        .header("Content-Type", "application/msgpack")
+        .header("Accept", "application/msgpack")
+        .body(body_bytes)
+        .send()
+        .await;
+
+    let Ok(response) = response else {
+        send_to_client(
+            state,
+            client_id,
+            OutgoingMessage {
+                action: "request_points_failed".to_string(),
+                data: json!({ "reason": "django_unreachable" }),
+            },
+        )
+        .await;
+        return;
+    };
+
+    let Ok(bytes) = response.bytes().await else {
+        send_to_client(
+            state,
+            client_id,
+            OutgoingMessage {
+                action: "request_points_failed".to_string(),
+                data: json!({ "reason": "django_unreachable" }),
+            },
+        )
+        .await;
+        return;
+    };
+
+    let parsed: Result<Value, _> = rmp_serde::from_slice(&bytes);
+    match parsed {
+        Ok(value) => {
+            let response_action = value
+                .get("action")
+                .and_then(|v| v.as_str())
+                .unwrap_or("points_awarded")
+                .to_string();
+            let response_data = value.get("data").cloned().unwrap_or(value);
+
+            // Relay the requester's oriented copy back to them only. The
+            // partner's oriented copy is pushed by Django (notify_user),
+            // same per-recipient pattern as the points_update flow.
+            send_to_client(
+                state,
+                client_id,
+                OutgoingMessage {
+                    action: response_action,
+                    data: response_data,
+                },
+            )
+            .await;
+        }
+        Err(_) => {
+            send_to_client(
+                state,
+                client_id,
+                OutgoingMessage {
+                    action: "request_points_failed".to_string(),
+                    data: json!({ "reason": "bad_django_response" }),
+                },
+            )
+            .await;
+        }
+    }
 }
 
 async fn handle_send_all_host_capsules(
