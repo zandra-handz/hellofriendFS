@@ -1160,11 +1160,11 @@ async fn handle_request_points(
         Value::Object(map) => map,
         _ => serde_json::Map::new(),
     };
-    if !data_with_ctx.contains_key("friend_id") {
-        if let Some(fid) = client.friend_id {
-            data_with_ctx.insert("friend_id".to_string(), json!(fid));
-        }
-    }
+    // friend_id is NOT injected here. The FE sends it window-consistently
+    // (friend id when the peer is present for the accrual window, null
+    // otherwise); the relay must pass it through untouched so Django
+    // attributes faithfully. Substituting the bound friend here would
+    // re-introduce solo / wrong-friend mis-attribution.
     if !data_with_ctx.contains_key("is_host") {
         data_with_ctx.insert("is_host".to_string(), json!(client.is_host));
     }
