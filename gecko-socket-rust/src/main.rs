@@ -319,38 +319,43 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                     .map(|c| (c.user_id, c.friend_light_color.clone(), c.friend_dark_color.clone()))
             };
 
-            if let Some((pid, light, dark)) = partner_snapshot {
-                send_to_client(
+            // Gate initial presence on host bind state. Hosts must confirm
+            // via set_friend before we tell either side they're "online and
+            // in the sesh." For guests this is always true.
+            if host_presence_allowed(&client) {
+                if let Some((pid, light, dark)) = partner_snapshot {
+                    send_to_client(
+                        &bg_state,
+                        &bg_client_id,
+                        OutgoingMessage {
+                            action: "peer_presence".to_string(),
+                            data: json!({
+                                "user_id": pid,
+                                "online": true,
+                                "friend_light_color": light,
+                                "friend_dark_color": dark,
+                            }),
+                        },
+                    )
+                    .await;
+                }
+
+                broadcast_to_room(
                     &bg_state,
-                    &bg_client_id,
+                    &client.shared_room,
+                    Some(client.user_id),
                     OutgoingMessage {
                         action: "peer_presence".to_string(),
                         data: json!({
-                            "user_id": pid,
+                            "user_id": client.user_id,
                             "online": true,
-                            "friend_light_color": light,
-                            "friend_dark_color": dark,
+                            "friend_light_color": client.friend_light_color,
+                            "friend_dark_color": client.friend_dark_color,
                         }),
                     },
                 )
                 .await;
             }
-
-            broadcast_to_room(
-                &bg_state,
-                &client.shared_room,
-                Some(client.user_id),
-                OutgoingMessage {
-                    action: "peer_presence".to_string(),
-                    data: json!({
-                        "user_id": client.user_id,
-                        "online": true,
-                        "friend_light_color": client.friend_light_color,
-                        "friend_dark_color": client.friend_dark_color,
-                    }),
-                },
-            )
-            .await;
 
             if !client.is_host {
                 // New guest just landed (initial connect or reconnect). The host's
@@ -575,6 +580,41 @@ async fn handle_set_friend(state: &AppState, client_id: &str, data: Option<Value
         if c.is_host {
             if let Some(sfid) = c.sesh_friend_id {
                 if sfid != friend_id {
+                    // Host is on a non-matching friend's screen. Reject the
+                    // bind AND clear any stale presence frames already sent:
+                    // tell this client the partner is offline, and tell the
+                    // partner this client is offline (in case prior hydrate
+                    // or join_live_sesh already painted them online).
+                    if let Some(pid) = c.partner_id {
+                        send_to_client(
+                            state,
+                            client_id,
+                            OutgoingMessage {
+                                action: "peer_presence".to_string(),
+                                data: json!({
+                                    "user_id": pid,
+                                    "online": false,
+                                }),
+                            },
+                        )
+                        .await;
+                    }
+                    broadcast_to_room(
+                        state,
+                        &c.shared_room,
+                        Some(c.user_id),
+                        OutgoingMessage {
+                            action: "peer_presence".to_string(),
+                            data: json!({
+                                "user_id": c.user_id,
+                                "online": false,
+                                "friend_light_color": null,
+                                "friend_dark_color": null,
+                            }),
+                        },
+                    )
+                    .await;
+
                     send_to_client(
                         state,
                         client_id,
@@ -667,21 +707,23 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
         )
         .await;
 
-        broadcast_to_room(
-            &bg_state,
-            &client.shared_room,
-            Some(client.user_id),
-            OutgoingMessage {
-                action: "peer_presence".to_string(),
-                data: json!({
-                    "user_id": client.user_id,
-                    "online": true,
-                    "friend_light_color": client.friend_light_color,
-                    "friend_dark_color": client.friend_dark_color,
-                }),
-            },
-        )
-        .await;
+        if host_presence_allowed(&client) {
+            broadcast_to_room(
+                &bg_state,
+                &client.shared_room,
+                Some(client.user_id),
+                OutgoingMessage {
+                    action: "peer_presence".to_string(),
+                    data: json!({
+                        "user_id": client.user_id,
+                        "online": true,
+                        "friend_light_color": client.friend_light_color,
+                        "friend_dark_color": client.friend_dark_color,
+                    }),
+                },
+            )
+            .await;
+        }
 
         if !client.is_host {
             proxy_check_host_link_and_load(&bg_state, &bg_client_id, partner_id).await;
@@ -804,6 +846,24 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
         .await;
         return;
     };
+
+    // Host on a non-matching friend screen — pretend partner is offline so
+    // the UI doesn't paint sesh state onto the wrong friend.
+    if !host_presence_allowed(&client) {
+        send_to_client(
+            state,
+            client_id,
+            OutgoingMessage {
+                action: "peer_presence".to_string(),
+                data: json!({
+                    "user_id": partner_id,
+                    "online": false,
+                }),
+            },
+        )
+        .await;
+        return;
+    }
 
     let partner = {
         let clients = state.clients.read().await;
@@ -1664,7 +1724,12 @@ async fn apply_hydrate_value(
                 c.my_points = my_points;
                 c.partner_points = partner_points;
                 c.partner_room = partner_room.clone();
-                if friend_id.is_some() {
+                // Do NOT seed c.friend_id from hydrate for hosts. Hosts must
+                // confirm via set_friend so we can verify they're on the
+                // matching FE screen. Guests don't send set_friend, so we
+                // populate from hydrate for them (so position handlers that
+                // gate on friend_id still work).
+                if !is_host && friend_id.is_some() {
                     c.friend_id = friend_id;
                 }
                 if friend_light_color.is_some() {
@@ -1783,6 +1848,17 @@ async fn leave_room(state: &AppState, room_name: &str, client_id: &str) {
         Arc::make_mut(arc).remove(client_id);
     }
     rooms.retain(|_, set| !set.is_empty());
+}
+
+/// Presence is allowed for a host only when their FE-bound friend matches
+/// the sesh's friend (i.e., they're on the matching friend's screen). Guests
+/// don't send set_friend — they're committed to the sesh they accepted — so
+/// presence always flows for them.
+fn host_presence_allowed(c: &Client) -> bool {
+    if !c.is_host {
+        return true;
+    }
+    c.friend_id.is_some() && c.friend_id == c.sesh_friend_id
 }
 
 async fn get_client(state: &AppState, client_id: &str) -> Option<Client> {
