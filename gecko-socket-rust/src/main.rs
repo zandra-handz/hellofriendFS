@@ -316,6 +316,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 clients
                     .values()
                     .find(|c| c.user_id == partner_id)
+                    .filter(|c| host_presence_allowed(c))
                     .map(|c| (c.user_id, c.friend_light_color.clone(), c.friend_dark_color.clone()))
             };
 
@@ -874,6 +875,32 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
     };
 
     if let Some(partner) = partner {
+        // Partner is connected, but if THEY're a host whose FE-bound friend
+        // doesn't match their sesh (they're on a different friend's screen),
+        // we should report them offline so this side doesn't paint them as
+        // "in the sesh" when they aren't.
+        if !host_presence_allowed(&partner) {
+            debug!(
+                target: "peer_pres",
+                "partner={} connected but presence-gated (host on wrong friend), replying offline to user={}",
+                partner_id, client.user_id
+            );
+
+            send_to_client(
+                state,
+                client_id,
+                OutgoingMessage {
+                    action: "peer_presence".to_string(),
+                    data: json!({
+                        "user_id": partner_id,
+                        "online": false,
+                    }),
+                },
+            )
+            .await;
+            return;
+        }
+
         debug!(
             target: "peer_pres",
             "replying online for partner={} to user={}",
