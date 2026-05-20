@@ -340,7 +340,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                     .await;
                 }
 
-                broadcast_to_room(
+                broadcast_peer_presence_online_to_room(
                     &bg_state,
                     &client.shared_room,
                     Some(client.user_id),
@@ -708,7 +708,7 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
         .await;
 
         if host_presence_allowed(&client) {
-            broadcast_to_room(
+            broadcast_peer_presence_online_to_room(
                 &bg_state,
                 &client.shared_room,
                 Some(client.user_id),
@@ -1848,6 +1848,46 @@ async fn leave_room(state: &AppState, room_name: &str, client_id: &str) {
         Arc::make_mut(arc).remove(client_id);
     }
     rooms.retain(|_, set| !set.is_empty());
+}
+
+/// Like broadcast_to_room, but only delivers to recipients where
+/// host_presence_allowed is true — i.e., guests, and hosts whose FE-bound
+/// friend matches the sesh. Used for ONLINE peer_presence frames so a host
+/// on a non-matching friend screen never sees their partner painted as
+/// "online and in the sesh." OFFLINE frames should keep using
+/// broadcast_to_room so they can clear stale state unconditionally.
+async fn broadcast_peer_presence_online_to_room(
+    state: &AppState,
+    room_name: &str,
+    exclude_user_id: Option<UserId>,
+    message: OutgoingMessage,
+) {
+    let Some(encoded) = encode_outgoing(&message) else {
+        return;
+    };
+
+    let room_client_ids = {
+        let rooms = state.rooms.read().await;
+        rooms.get(room_name).cloned()
+    };
+
+    let Some(room_client_ids) = room_client_ids else {
+        return;
+    };
+
+    let clients = state.clients.read().await;
+
+    for room_client_id in room_client_ids.iter() {
+        if let Some(client) = clients.get(room_client_id) {
+            if Some(client.user_id) == exclude_user_id {
+                continue;
+            }
+            if !host_presence_allowed(client) {
+                continue;
+            }
+            let _ = client.tx.try_send(encoded.clone());
+        }
+    }
 }
 
 /// Presence is allowed for a host only when their FE-bound friend matches
