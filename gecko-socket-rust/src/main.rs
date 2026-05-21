@@ -597,6 +597,10 @@ async fn handle_incoming(state: &AppState, client_id: &str, value: Value) {
         "send_all_host_capsules" => {
             handle_send_all_host_capsules(state, client_id, data).await
         }
+        // not in use yet
+        "request_all_host_capsules" => {
+            handle_request_all_host_capsules(state, client_id).await
+        }
 
         "request_points" => {
             // Spawned so the Django round-trip never stalls this client's
@@ -1435,6 +1439,20 @@ async fn handle_request_points(
             .await;
         }
     }
+}
+
+async fn handle_request_all_host_capsules(state: &AppState, client_id: &str) {
+    let Some(client) = get_client(state, client_id).await else { return };
+    if client.is_host { return }   // only guests should request
+    broadcast_to_room(
+        state,
+        &client.shared_room,
+        Some(client.user_id),
+        OutgoingMessage {
+            action: "request_all_host_capsules".to_string(),
+            data: json!({ "from_user": client.user_id }),
+        },
+    ).await;
 }
 
 async fn handle_send_all_host_capsules(
