@@ -17,7 +17,7 @@ use std::{
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
-use tokio::sync::{mpsc, RwLock, Semaphore};
+use tokio::sync::{mpsc, Notify, RwLock, Semaphore};
 use uuid::Uuid;
 
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
@@ -30,6 +30,54 @@ type ClientId = String;
 type RoomName = String;
 // type Tx = mpsc::UnboundedSender<Message>;
 type Tx = mpsc::Sender<Message>;
+
+/// Per-client coalescing slots for unreliable position frames. Each slot
+/// holds at most one pending Message — a newer frame overwrites the older
+/// one. The Notify wakes the send_task whenever any slot is populated.
+///
+/// This prevents head-of-line blocking on the ordered mpsc when the guest's
+/// TCP send buffer stalls (mobile network blip, RN backgrounding, etc.).
+/// Old positions are pure latency, so we drop them in favor of the newest.
+#[derive(Default)]
+struct PositionSlots {
+    gecko_coords: std::sync::Mutex<Option<Message>>,
+    host_gecko_coords: std::sync::Mutex<Option<Message>>,
+    guest_gecko_coords: std::sync::Mutex<Option<Message>>,
+    notify: Notify,
+}
+
+impl PositionSlots {
+    /// Route an encoded position frame to its slot. Returns false if the
+    /// action isn't a coalescing position kind (caller should fall back to
+    /// the ordered mpsc).
+    fn put(&self, action: &str, msg: Message) -> bool {
+        let slot = match action {
+            "gecko_coords" => &self.gecko_coords,
+            "host_gecko_coords" => &self.host_gecko_coords,
+            "guest_gecko_coords" => &self.guest_gecko_coords,
+            _ => return false,
+        };
+        *slot.lock().unwrap() = Some(msg);
+        self.notify.notify_one();
+        true
+    }
+
+    /// Drain the latest-pending frame from each slot, in a stable order.
+    fn drain(&self) -> [Option<Message>; 3] {
+        [
+            self.gecko_coords.lock().unwrap().take(),
+            self.host_gecko_coords.lock().unwrap().take(),
+            self.guest_gecko_coords.lock().unwrap().take(),
+        ]
+    }
+}
+
+fn is_coalesced_position_action(action: &str) -> bool {
+    matches!(
+        action,
+        "gecko_coords" | "host_gecko_coords" | "guest_gecko_coords"
+    )
+}
 
 const PROD_DJANGO_BASE_URL: &str = "https://badrainbowz.com";
 const STAGING_DJANGO_BASE_URL: &str = "https://staging.badrainbowz.com";
@@ -70,6 +118,7 @@ struct AppState {
 struct Client {
     user_id: UserId,
     tx: Tx,
+    position_slots: Arc<PositionSlots>,
     friend_id: Option<u64>,
     is_host: bool,
     partner_id: Option<u64>,
@@ -254,6 +303,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
     let (mut socket_sender, mut socket_receiver) = socket.split();
     // let (tx, mut rx) = mpsc::unbounded_channel::<Message>();
     let (tx, mut rx) = mpsc::channel::<Message>(256);
+    let position_slots = Arc::new(PositionSlots::default());
 
     {
         let mut clients = state.clients.write().await;
@@ -262,6 +312,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
             Client {
                 user_id,
                 tx: tx.clone(),
+                position_slots: position_slots.clone(),
                 friend_id: None,
                 is_host: false,
                 partner_id: None,
@@ -383,17 +434,49 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
         });
     }
 
-    let send_task = tokio::spawn(async move {
-        while let Some(message) = rx.recv().await {
-            let is_close = matches!(message, Message::Close(_));
-            if socket_sender.send(message).await.is_err() {
-                break;
+    let send_task = {
+        let position_slots = position_slots.clone();
+        tokio::spawn(async move {
+            // Select between the ordered event queue and the coalescing
+            // position slots. Position frames bypass the mpsc entirely:
+            // newer position overwrites older, so a TCP-stall burst at most
+            // sends 3 frames (one per kind) instead of N queued positions.
+            loop {
+                tokio::select! {
+                    biased;
+                    maybe_msg = rx.recv() => {
+                        let Some(message) = maybe_msg else { break };
+                        // Flush any pending position frames first so we
+                        // don't sit on stale coords while ordered events
+                        // pass through.
+                        for slot in position_slots.drain() {
+                            if let Some(pos) = slot {
+                                if socket_sender.send(pos).await.is_err() {
+                                    return;
+                                }
+                            }
+                        }
+                        let is_close = matches!(message, Message::Close(_));
+                        if socket_sender.send(message).await.is_err() {
+                            break;
+                        }
+                        if is_close {
+                            break;
+                        }
+                    }
+                    _ = position_slots.notify.notified() => {
+                        for slot in position_slots.drain() {
+                            if let Some(pos) = slot {
+                                if socket_sender.send(pos).await.is_err() {
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            if is_close {
-                break;
-            }
-        }
-    });
+        })
+    };
 
     let recv_state = state.clone();
     let recv_client_id = client_id.clone();
@@ -1118,7 +1201,7 @@ async fn handle_update_gecko_position(state: &AppState, client_id: &str, data: O
         return;
     };
 
-    broadcast_to_room_with_clients(state, &clients, &shared_room, user_id, encoded).await;
+    broadcast_position_to_room(state, &clients, &shared_room, user_id, "gecko_coords", encoded).await;
 }
 
 async fn handle_update_host_gecko_position(
@@ -1155,7 +1238,7 @@ async fn handle_update_host_gecko_position(
         return;
     };
 
-    broadcast_to_room_with_clients(state, &clients, &shared_room, user_id, encoded).await;
+    broadcast_position_to_room(state, &clients, &shared_room, user_id, "host_gecko_coords", encoded).await;
 }
 
 async fn handle_update_guest_gecko_position(
@@ -1187,7 +1270,7 @@ async fn handle_update_guest_gecko_position(
         return;
     };
 
-    broadcast_to_room_with_clients(state, &clients, &shared_room, user_id, encoded).await;
+    broadcast_position_to_room(state, &clients, &shared_room, user_id, "guest_gecko_coords", encoded).await;
 }
 
 async fn handle_update_capsule_progress(
@@ -1970,6 +2053,31 @@ async fn broadcast_to_room(
             // let _ = client.tx.send(encoded.clone());
             let _ = client.tx.try_send(encoded.clone());
 
+        }
+    }
+}
+
+/// Broadcast a position frame to a room, routing each recipient through
+/// their PositionSlots so older pending coords are overwritten by newer
+/// ones (latest-wins). Bypasses the ordered mpsc entirely.
+async fn broadcast_position_to_room(
+    state: &AppState,
+    clients: &HashMap<ClientId, Client>,
+    room_name: &str,
+    exclude_user_id: UserId,
+    action: &str,
+    encoded: Message,
+) {
+    debug_assert!(is_coalesced_position_action(action));
+    let rooms = state.rooms.read().await;
+    if let Some(room_arc) = rooms.get(room_name) {
+        for cid in room_arc.iter() {
+            if let Some(client) = clients.get(cid) {
+                if client.user_id == exclude_user_id {
+                    continue;
+                }
+                client.position_slots.put(action, encoded.clone());
+            }
         }
     }
 }
