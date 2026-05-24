@@ -677,18 +677,9 @@ class GeckoPointsLedgerSerializer(serializers.ModelSerializer):
         fields = ['id', 'friend', 'amount', 'reason', 'timestamp_earned', 'updated_on', 'created_on']
 
 
-class PointsLedgerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = models.PointsLedger
-        fields = ['id', 'amount', 'reason', 'created_at']
-
 class AddGeckoPointsSerializer(serializers.Serializer):
-    amount = serializers.IntegerField(min_value=1) 
-
-
-class AddPointsSerializer(serializers.Serializer):
     amount = serializers.IntegerField(min_value=1)
-    reason = serializers.CharField(max_length=100)
+
 
 class UpdateSubscriptionSerializer(serializers.ModelSerializer):
     
@@ -757,66 +748,66 @@ class BadRainbowzUserAddressSerializer(serializers.ModelSerializer):
         fields = ['addresses']
 
 
-class GeckoEnergySyncSampleSerializer(serializers.ModelSerializer):
-    client_window_seconds = serializers.SerializerMethodField()
+# class GeckoEnergySyncSampleSerializer(serializers.ModelSerializer):
+#     client_window_seconds = serializers.SerializerMethodField()
 
-    def get_client_window_seconds(self, obj):
-        if obj.client_started_on and obj.client_ended_on:
-            return (obj.client_ended_on - obj.client_started_on).total_seconds()
-        return None
+#     def get_client_window_seconds(self, obj):
+#         if obj.client_started_on and obj.client_ended_on:
+#             return (obj.client_ended_on - obj.client_started_on).total_seconds()
+#         return None
 
-    class Meta:
-        model = models.GeckoEnergySyncSample
-        fields = [
-            'id',
-            'created_at',
-            'trigger',
+#     class Meta:
+#         model = models.GeckoEnergySyncSample
+#         fields = [
+#             'id',
+#             'created_at',
+#             'trigger',
 
-            'client_energy',
-            'client_surplus',
-            'client_multiplier',
-            'client_computed_at',
-            'client_steps_in_payload',
-            'client_distance_in_payload',
-            'client_started_on',
-            'client_ended_on',
-            'client_window_seconds',
-            'client_fatigue',
-            'client_recharge',
+#             'client_energy',
+#             'client_surplus',
+#             'client_multiplier',
+#             'client_computed_at',
+#             'client_steps_in_payload',
+#             'client_distance_in_payload',
+#             'client_started_on',
+#             'client_ended_on',
+#             'client_window_seconds',
+#             'client_fatigue',
+#             'client_recharge',
 
-            'server_energy_before',
-            'server_energy_after',
-            'server_surplus_before',
-            'server_surplus_after',
-            'server_updated_at_before',
-            'server_updated_at_after',
+#             'server_energy_before',
+#             'server_energy_after',
+#             'server_surplus_before',
+#             'server_surplus_after',
+#             'server_updated_at_before',
+#             'server_updated_at_after',
 
-            'recompute_window_seconds',
-            'recompute_active_seconds',
-            'recompute_new_steps',
-            'recompute_fatigue',
-            'recompute_recharge',
-            'recompute_net',
+#             'recompute_window_seconds',
+#             'recompute_active_seconds',
+#             'recompute_new_steps',
+#             'recompute_fatigue',
+#             'recompute_recharge',
+#             'recompute_net',
 
-            'pending_entries_count',
-            'pending_entries_in_window',
-            'pending_entries_stale',
-            'pending_total_steps_all',
-            'pending_total_steps_in_window',
+#             'pending_entries_count',
+#             'pending_entries_in_window',
+#             'pending_entries_stale',
+#             'pending_total_steps_all',
+#             'pending_total_steps_in_window',
 
-            'energy_delta',
-            'phantom_steps',
+#             'energy_delta',
+#             'phantom_steps',
 
-            'multiplier_active',
-            'streak_expires_at',
+#             'multiplier_active',
+#             'streak_expires_at',
 
-            'total_steps_all_time',
-        ]
+#             'total_steps_all_time',
+#         ]
 
 
-class GeckoEnergySyncSampleAnalyticsSerializer(GeckoEnergySyncSampleSerializer):
-    class Meta(GeckoEnergySyncSampleSerializer.Meta):
-        fields = ['user'] + GeckoEnergySyncSampleSerializer.Meta.fields
+# class GeckoEnergySyncSampleAnalyticsSerializer(GeckoEnergySyncSampleSerializer):
+#     class Meta(GeckoEnergySyncSampleSerializer.Meta):
+#         fields = ['user'] + GeckoEnergySyncSampleSerializer.Meta.fields
 
 
 class UserFriendLiveSeshInviteSerializer(serializers.ModelSerializer):

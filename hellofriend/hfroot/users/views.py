@@ -553,83 +553,83 @@ def dev_deplete_energy(request):
     return Response(serializers.GeckoScoreStateSerializer(obj).data)
 
 
-def gecko_analytics_dashboard(request):
-    User = models.GeckoEnergySyncSample._meta.get_field('user').related_model
-    user_ids = models.GeckoEnergySyncSample.objects.values_list('user_id', flat=True).distinct()
-    users = User.objects.filter(id__in=user_ids).order_by('username')
-    return render(request, 'gecko_analytics.html', {'users': users})
+# def gecko_analytics_dashboard(request):
+#     User = models.GeckoEnergySyncSample._meta.get_field('user').related_model
+#     user_ids = models.GeckoEnergySyncSample.objects.values_list('user_id', flat=True).distinct()
+#     users = User.objects.filter(id__in=user_ids).order_by('username')
+#     return render(request, 'gecko_analytics.html', {'users': users})
 
 
-class GeckoEnergySyncSampleAnalyticsView(generics.ListAPIView):
-    serializer_class = serializers.GeckoEnergySyncSampleAnalyticsSerializer
-    permission_classes = [AllowAny]
-    pagination_class = MediumPagination
+# class GeckoEnergySyncSampleAnalyticsView(generics.ListAPIView):
+#     serializer_class = serializers.GeckoEnergySyncSampleAnalyticsSerializer
+#     permission_classes = [AllowAny]
+#     pagination_class = MediumPagination
 
-    def get_queryset(self):
-        qs = models.GeckoEnergySyncSample.objects.all().order_by('created_at')
-        since = self.request.query_params.get('since')
-        until = self.request.query_params.get('until')
-        user_id = self.request.query_params.get('user_id')
-        trigger = self.request.query_params.get('trigger')
-        if since:
-            parsed = parse_datetime(since)
-            if parsed:
-                qs = qs.filter(created_at__gte=parsed)
-        if until:
-            parsed = parse_datetime(until)
-            if parsed:
-                qs = qs.filter(created_at__lt=parsed)
-        if user_id:
-            qs = qs.filter(user_id=user_id)
-        if trigger:
-            qs = qs.filter(trigger=trigger)
-        return qs
+#     def get_queryset(self):
+#         qs = models.GeckoEnergySyncSample.objects.all().order_by('created_at')
+#         since = self.request.query_params.get('since')
+#         until = self.request.query_params.get('until')
+#         user_id = self.request.query_params.get('user_id')
+#         trigger = self.request.query_params.get('trigger')
+#         if since:
+#             parsed = parse_datetime(since)
+#             if parsed:
+#                 qs = qs.filter(created_at__gte=parsed)
+#         if until:
+#             parsed = parse_datetime(until)
+#             if parsed:
+#                 qs = qs.filter(created_at__lt=parsed)
+#         if user_id:
+#             qs = qs.filter(user_id=user_id)
+#         if trigger:
+#             qs = qs.filter(trigger=trigger)
+#         return qs
 
-    def list(self, request, *args, **kwargs):
-        if request.query_params.get('nopaginate') == 'true':
-            serializer = self.get_serializer(self.filter_queryset(self.get_queryset()), many=True)
-            return Response(serializer.data)
-        return super().list(request, *args, **kwargs)
+#     def list(self, request, *args, **kwargs):
+#         if request.query_params.get('nopaginate') == 'true':
+#             serializer = self.get_serializer(self.filter_queryset(self.get_queryset()), many=True)
+#             return Response(serializer.data)
+#         return super().list(request, *args, **kwargs)
 
 
-class GeckoEnergySyncSampleView(generics.ListAPIView):
-    serializer_class = serializers.GeckoEnergySyncSampleSerializer
-    permission_classes = [IsAuthenticated]
-    pagination_class = MediumPagination
+# class GeckoEnergySyncSampleView(generics.ListAPIView):
+#     serializer_class = serializers.GeckoEnergySyncSampleSerializer
+#     permission_classes = [IsAuthenticated]
+#     pagination_class = MediumPagination
 
-    def get_queryset(self):
-        qs = models.GeckoEnergySyncSample.objects.filter(
-            user=self.request.user
-        ).order_by('-created_at')
+#     def get_queryset(self):
+#         qs = models.GeckoEnergySyncSample.objects.filter(
+#             user=self.request.user
+#         ).order_by('-created_at')
 
-        trigger = self.request.query_params.get('trigger')
-        if trigger:
-            qs = qs.filter(trigger=trigger)
+#         trigger = self.request.query_params.get('trigger')
+#         if trigger:
+#             qs = qs.filter(trigger=trigger)
 
-        exclude = self.request.query_params.getlist('exclude_trigger')
-        if exclude:
-            qs = qs.exclude(trigger__in=exclude)
+#         exclude = self.request.query_params.getlist('exclude_trigger')
+#         if exclude:
+#             qs = qs.exclude(trigger__in=exclude)
 
-        since_raw = self.request.query_params.get('since')
-        if since_raw:
-            since_dt = parse_datetime(since_raw)
-            if since_dt is not None:
-                qs = qs.filter(created_at__gte=since_dt)
+#         since_raw = self.request.query_params.get('since')
+#         if since_raw:
+#             since_dt = parse_datetime(since_raw)
+#             if since_dt is not None:
+#                 qs = qs.filter(created_at__gte=since_dt)
 
-        until_raw = self.request.query_params.get('until')
-        if until_raw:
-            until_dt = parse_datetime(until_raw)
-            if until_dt is not None:
-                qs = qs.filter(created_at__lte=until_dt)
+#         until_raw = self.request.query_params.get('until')
+#         if until_raw:
+#             until_dt = parse_datetime(until_raw)
+#             if until_dt is not None:
+#                 qs = qs.filter(created_at__lte=until_dt)
 
-        return qs
+#         return qs
 
-    def list(self, request, *args, **kwargs):
-        if request.query_params.get("nopaginate") == "true":
-            queryset = self.get_queryset()
-            serializer = self.get_serializer(queryset, many=True)
-            return Response(serializer.data)
-        return super().list(request, *args, **kwargs)
+#     def list(self, request, *args, **kwargs):
+#         if request.query_params.get("nopaginate") == "true":
+#             queryset = self.get_queryset()
+#             serializer = self.get_serializer(queryset, many=True)
+#             return Response(serializer.data)
+#         return super().list(request, *args, **kwargs)
 
 
 # class GeckoConfigsView(generics.RetrieveUpdateAPIView):
@@ -701,34 +701,7 @@ class UserProfileDetail(generics.RetrieveUpdateAPIView):
     def get_object(self):
         user_id = self.kwargs['user_id']
         return get_object_or_404(models.UserProfile, user__id=user_id)
-
-class AddPointsView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, *args, **kwargs):
-        serializer = serializers.AddPointsSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        amount = serializer.validated_data['amount']
-        reason = serializer.validated_data['reason']
-
-        with transaction.atomic():
-            models.PointsLedger.objects.create(
-                user=request.user,
-                amount=amount,
-                reason=reason,
-            )
-            models.UserProfile.objects.filter(user=request.user).update(
-                total_points=F('total_points') + amount
-            )
-
-        profile = models.UserProfile.objects.get(user=request.user)
-        return Response(
-            {'total_points': profile.total_points},
-            status=status.HTTP_200_OK
-        )
-
+ 
 
 class GeckoHourlyStepsView(generics.ListAPIView):
     serializer_class = serializers.GeckoHourlyStepsSerializer
@@ -737,12 +710,7 @@ class GeckoHourlyStepsView(generics.ListAPIView):
     def get_queryset(self):
         return models.GeckoHourlySteps.objects.filter(user=self.request.user)
 
-class PointsLedgerView(generics.ListAPIView):
-    serializer_class = serializers.PointsLedgerSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return models.PointsLedger.objects.filter(user=self.request.user)
+ 
     
 class GeckoPointsLedgerView(generics.ListAPIView):
     serializer_class = serializers.GeckoPointsLedgerSerializer

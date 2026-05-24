@@ -119,7 +119,7 @@ Paths are relative to `hellofriend/`. Line numbers drift — treat them as hints
 - `GeckoSleepChangeLog` (`hfroot/users/models.py:1181`) — **orphaned.** As of 2026-05-17 the views/serializers/URLs/admin registration were removed; nothing reads or writes it anywhere (incl. the Rust socket). Only the model definition (`models.py:1181`) and migration `0037` remain. Pending model/migration removal by the model owner.
 - `GeckoEnergyLog` (`hfroot/users/models.py:1155`) — **zombie.** All writes (`.objects.create()` / `.prune_old()` in the old `recompute_energy` body, `models.py:738/824/832`) are commented out, so no new rows are ever recorded. As of 2026-05-17 the read endpoints (`GeckoEnergyLogView`, `GeckoEnergyLogAnalyticsView`), serializers, URL routes, and admin registration were removed. Only the model definition and migration `0043` remain. Pending model/migration removal by the model owner. **FE caveat:** clients calling `gecko/energy-log/` or `gecko/analytics/energy-log/` now 404.
 - `GeckoCombinedData` — fetched alongside `GeckoScoreState` in `_load_initial_state`; separate model, out of scope for this merge but worth noting the consumer already does two `get_or_create` calls side by side.
-- `GeckoEnergySyncSample` — telemetry table, stores snapshots, no FK.
+- `GeckoEnergySyncSample` — **zombie.** Was written by `GeckoEnergyConsumer._write_sync_sample`; as of 2026-05-24 the consumer is commented out (`users/consumers.py:522`), the route is removed (`users/routing.py`), and the views/serializers/URLs/admin/model are commented out. Templates `gecko_analytics.html` / `gecko_analytics_preview.html` will 404. Pending model/migration removal by the model owner.
 - `ScoreRule` (`geckoscripts`) — loaded once per consumer connect, unrelated.
 
 ---

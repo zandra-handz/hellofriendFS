@@ -7,11 +7,10 @@ admin.site.register(models.UserCategory)
 admin.site.register(models.UserAddress)
 admin.site.register(models.UserSettings)
 admin.site.register(models.UserProfile)
-admin.site.register(models.PointsLedger)
-admin.site.register(models.GeckoPointsLedger) 
+admin.site.register(models.GeckoPointsLedger)
 admin.site.register(models.GeckoCombinedSession) 
 admin.site.register(models.GeckoScoreState)
-admin.site.register(models.GeckoEnergySyncSample) #fpr debugging/analytics
+# admin.site.register(models.GeckoEnergySyncSample) #fpr debugging/analytics
 admin.site.register(models.UserFriendCurrentLiveSesh)
 admin.site.register(models.UserFriendLiveSeshInvite)
 admin.site.register(models.UserFriendLiveSeshLog)

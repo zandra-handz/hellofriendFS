@@ -890,7 +890,7 @@ class CapsuleDraft(models.Model):
         with transaction.atomic():
             if is_new:
                 # lock the user row to serialize concurrent draft creates
-                users.BadRainbowzUser.objects.select_for_update().get(pk=self.user_id)
+                users.models.BadRainbowzUser.objects.select_for_update().get(pk=self.user_id)
                 count = CapsuleDraft.objects.filter(user=self.user).count()
                 if count >= 10:
                     raise ValidationError(
