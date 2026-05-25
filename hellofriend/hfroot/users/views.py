@@ -2,9 +2,10 @@ from . import models
 from . import serializers
 from .notifications import notify_user
 import datetime
-import jwt      
+import jwt
 import logging
-import time   
+import time
+import uuid
 
 logger = logging.getLogger(__name__)
 from django.apps import apps
@@ -1717,7 +1718,7 @@ def accept_live_sesh_invite(request, invite_id):
     sender = invite.sender
     recipient = invite.recipient
 
-    from friends.models import Friend
+    from friends.models import Friend, PastMeet
     sender_friend = Friend.objects.filter(
         user=sender, linked_user=recipient,
     ).only('id').first()
@@ -1725,7 +1726,7 @@ def accept_live_sesh_invite(request, invite_id):
     recipient_friend = Friend.objects.filter(
         user=recipient, linked_user=sender,
     ).only('id').first()
- 
+
     existing = models.UserFriendCurrentLiveSesh.objects.filter(
         user_id__in=[sender.id, recipient.id]
     ).only('user_id', 'other_user_id')
@@ -1735,6 +1736,8 @@ def accept_live_sesh_invite(request, invite_id):
             displaced_partner_ids.add(row.other_user_id)
         elif row.user_id == recipient.id and row.other_user_id != sender.id:
             displaced_partner_ids.add(row.other_user_id)
+
+    session_id = uuid.uuid4()
 
     with transaction.atomic():
         invite.accepted_on = now
@@ -1755,6 +1758,7 @@ def accept_live_sesh_invite(request, invite_id):
                 'session_start': now,
                 'expires_at': expires_at,
                 'current_log': None,
+                'session_id': session_id,
             },
         )
 
@@ -1768,8 +1772,29 @@ def accept_live_sesh_invite(request, invite_id):
                 'session_start': now,
                 'expires_at': expires_at,
                 'current_log': host_sesh.current_log,
+                'session_id': session_id,
             },
         )
+
+        # Host (sender) always gets a hello when they have the guest in their
+        # friend list — accepting the invite itself counts as an interaction.
+        # Guest (recipient) only gets one if they have the host friended back.
+        if sender_friend is not None:
+            PastMeet.objects.create(
+                user=sender,
+                friend_id=sender_friend.id,
+                type='gecko game',
+                date=now.date(),
+                session_id=session_id,
+            )
+        if recipient_friend is not None:
+            PastMeet.objects.create(
+                user=recipient,
+                friend_id=recipient_friend.id,
+                type='gecko game',
+                date=now.date(),
+                session_id=session_id,
+            )
 
         displaced_ids_snapshot = tuple(displaced_partner_ids)
 

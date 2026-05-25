@@ -270,6 +270,10 @@ class UserFriendCurrentLiveSesh(models.Model):
     session_start = models.DateTimeField(default=timezone.now)
     expires_at = models.DateTimeField(default=timezone.now)
 
+    # Stamped at accept time; copied onto auto-created UserFriendLiveSeshLog
+    # rows below so all games in this 24hr accept share the same session_id.
+    session_id = models.UUIDField(null=True, blank=True)
+
     # to be chosen by guest when they accept the invite
     gecko_play_mode = models.IntegerField(choices=GeckoPlayMode.choices, default=GeckoPlayMode.DIG)
 
@@ -310,6 +314,7 @@ class UserFriendCurrentLiveSesh(models.Model):
                 guest=self.other_user if self.is_host else self.user,
                 start=self.session_start,
                 end=self.expires_at,
+                session_id=self.session_id,
             )
 
         super().save(*args, **kwargs)
@@ -329,11 +334,16 @@ class UserFriendLiveSeshLog(models.Model):
     start = models.DateTimeField()
     end = models.DateTimeField()
 
+    # Copied from UserFriendCurrentLiveSesh.session_id at log-creation time
+    # (see UserFriendCurrentLiveSesh.save above). Multiple logs share the
+    # same session_id when they belong to the same 24hr accept.
+    session_id = models.UUIDField(null=True, blank=True, db_index=True)
+
     created_on = models.DateTimeField(auto_now_add=True)
     updated_on = models.DateTimeField(auto_now=True)
     class Meta:
         ordering = ['-created_on']
-        
+
     def __str__(self):
         return f"Session hosted by {self.host.username} with {self.guest.username} from {self.start} to {self.end}"
 

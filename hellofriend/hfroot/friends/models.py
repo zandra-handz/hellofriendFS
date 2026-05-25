@@ -1103,6 +1103,7 @@ class PastMeet(models.Model):
         ('in person', 'in person'),
         ('happenstance', 'happenstance'),
         ('unspecified', 'unspecified'),
+        ('gecko game', 'gecko game'),
     ]
 
     id = models.UUIDField(primary_key = True, default = uuid.uuid4, editable = False)
@@ -1125,6 +1126,11 @@ class PastMeet(models.Model):
     )
     updated_on = models.DateTimeField(auto_now=True, null=True, blank=True)
 
+    # Shared id stamped at live-sesh accept time. Same value lives on the
+    # matching UserFriendCurrentLiveSesh and on every UserFriendLiveSeshLog
+    # created during that 24hr accept, so gecko activity is reachable from
+    # the hello via session_id without going through the invite.
+    session_id = models.UUIDField(null=True, blank=True)
 
     # I would like to limit the amount of times this can be viewed per year because I want to demphasize past history
     # HOWEVER this should probably apply to every entry in that friend's archive at once
@@ -1135,7 +1141,8 @@ class PastMeet(models.Model):
         ordering = ('-date', '-created_on',)
         indexes = [
             models.Index(fields=['user', 'friend']), # might remove in future because friend object in this app doesn't exist outside of user
-            models.Index(fields=['friend', '-date']), 
+            models.Index(fields=['friend', '-date']),
+            models.Index(fields=['user', 'session_id']),
         ]
 
         
