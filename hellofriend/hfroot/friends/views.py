@@ -1468,16 +1468,97 @@ class HelloesAll(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        friend_id = self.kwargs['friend_id'] 
+        friend_id = self.kwargs['friend_id']
         return models.PastMeet.objects.filter(user=user, friend_id=friend_id)
-    
+
     def list(self, request, *args, **kwargs):
         if request.query_params.get("nopaginate") == "true":
             queryset = self.get_queryset()
             serializer = self.get_serializer(queryset, many=True)
             return Response(serializer.data)
-        
+
         return super().list(request, *args, **kwargs)
+
+
+class FriendLiveSessionsAll(generics.ListAPIView):
+    """
+    Per-friend live-sesh history for this user. One row per distinct
+    session_id, with per-session aggregates pulled from the log table
+    (a session can contain multiple game logs).
+    """
+    permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'friend_id'
+    pagination_class = MediumPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        friend_id = self.kwargs['friend_id']
+        return (
+            models.PastMeet.objects
+            .filter(user=user, friend_id=friend_id, session_id__isnull=False)
+            .only('id', 'session_id', 'date', 'created_on')
+            .order_by('-created_on')
+        )
+
+    def _build_payload(self, past_meets):
+        from django.db.models import Q, Sum, Count, Case, When, IntegerField, F, Min, Max
+
+        past_meets = list(past_meets)
+        if not past_meets:
+            return []
+
+        user = self.request.user
+        session_ids = [pm.session_id for pm in past_meets]
+
+        log_aggs = (
+            users.models.UserFriendLiveSeshLog.objects
+            .filter(session_id__in=session_ids)
+            .filter(Q(host=user) | Q(guest=user))
+            .values('session_id')
+            .annotate(
+                games_count=Count('id'),
+                my_points=Sum(Case(
+                    When(host=user, then=F('host_points')),
+                    default=F('guest_points'),
+                    output_field=IntegerField(),
+                )),
+                partner_points=Sum(Case(
+                    When(host=user, then=F('guest_points')),
+                    default=F('host_points'),
+                    output_field=IntegerField(),
+                )),
+                first_game_start=Min('start'),
+                last_game_end=Max('end'),
+            )
+        )
+        agg_by_sid = {a['session_id']: a for a in log_aggs}
+
+        return [
+            {
+                'session_id': str(pm.session_id),
+                'hello_id': str(pm.id),
+                'date': pm.date,
+                'created_on': pm.created_on,
+                'games_count': agg_by_sid.get(pm.session_id, {}).get('games_count', 0),
+                'my_points': agg_by_sid.get(pm.session_id, {}).get('my_points') or 0,
+                'partner_points': agg_by_sid.get(pm.session_id, {}).get('partner_points') or 0,
+                'first_game_start': agg_by_sid.get(pm.session_id, {}).get('first_game_start'),
+                'last_game_end': agg_by_sid.get(pm.session_id, {}).get('last_game_end'),
+            }
+            for pm in past_meets
+        ]
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+
+        if request.query_params.get("nopaginate") == "true":
+            return Response(self._build_payload(queryset))
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            return self.get_paginated_response(self._build_payload(page))
+
+        return Response(self._build_payload(queryset))
 class HelloesLightAll(generics.ListAPIView):
     serializer_class = serializers.PastMeetLightSerializer
     permission_classes = [IsAuthenticated]
