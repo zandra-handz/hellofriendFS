@@ -1042,6 +1042,10 @@ class GeckoGameWin(models.Model):
     won_by_matching = models.BooleanField(default=False)  # frozen at write time
     matched_capsule_id = models.UUIDField(null=True, blank=True)
 
+    # Stamped at win-accept time from the FE-supplied session_id (the
+    # accepting user's active UserFriendCurrentLiveSesh.session_id).
+    # Null for wins accepted outside any live sesh.
+    session_id = models.UUIDField(null=True, blank=True, db_index=True)
 
     pinned = models.BooleanField(default=False)
     pin_priority = models.PositiveIntegerField(null=True, blank=True)

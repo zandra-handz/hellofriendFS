@@ -2005,7 +2005,7 @@ class GeckoGameWinPendingDetail(APIView):
         )
 
     
-    def _finalize_locked(self, pending):
+    def _finalize_locked(self, pending, session_id=None):
         from friends.models import Friend, ThoughtCapsulez, GeckoGameType
 
         # Lock the source capsule to prevent a concurrent delete from racing us.
@@ -2042,6 +2042,7 @@ class GeckoGameWinPendingDetail(APIView):
             ).label,
             won_by_matching=False,
             matched_capsule_id=None,
+            session_id=session_id,
         )
  
         deleted_capsule_id = str(source_capsule.id)
@@ -2141,7 +2142,10 @@ class GeckoGameWinPendingDetail(APIView):
                     status=status.HTTP_200_OK,
                 )
 
-            finalize_result = self._finalize_locked(pending)
+            finalize_result = self._finalize_locked(
+                pending,
+                session_id=request.data.get('session_id'),
+            )
 
             if isinstance(finalize_result, Response):
                 return finalize_result
@@ -2383,7 +2387,10 @@ class GeckoGameMatchWinPendingDetail(APIView):
                     status=status.HTTP_200_OK,
                 )
 
-            finalize_result = self._finalize_match_locked(pending)
+            finalize_result = self._finalize_match_locked(
+                pending,
+                session_id=request.data.get('session_id'),
+            )
 
             if finalize_result is not None:
                 return finalize_result
@@ -2415,7 +2422,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                 status=status.HTTP_200_OK,
             )
 
-    def _finalize_match_locked(self, pending):
+    def _finalize_match_locked(self, pending, session_id=None):
         from friends.models import ThoughtCapsulez, Friend, GeckoGameType
 
         locked_capsules = list(
@@ -2463,6 +2470,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
             ).label,
             won_by_matching=True,
             matched_capsule_id=host_capsule.id,
+            session_id=session_id,
         )
 
         models.GeckoGameWin.objects.create(
@@ -2477,6 +2485,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
             ).label,
             won_by_matching=True,
             matched_capsule_id=guest_capsule.id,
+            session_id=session_id,
         )
 
         pending.finalized_on = timezone.now()

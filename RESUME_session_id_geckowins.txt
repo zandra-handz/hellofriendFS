@@ -1,0 +1,145 @@
+RESUME — wiring session_id onto GeckoGameWin + building session detail view
+============================================================================
+
+Context recap
+-------------
+We added `session_id` (UUID) as the connective thread between PastMeet,
+UserFriendCurrentLiveSesh, and UserFriendLiveSeshLog. Generated at
+accept-invite time. Already wired:
+
+  - friends.PastMeet.session_id              (added)
+  - users.UserFriendCurrentLiveSesh.session_id  (added, indexed via OneToOne)
+  - users.UserFriendLiveSeshLog.session_id   (added, db_index=True, copied
+                                             onto log from save() side effect)
+  - accept_live_sesh_invite generates UUID, stamps both live-sesh rows,
+    creates PastMeet(s), and fires:
+      * live_sesh_invite_accepted (host only) — payload includes session_id,
+        friend_id, hello_id
+      * helloes_updated (host and/or guest if their PastMeet was created)
+  - Notification consumer has helloes_updated handler.
+  - FE useNotificationsSocket has been updated in
+    useNotificationsSocket.updated.ts (root of repo). Copy/paste over the
+    existing hook. Delete the staging file after.
+  - Backend endpoint added: GET /friends/<friend_id>/live-sessions/
+    (FriendLiveSessionsAll). Paginated via MediumPagination + ?nopaginate=true
+    escape hatch. Aggregates points from UserFriendLiveSeshPoints (not the
+    dead host_points/guest_points columns on the log).
+
+
+What's left
+-----------
+
+1) BACKEND: Add session_id to GeckoGameWin
+   File: hellofriend/hfroot/users/models.py
+   On class GeckoGameWin, after matched_capsule_id, before `pinned`:
+
+       # Stamped at win-accept time from the FE-supplied session_id (the
+       # accepting user's active UserFriendCurrentLiveSesh.session_id).
+       # Null for wins accepted outside any live sesh.
+       session_id = models.UUIDField(null=True, blank=True, db_index=True)
+
+   User to migrate after.
+
+2) BACKEND: Stamp session_id at the 3 GeckoGameWin.objects.create sites
+   File: hellofriend/hfroot/users/views.py
+
+   Constraint: NO extra DB hits on these paths. session_id comes from
+   request.data (FE supplies it). If FE didn't supply it (no active live
+   sesh), pass None — null is correct.
+
+   Sites:
+     - line ~2033 in _finalize_locked
+       Add `session_id=request.data.get('session_id')` to the create.
+       But _finalize_locked takes `pending`, not `request`. The caller
+       (the view's post/patch method) has request — pass session_id down
+       to _finalize_locked as an arg, then onto the create.
+
+     - line ~2454 in _finalize_match_locked (host's GeckoGameWin)
+     - line ~2468 in _finalize_match_locked (guest's GeckoGameWin)
+       Same treatment — pass session_id down from request handler.
+       NOTE: host and guest share the same session_id (we generate one
+       UUID per accept and stamp both sides). So one session_id value
+       covers both creates here.
+
+   Re-read the surrounding view methods (around line 2300-2400 area for
+   the match flow; around 1970-2052 for the single flow) to find the
+   exact call-site signatures and wire request.data.get('session_id')
+   through cleanly.
+
+3) BACKEND: Verify serializer for accept-invite response exposes session_id
+   File: hellofriend/hfroot/users/serializers.py
+   `UserFriendCurrentLiveSeshSerializer` — confirm session_id is in fields.
+   If not, add it. Guest's accept-invite HTTP response uses this
+   serializer, and the guest needs session_id from the response (no
+   notification goes to them).
+
+4) FRONTEND: Update useNotificationsSocket
+   Copy useNotificationsSocket.updated.ts (repo root) over the existing
+   hook. Delete the staging file.
+
+5) FRONTEND: Capture and store session_id
+   - Host: from `live_sesh_invite_accepted` notification's data.session_id
+   - Guest: from the accept-invite HTTP response (assuming step 3 done)
+
+   Store somewhere accessible to the win-accept hooks (context, ref,
+   query cache, whatever fits the app).
+
+6) FRONTEND: Plumb session_id into win-accept HTTP calls
+   Files to update (at minimum):
+     - useDecideGeckoGameWinPending  (the hook the user shared)
+     - The match-win equivalent (haven't seen it yet — find by grepping
+       for whatever calls the match-finalize endpoint; likely named
+       something like useDecideGeckoGameMatchWinPending)
+     - The API client functions they call (probably in @/src/calls/api)
+
+   Pattern: accept sessionId arg, forward in POST body as
+   `{ session_id: sessionId }`. Pass `null` (not undefined) when no
+   active session.
+
+7) FRONTEND: Add helloes_updated listener
+   Wherever helloes are cached / displayed, register:
+     registerOnHelloesUpdated(({ friend_id }) => {
+       queryClient.invalidateQueries(['helloes', friend_id]);
+     });
+   (Adjust key to match the actual query key shape.)
+
+8) BACKEND: Build session detail endpoint
+   Once session_id is on GeckoGameWin:
+     GET /friends/<friend_id>/live-sessions/<uuid:session_id>/
+   Returns for that session:
+     - PastMeet metadata
+     - All UserFriendLiveSeshLog rows (with start/end)
+     - Per-side UserFriendLiveSeshPoints totals
+     - GeckoCombinedSession aggregates (steps/distance/points per game)
+     - GeckoGameWin rows where session_id matches (NEW — both this user's
+       wins AND wins by the partner from this user, for a complete picture)
+     - Optionally: GeckoPointsLedger entries via combined_session join
+   Verify user is one of the participants before returning.
+
+9) BACKLOG / NICE-TO-HAVE
+   - Add session_id to GeckoGameMatchWinPending if you ever want pending
+     match-wins attributed to a session pre-finalize (e.g., for a "wins
+     in progress this session" UI). Not required for the detail view.
+   - Schema cleanup: drop the dead host_points/guest_points columns on
+     UserFriendLiveSeshLog and remove them from the serializer at
+     users/serializers.py:846. Real points are in
+     UserFriendLiveSeshPoints.
+   - Backfill management command for historical data (only if you want
+     pre-feature logs grouped into sessions). Earlier we agreed: skip
+     unless concrete need.
+
+
+Files to delete after merge
+---------------------------
+  - useNotificationsSocket.updated.ts  (staging file, root of repo)
+  - RESUME_session_id_geckowins.txt    (this file)
+
+
+Key models to remember
+----------------------
+  - Same session_id on host's and guest's UserFriendCurrentLiveSesh.
+  - UserFriendLiveSeshLog has session_id; logs in one 24hr accept share it.
+  - UserFriendLiveSeshPoints is the real points source (per sesh_log, per user).
+  - GeckoCombinedSession.live_sesh_log -> UserFriendLiveSeshLog.session_id
+    (transitive reach).
+  - GeckoGameWin currently has no session link — that's what step 1-2 fix.

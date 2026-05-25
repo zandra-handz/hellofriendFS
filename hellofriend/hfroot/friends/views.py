@@ -1572,6 +1572,145 @@ class FriendLiveSessionsAll(generics.ListAPIView):
             return self.get_paginated_response(self._build_payload(page))
 
         return Response(self._build_payload(queryset))
+
+
+class FriendLiveSessionDetail(APIView):
+    """
+    Detail view for a single live-sesh session, scoped to this user and
+    this friend. Returns hello metadata, per-game logs with side points,
+    GeckoCombinedSession stats, and any GeckoGameWin rows tied to the
+    session (both this user's wins and wins they gave to the partner).
+
+    404s if the user has no PastMeet for (friend_id, session_id) — that's
+    the participation check.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, friend_id, session_id):
+        from django.db.models import Q
+
+        user = request.user
+
+        past_meet = (
+            models.PastMeet.objects
+            .filter(user=user, friend_id=friend_id, session_id=session_id)
+            .only('id', 'session_id', 'date', 'created_on', 'type', 'additional_notes')
+            .first()
+        )
+        if past_meet is None:
+            return Response(
+                {'detail': 'session not found for this user/friend'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Per-game logs in this session. Logs are shared across both
+        # users (one row per game), so no host/guest filter — but we
+        # do scope to the user being either side for safety.
+        logs = list(
+            users.models.UserFriendLiveSeshLog.objects
+            .filter(session_id=session_id)
+            .filter(Q(host=user) | Q(guest=user))
+            .only('id', 'host_id', 'guest_id', 'start', 'end', 'created_on')
+            .order_by('start')
+        )
+        log_ids = [log.id for log in logs]
+
+        # All side points across these logs in one query.
+        side_points_rows = (
+            users.models.UserFriendLiveSeshPoints.objects
+            .filter(sesh_log_id__in=log_ids)
+            .values('sesh_log_id', 'user_id', 'points', 'steps', 'distance')
+        )
+        side_points_by_log = {}
+        for row in side_points_rows:
+            side_points_by_log.setdefault(row['sesh_log_id'], []).append({
+                'user_id': row['user_id'],
+                'is_me': row['user_id'] == user.id,
+                'points': row['points'],
+                'steps': row['steps'],
+                'distance': row['distance'],
+            })
+
+        # This user's GeckoCombinedSession rows for these logs (per-game
+        # gecko activity). Partner's combined-sessions are theirs to
+        # return on their own request.
+        combined_rows = list(
+            users.models.GeckoCombinedSession.objects
+            .filter(live_sesh_log_id__in=log_ids, user=user)
+            .values(
+                'id', 'live_sesh_log_id', 'points_earned', 'steps',
+                'distance', 'started_on', 'ended_on',
+            )
+        )
+        combined_by_log = {c['live_sesh_log_id']: c for c in combined_rows}
+
+        games = [
+            {
+                'log_id': log.id,
+                'host_id': log.host_id,
+                'guest_id': log.guest_id,
+                'start': log.start,
+                'end': log.end,
+                'created_on': log.created_on,
+                'side_points': side_points_by_log.get(log.id, []),
+                'my_combined': combined_by_log.get(log.id),
+            }
+            for log in logs
+        ]
+
+        # Wins tied to this session — both ways:
+        #   wins_received: this user won these capsules (from partner)
+        #   wins_given:    this user accepted partner's wins (partner won
+        #                  these from this user) — for match flow, each
+        #                  finalize creates two rows
+        win_rows = list(
+            users.models.GeckoGameWin.objects
+            .filter(session_id=session_id)
+            .filter(Q(user=user) | Q(user_won_from=user))
+            .only(
+                'id', 'user_id', 'user_won_from_id', 'friend_id',
+                'original_capsule_id', 'capsule', 'gecko_game_type',
+                'gecko_game_type_label', 'won_by_matching',
+                'matched_capsule_id', 'created_on',
+            )
+            .order_by('-created_on')
+        )
+        wins_received = []
+        wins_given = []
+        for w in win_rows:
+            payload = {
+                'id': w.id,
+                'user_id': w.user_id,
+                'user_won_from_id': w.user_won_from_id,
+                'friend_id': w.friend_id,
+                'original_capsule_id': str(w.original_capsule_id) if w.original_capsule_id else None,
+                'capsule': w.capsule,
+                'gecko_game_type': w.gecko_game_type,
+                'gecko_game_type_label': w.gecko_game_type_label,
+                'won_by_matching': w.won_by_matching,
+                'matched_capsule_id': str(w.matched_capsule_id) if w.matched_capsule_id else None,
+                'created_on': w.created_on,
+            }
+            if w.user_id == user.id:
+                wins_received.append(payload)
+            else:
+                wins_given.append(payload)
+
+        return Response({
+            'session_id': str(session_id),
+            'hello': {
+                'id': str(past_meet.id),
+                'date': past_meet.date,
+                'created_on': past_meet.created_on,
+                'type': past_meet.type,
+                'additional_notes': past_meet.additional_notes,
+            },
+            'games': games,
+            'wins_received': wins_received,
+            'wins_given': wins_given,
+        })
+
+
 class HelloesLightAll(generics.ListAPIView):
     serializer_class = serializers.PastMeetLightSerializer
     permission_classes = [IsAuthenticated]

@@ -61,6 +61,7 @@ urlpatterns = [
     path('<int:friend_id>/helloes/add/', views.HelloCreate.as_view()),
     path('<int:friend_id>/helloes/<uuid:pk>/', views.HelloDetail.as_view()),
     path('<int:friend_id>/live-sessions/', views.FriendLiveSessionsAll.as_view(), name='friend-live-sessions'),
+    path('<int:friend_id>/live-sessions/<uuid:session_id>/', views.FriendLiveSessionDetail.as_view(), name='friend-live-session-detail'),
     path('places/', views.consider_the_drive, name='consider-the-drive'),
     path('places/near-midpoint/', views.consider_midpoint_locations, name='consider-midpoint-locations'),
     path('places/get-details/', views.place_details, name='get_nearby_places'),
