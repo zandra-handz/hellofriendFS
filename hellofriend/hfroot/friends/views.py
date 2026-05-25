@@ -1510,6 +1510,7 @@ class FriendLiveSessionsAll(generics.ListAPIView):
         user = self.request.user
         session_ids = [pm.session_id for pm in past_meets]
 
+        # Game count + duration come from the log rows.
         log_aggs = (
             users.models.UserFriendLiveSeshLog.objects
             .filter(session_id__in=session_ids)
@@ -1517,21 +1518,33 @@ class FriendLiveSessionsAll(generics.ListAPIView):
             .values('session_id')
             .annotate(
                 games_count=Count('id'),
-                my_points=Sum(Case(
-                    When(host=user, then=F('host_points')),
-                    default=F('guest_points'),
-                    output_field=IntegerField(),
-                )),
-                partner_points=Sum(Case(
-                    When(host=user, then=F('guest_points')),
-                    default=F('host_points'),
-                    output_field=IntegerField(),
-                )),
                 first_game_start=Min('start'),
                 last_game_end=Max('end'),
             )
         )
-        agg_by_sid = {a['session_id']: a for a in log_aggs}
+        log_by_sid = {a['session_id']: a for a in log_aggs}
+
+        # Actual points live in UserFriendLiveSeshPoints (per sesh_log,
+        # per user). Sum across all logs in each session, split by
+        # whether the row belongs to the current user or the partner.
+        point_aggs = (
+            users.models.UserFriendLiveSeshPoints.objects
+            .filter(sesh_log__session_id__in=session_ids)
+            .values('sesh_log__session_id')
+            .annotate(
+                my_points=Sum(Case(
+                    When(user=user, then=F('points')),
+                    default=0,
+                    output_field=IntegerField(),
+                )),
+                partner_points=Sum(Case(
+                    When(user=user, then=0),
+                    default=F('points'),
+                    output_field=IntegerField(),
+                )),
+            )
+        )
+        points_by_sid = {a['sesh_log__session_id']: a for a in point_aggs}
 
         return [
             {
@@ -1539,11 +1552,11 @@ class FriendLiveSessionsAll(generics.ListAPIView):
                 'hello_id': str(pm.id),
                 'date': pm.date,
                 'created_on': pm.created_on,
-                'games_count': agg_by_sid.get(pm.session_id, {}).get('games_count', 0),
-                'my_points': agg_by_sid.get(pm.session_id, {}).get('my_points') or 0,
-                'partner_points': agg_by_sid.get(pm.session_id, {}).get('partner_points') or 0,
-                'first_game_start': agg_by_sid.get(pm.session_id, {}).get('first_game_start'),
-                'last_game_end': agg_by_sid.get(pm.session_id, {}).get('last_game_end'),
+                'games_count': log_by_sid.get(pm.session_id, {}).get('games_count', 0),
+                'my_points': points_by_sid.get(pm.session_id, {}).get('my_points') or 0,
+                'partner_points': points_by_sid.get(pm.session_id, {}).get('partner_points') or 0,
+                'first_game_start': log_by_sid.get(pm.session_id, {}).get('first_game_start'),
+                'last_game_end': log_by_sid.get(pm.session_id, {}).get('last_game_end'),
             }
             for pm in past_meets
         ]
