@@ -1,6 +1,6 @@
 from . import models
 from . import serializers
-from .notifications import notify_user
+from .notifications import notify_user, notify_helloes_updated
 import datetime
 import jwt
 import logging
@@ -1779,8 +1779,10 @@ def accept_live_sesh_invite(request, invite_id):
         # Host (sender) always gets a hello when they have the guest in their
         # friend list — accepting the invite itself counts as an interaction.
         # Guest (recipient) only gets one if they have the host friended back.
+        sender_pastmeet = None
+        recipient_pastmeet = None
         if sender_friend is not None:
-            PastMeet.objects.create(
+            sender_pastmeet = PastMeet.objects.create(
                 user=sender,
                 friend_id=sender_friend.id,
                 type='gecko game',
@@ -1788,7 +1790,7 @@ def accept_live_sesh_invite(request, invite_id):
                 session_id=session_id,
             )
         if recipient_friend is not None:
-            PastMeet.objects.create(
+            recipient_pastmeet = PastMeet.objects.create(
                 user=recipient,
                 friend_id=recipient_friend.id,
                 type='gecko game',
@@ -1815,7 +1817,15 @@ def accept_live_sesh_invite(request, invite_id):
                 'accepted_by_username': recipient.username,
                 'session_start': now.isoformat(),
                 'expires_at': expires_at.isoformat(),
+                'session_id': str(session_id),
+                'friend_id': sender_friend.id if sender_friend else None,
+                'hello_id': str(sender_pastmeet.id) if sender_pastmeet else None,
             })
+
+            if sender_pastmeet is not None:
+                notify_helloes_updated(sender.id, sender_friend.id)
+            if recipient_pastmeet is not None:
+                notify_helloes_updated(recipient.id, recipient_friend.id)
 
         transaction.on_commit(_send_side_effects)
 

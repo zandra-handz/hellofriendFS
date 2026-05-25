@@ -24,3 +24,11 @@ def notify_user(user_id, event_type, payload=None):
             'data': payload or {},
         },
     )
+
+
+def notify_helloes_updated(user_id, friend_id):
+    """
+    Tell the FE that this user's PastMeets for `friend_id` changed
+    (created or updated). FE refetches the friend's hello list.
+    """
+    notify_user(user_id, 'helloes_updated', {'friend_id': friend_id})

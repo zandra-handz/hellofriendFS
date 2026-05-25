@@ -53,3 +53,9 @@ class NotificationsConsumer(AsyncWebsocketConsumer):
             'action': 'live_sesh_ended',
             'data': event.get('data', {}),
         }))
+
+    async def helloes_updated(self, event):
+        await self.send(text_data=json.dumps({
+            'action': 'helloes_updated',
+            'data': event.get('data', {}),
+        }))
