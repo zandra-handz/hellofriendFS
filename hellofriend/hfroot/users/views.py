@@ -479,9 +479,8 @@ class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
-        obj, _ = models.GeckoScoreState.objects.get_or_create(user=self.request.user)
         # obj.recompute_energy()
-        return obj
+        return models.GeckoScoreState.objects.get(user=self.request.user)
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -671,8 +670,7 @@ class GeckoScoreStateConfigsView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
-        obj, _ = models.GeckoScoreState.objects.get_or_create(user=self.request.user)
-        return obj
+        return models.GeckoScoreState.objects.get(user=self.request.user)
 
     # not doing anything?
     def get_serializer_context(self):
@@ -728,6 +726,23 @@ class GeckoPointsLedgerView(generics.ListAPIView):
 
     def get_queryset(self):
         return models.GeckoPointsLedger.objects.filter(user=self.request.user)
+
+
+class GeckoPointsLedgerForFriendView(generics.ListAPIView):
+    """
+    Ledger rows scoped to a single friend. Picks up every award_event_points
+    or process_gecko_data write that carried friend_id (hellos, gecko sessions
+    with that friend, etc.).
+    """
+    serializer_class = serializers.GeckoPointsLedgerSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = MediumPagination
+
+    def get_queryset(self):
+        return models.GeckoPointsLedger.objects.filter(
+            user=self.request.user,
+            friend_id=self.kwargs['friend_id'],
+        )
 
 
     def list(self, request, *args, **kwargs):
@@ -1787,6 +1802,7 @@ def accept_live_sesh_invite(request, invite_id):
         # Host (sender) always gets a hello when they have the guest in their
         # friend list — accepting the invite itself counts as an interaction.
         # Guest (recipient) only gets one if they have the host friended back.
+        from .event_award_helpers import award_event_points, HELLO_CREATED_CODE
         sender_pastmeet = None
         recipient_pastmeet = None
         if sender_friend is not None:
@@ -1797,6 +1813,12 @@ def accept_live_sesh_invite(request, invite_id):
                 date=now.date(),
                 session_id=session_id,
             )
+            award_event_points(
+                sender,
+                code=HELLO_CREATED_CODE,
+                past_meet=sender_pastmeet,
+                friend_id=sender_friend.id,
+            )
         if recipient_friend is not None:
             recipient_pastmeet = PastMeet.objects.create(
                 user=recipient,
@@ -1804,6 +1826,12 @@ def accept_live_sesh_invite(request, invite_id):
                 type='gecko game',
                 date=now.date(),
                 session_id=session_id,
+            )
+            award_event_points(
+                recipient,
+                code=HELLO_CREATED_CODE,
+                past_meet=recipient_pastmeet,
+                friend_id=recipient_friend.id,
             )
 
         displaced_ids_snapshot = tuple(displaced_partner_ids)

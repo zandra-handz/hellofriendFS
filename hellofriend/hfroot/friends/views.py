@@ -1815,29 +1815,44 @@ class HelloCreate(generics.ListCreateAPIView):
         return models.PastMeet.objects.filter(user=user, friend_id=friend_id)
 
     def perform_create(self, serializer):
+        from users.event_award_helpers import award_event_points, HELLO_CREATED_CODE
+
         user = self.request.user
         friend_id = self.kwargs['friend_id']
         now = timezone.now()
- 
+
         try:
             sesh = users.models.UserFriendCurrentLiveSesh.objects.get(user=user)
         except users.models.UserFriendCurrentLiveSesh.DoesNotExist:
             sesh = None
 
         if sesh and sesh.expires_at > now:
-            
+
             partner_id = sesh.other_user_id
             with transaction.atomic():
                 users.models.UserFriendCurrentLiveSesh.objects.filter(
                     user_id__in=[user.id, partner_id],
                 ).update(expires_at=now)
                 self.instance = serializer.save(user=user, friend_id=friend_id)
+                award_event_points(
+                    user,
+                    code=HELLO_CREATED_CODE,
+                    past_meet=self.instance,
+                    friend_id=friend_id,
+                )
 
             from users import sesh_cache
             sesh_cache.invalidate(user.id, partner_id)
-             
+
         else:
-            self.instance = serializer.save(user=user, friend_id=friend_id)
+            with transaction.atomic():
+                self.instance = serializer.save(user=user, friend_id=friend_id)
+                award_event_points(
+                    user,
+                    code=HELLO_CREATED_CODE,
+                    past_meet=self.instance,
+                    friend_id=friend_id,
+                )
 
  
 

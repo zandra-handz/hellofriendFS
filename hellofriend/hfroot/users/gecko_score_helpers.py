@@ -502,7 +502,7 @@ def apply_gecko_data_update(user, friend_id, payload: Dict[str, Any]) -> Dict[st
     from .gecko_helpers import process_gecko_data
     from . import score_state_cache
 
-    obj, _ = GeckoScoreState.objects.get_or_create(user=user)
+    obj = GeckoScoreState.objects.get(user=user)
     # obj.recompute_energy()
 
     score_state = _score_state_dict_from_obj(obj)
@@ -650,7 +650,7 @@ def award_requested_points(user, friend_id, payload: Dict[str, Any]) -> Dict[str
             cached["multiplier"] if streak_active else cached["base_multiplier"]
         )
     else:
-        obj, _ = GeckoScoreState.objects.get_or_create(user=user)
+        obj = GeckoScoreState.objects.get(user=user)
         ss = _score_state_dict_from_obj(obj)
         streak_expires_at = ss.get("expires_at")
         applied_multiplier = (

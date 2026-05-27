@@ -689,7 +689,11 @@ class PasswordResetSerializer(serializers.Serializer):
 class GeckoPointsLedgerSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.GeckoPointsLedger
-        fields = ['id', 'friend', 'amount', 'reason', 'timestamp_earned', 'updated_on', 'created_on']
+        fields = [
+            'id', 'friend', 'amount', 'reason', 'code',
+            'past_meet',
+            'timestamp_earned', 'updated_on', 'created_on',
+        ]
 
 
 class AddGeckoPointsSerializer(serializers.Serializer):

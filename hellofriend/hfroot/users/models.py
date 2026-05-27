@@ -1163,7 +1163,15 @@ class GeckoPointsLedger(models.Model):
         blank=True,
         related_name='points_ledger_entries'
     )
-    
+    past_meet = models.ForeignKey(
+        'friends.PastMeet',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='gecko_points_awarded',
+        db_index=True,
+    )
+
     amount = models.IntegerField()
     reason = models.CharField(max_length=100, blank=True)
     code = models.PositiveIntegerField(null=True, blank=True)
