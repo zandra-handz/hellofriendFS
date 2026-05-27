@@ -1,2 +1,3 @@
 python manage.py create_score_rule --code 1 --label "GECKO_READ_ALL_NOTES" --points 1
 python manage.py create_score_rule --code 2 --label "CATEGORY_MATCHES_PREVIOUS" --points 2
+python manage.py create_score_rule --code 3 --label "HELLO_CREATED" --points 5
