@@ -164,6 +164,7 @@ class BadRainbowzUser(AbstractUser):
             with transaction.atomic():
                 UserProfile.objects.create(user=self)
                 UserSettings.objects.create(user=self)
+                UserLifetimeTotals.objects.create(user=self)
                 GeckoScoreState.objects.create(user=self) 
                 FriendLinkCode.objects.create(
                     user=self,
@@ -678,6 +679,18 @@ class GeckoHourlySteps(models.Model):
 # keep friend data here so we can use one model for both
 
 
+class UserLifetimeTotals(models.Model):
+    user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='lifetime_totals')
+     
+    total_steps = models.PositiveIntegerField(default=0)
+    total_distance = models.PositiveIntegerField(default=0)
+    total_duration = models.PositiveIntegerField(default=0)
+    total_gecko_points = models.PositiveIntegerField(default=0)
+
+
+    created_on = models.DateTimeField(auto_now_add=True)
+    updated_on = models.DateTimeField(auto_now=True)
+
 
 class GeckoScoreState(models.Model):
     user = models.OneToOneField(get_user_model(), on_delete=models.CASCADE, related_name='geckoscorestate')
@@ -1136,80 +1149,6 @@ class GeckoGameWin(models.Model):
             win_for_b = _archive(winner_capsule=capsule_b, source_capsule=capsule_a)
             return (win_for_a, win_for_b)
 
-
-# class GeckoEnergySyncSample(models.Model):
-#     user = models.ForeignKey(
-#         get_user_model(),
-#         on_delete=models.CASCADE,
-#         related_name='energy_sync_samples',
-#     )
-#     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
-
-#     # What triggered this recompute
-#     trigger = models.CharField(max_length=32)
-#     # 'update_gecko_data' | 'get_score_state' | 'flush' | 'connect'
-
-#     # ---- Frontend's claim (only present on update_gecko_data) ----
-#     client_energy = models.FloatField(null=True, blank=True)
-#     client_surplus = models.FloatField(null=True, blank=True)
-#     client_multiplier = models.FloatField(null=True, blank=True)
-#     client_computed_at = models.DateTimeField(null=True, blank=True)
-#     client_steps_in_payload = models.IntegerField(null=True, blank=True)
-#     client_distance_in_payload = models.FloatField(null=True, blank=True)
-#     client_started_on = models.DateTimeField(null=True, blank=True)
-#     client_ended_on = models.DateTimeField(null=True, blank=True)
-#     client_fatigue = models.FloatField(null=True, blank=True)
-#     client_recharge = models.FloatField(null=True, blank=True)
-
-#     # ---- Backend state, snapshotted before + after recompute ----
-#     server_energy_before = models.FloatField()
-#     server_energy_after = models.FloatField()
-#     server_surplus_before = models.FloatField()
-#     server_surplus_after = models.FloatField()
-#     server_updated_at_before = models.DateTimeField()
-#     server_updated_at_after = models.DateTimeField()
-
-#     # ---- The recompute's own view of this window ----
-#     # What _recompute_energy_in_memory thought happened.
-#     # These are the numbers the bug corrupts.
-#     recompute_window_seconds = models.FloatField()      # `elapsed`
-#     recompute_active_seconds = models.FloatField()      # sum of clamped slices
-#     recompute_new_steps = models.IntegerField()         # the buggy accumulator
-#     recompute_fatigue = models.FloatField()
-#     recompute_recharge = models.FloatField()
-#     recompute_net = models.FloatField()
-
-#     # ---- pending_data state at the moment of recompute ----
-#     # These are the bug-confirmation fields.
-#     pending_entries_count = models.IntegerField()
-#     pending_entries_in_window = models.IntegerField()   # had end > start
-#     pending_entries_stale = models.IntegerField()       # ended <= energy_updated_at
-#     pending_total_steps_all = models.IntegerField()     # sum across ALL entries
-#     pending_total_steps_in_window = models.IntegerField()  # only fresh ones
-
-#     # ---- Derived deltas (computed in the helper, stored for easy querying) ----
-#     energy_delta = models.FloatField(null=True, blank=True, db_index=True)
-#     # client_energy - server_energy_after
-
-#     phantom_steps = models.IntegerField(null=True, blank=True, db_index=True)
-#     # recompute_new_steps - pending_total_steps_in_window
-#     # > 0 means the bug just fired
-
-#     # ---- Context for filtering outliers ----
-#     multiplier_active = models.BooleanField(default=False)
-#     streak_expires_at = models.DateTimeField(null=True, blank=True)
-
-#     # Consumer-side running tally of all-time steps at the moment of recompute.
-#     # Seeded from GeckoCombinedData.total_steps on connect and incremented per
-#     # update payload. Nullable so older rows remain valid.
-#     total_steps_all_time = models.PositiveIntegerField(null=True, blank=True)
-
-#     class Meta:
-#         indexes = [
-#             models.Index(fields=['user', '-created_at']),
-#             models.Index(fields=['-phantom_steps']),
-#         ]
-#         ordering = ['-id']
  
 
 

@@ -63,6 +63,21 @@ class GeckoHourlyStepsSerializer(serializers.ModelSerializer):
         model = models.GeckoHourlySteps
         fields = ['user', 'hour', 'steps', 'distance', 'points', 'updated_at']
 
+class UserLifetimeTotalsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.UserLifetimeTotals
+        fields = [
+            'user',
+            'total_steps',
+            'total_distance',
+            'total_duration',
+            'total_gecko_points',
+            'created_on',
+            'updated_on',
+        ]
+        read_only_fields = fields
+
+
 class GeckoScoreStateSerializer(serializers.ModelSerializer):
     recharge_per_second = serializers.SerializerMethodField()
     streak_recharge_per_second = serializers.SerializerMethodField()

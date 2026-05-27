@@ -36,6 +36,7 @@ urlpatterns = [
     path('address/<int:pk>/', views.UserAddressDetail.as_view()),
 
 
+    path('lifetime-totals/', views.UserLifetimeTotalsView.as_view(), name='user-lifetime-totals'),
     path('gecko/score-state/', views.GeckoScoreStateView.as_view(), name='gecko-score-state'),
     path('gecko/score-state/configs/', views.GeckoScoreStateConfigsView.as_view(), name='gecko-score-state-configs'),
     path('gecko/configs/choices/', views.gecko_config_choices, name='gecko-config-choices'),

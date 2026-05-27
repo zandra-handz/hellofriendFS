@@ -1,0 +1,91 @@
+ENSURE COMMANDS — user signup row backfill
+============================================
+
+Purpose
+-------
+When a new BadRainbowzUser is created, User.save() (users/models.py:163-178)
+creates a row in several related tables. If any of those rows ever go missing
+(env imported without signup flow, model added after some users existed,
+signup transaction partially failed, etc.), the app breaks in subtle ways
+because hot-path code assumes the row exists.
+
+These commands idempotently create the missing rows so every user has the
+full set. Safe to run any time; safe to re-run.
+
+How to run
+----------
+All commands run from `hellofriend/hfroot/`:
+
+    python manage.py <command_name>
+
+No arguments. Each prints a count of rows created.
+
+
+Commands
+--------
+
+ensure_user_profile
+    Creates UserProfile for any user missing one.
+
+ensure_user_settings
+    Creates UserSettings for any user missing one.
+
+ensure_user_lifetime_totals
+    Creates UserLifetimeTotals for any user missing one. This is the row that
+    holds all-time totals (total_steps, total_distance, total_duration,
+    total_gecko_points). Hot-path writers assume it exists — running this
+    after introducing the model is required.
+
+ensure_gecko_game_win_pending
+    Creates GeckoGameWinPending for any user missing one.
+
+ensure_grab_bag_category
+    Creates the default UserCategory(name='Grab bag', is_deletable=False)
+    for any user missing it. Existence check is scoped to this exact
+    category — users with other categories but no Grab bag still get one.
+
+ensure_friend_link_code
+    Creates FriendLinkCode for any user missing one. Each row needs a unique
+    code (generated via FriendLinkCode.generate_code()), so this command
+    inserts row-by-row instead of bulk. expires_at is set to "now" to mirror
+    the User.save() behavior — the user regenerates a fresh code via the
+    normal flow when they need one.
+
+Note: GeckoScoreState is covered by the existing `create_gecko_score_state`
+command, not an ensure_* command.
+
+
+When to run
+-----------
+- After adding a new model to the User.save() block (run the matching
+  ensure_* command once against the existing user base).
+- After importing a database dump that predates one of these models.
+- As a safety sweep before/after a deploy that touches signup flow.
+- During incident response if a row is suspected missing.
+
+
+Performance
+-----------
+All commands except ensure_friend_link_code use a single SELECT (existing
+user_ids) + a single bulk_create for the missing rows. Cost scales with the
+number of *missing* rows, not the total user count. Safe to leave in a
+post-deploy hook.
+
+ensure_friend_link_code does N single-row inserts because of the unique
+code-generation requirement; still O(missing), not O(users).
+
+
+Suggested usage pattern
+-----------------------
+Run all six in sequence after any signup-related schema change:
+
+    python manage.py ensure_user_profile
+    python manage.py ensure_user_settings
+    python manage.py ensure_user_lifetime_totals
+    python manage.py ensure_gecko_game_win_pending
+    python manage.py ensure_grab_bag_category
+    python manage.py ensure_friend_link_code
+    python manage.py create_gecko_score_state
+
+(An umbrella `ensure_user_signup_rows` command that calls all of these in
+one shot would make this a one-liner — not added yet.)

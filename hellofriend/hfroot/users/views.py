@@ -466,6 +466,15 @@ class GeckoCombinedDataSessionsTimeRange(generics.ListAPIView):
         serializer = self.get_serializer(queryset, many=True)
         return Response({'results': serializer.data, 'totals': totals})
 
+class UserLifetimeTotalsView(generics.RetrieveAPIView):
+    serializer_class = serializers.UserLifetimeTotalsSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        obj, _ = models.UserLifetimeTotals.objects.get_or_create(user=self.request.user)
+        return obj
+
+
 class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
     serializer_class = serializers.GeckoScoreStateSerializer
     permission_classes = [IsAuthenticated]
