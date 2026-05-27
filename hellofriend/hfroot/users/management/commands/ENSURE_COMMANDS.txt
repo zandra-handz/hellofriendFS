@@ -55,6 +55,59 @@ Note: GeckoScoreState is covered by the existing `create_gecko_score_state`
 command, not an ensure_* command.
 
 
+Audit command (read-only diagnostic)
+------------------------------------
+audit_user_signup_rows
+    Reports which users are missing any of the rows that User.save() is
+    supposed to create. Read-only — does not write anything. Run this
+    FIRST to see what (if anything) is broken before running the
+    ensure_* / backfill_* commands.
+
+        python manage.py audit_user_signup_rows             # summary counts
+        python manage.py audit_user_signup_rows --verbose   # also prints offending user_ids
+
+    Sample output:
+
+        Auditing 47 users...
+          UserProfile: OK
+          UserSettings: OK
+          UserLifetimeTotals: OK
+          GeckoScoreState: OK
+          FriendLinkCode: 2 missing
+          GeckoGameWinPending: OK
+          UserCategory(Grab bag): OK
+
+    If anything shows missing, run the matching ensure_* command (or
+    backfill_user_lifetime_totals for the lifetime totals, which also
+    copies real values, not just zeros). Re-run audit_user_signup_rows
+    afterward to confirm everything is OK.
+
+
+Backfill commands (copy real values, not just create empty rows)
+----------------------------------------------------------------
+The `ensure_*` commands create rows with default (zero) values. To populate
+actual historical totals, use a backfill command after running ensure.
+
+backfill_user_lifetime_totals
+    Copies total_steps/distance/duration/total_gecko_points from
+    GeckoScoreState onto UserLifetimeTotals. Creates rows for users missing
+    one (so you can skip ensure_user_lifetime_totals if you run this), updates
+    rows where values differ, skips rows already in sync. Idempotent.
+
+        python manage.py backfill_user_lifetime_totals --dry-run   # preview
+        python manage.py backfill_user_lifetime_totals             # apply
+
+    Run this NOW (after deploying UserLifetimeTotals) and again RIGHT BEFORE
+    switching process_gecko_data to write to UserLifetimeTotals instead of
+    GeckoScoreState — that gives the new code path a perfectly synced
+    starting snapshot.
+
+backfill_score_state_totals (pre-existing)
+    Copies the same four totals from GeckoCombinedData onto GeckoScoreState.
+    Legacy migration helper from when the totals lived on GeckoCombinedData.
+    Probably no longer needed in normal operation.
+
+
 When to run
 -----------
 - After adding a new model to the User.save() block (run the matching
@@ -77,7 +130,12 @@ code-generation requirement; still O(missing), not O(users).
 
 Suggested usage pattern
 -----------------------
-Run all six in sequence after any signup-related schema change:
+Start with the audit to see what's actually missing:
+
+    python manage.py audit_user_signup_rows
+
+Then run the relevant ensure_* commands. Or, after any signup-related
+schema change, just run all of them in sequence — they're idempotent:
 
     python manage.py ensure_user_profile
     python manage.py ensure_user_settings
@@ -86,6 +144,10 @@ Run all six in sequence after any signup-related schema change:
     python manage.py ensure_grab_bag_category
     python manage.py ensure_friend_link_code
     python manage.py create_gecko_score_state
+
+Then backfill real values (currently only UserLifetimeTotals needs this):
+
+    python manage.py backfill_user_lifetime_totals
 
 (An umbrella `ensure_user_signup_rows` command that calls all of these in
 one shot would make this a one-liner — not added yet.)

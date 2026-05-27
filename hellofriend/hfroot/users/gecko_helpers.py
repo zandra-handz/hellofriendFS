@@ -383,26 +383,30 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
             user.id, friend_id, updated_rows,
         )
 
-        combined_data_update = {
-            'total_steps': F('total_steps') + delta_steps,
-            'total_distance': F('total_distance') + delta_distance,
-            'total_duration': F('total_duration') + delta_duration,
-        }
+        # Lifetime totals live on UserLifetimeTotals (split off GeckoScoreState
+        # to keep hot streak/energy writes off the same row as monotonic
+        # counter writes). Only build + run the UPDATE if there's something
+        # to bump — pure point awards with no steps/distance/duration AND no
+        # points (rare but possible) skip the write entirely.
+        totals_update = {}
+        if delta_steps:
+            totals_update['total_steps'] = F('total_steps') + delta_steps
+        if delta_distance:
+            totals_update['total_distance'] = F('total_distance') + delta_distance
+        if delta_duration:
+            totals_update['total_duration'] = F('total_duration') + delta_duration
         if total_points:
-            combined_data_update['total_gecko_points'] = F('total_gecko_points') + total_points
+            totals_update['total_gecko_points'] = F('total_gecko_points') + total_points
 
-        # combined_rows = users_models.GeckoCombinedData.objects.filter(
-        #     user=user
-        # ).update(**combined_data_update)
+        if totals_update:
+            totals_rows = users_models.UserLifetimeTotals.objects.filter(
+                user=user,
+            ).update(**totals_update)
 
-        score_rows = users_models.GeckoScoreState.objects.filter(
-            user=user
-        ).update(**combined_data_update)
-
-        logger.debug(
-            '[process_gecko_data] GeckoScoreState update user=%s score_rows=%s',
-            user.id, score_rows,
-        )
+            logger.debug(
+                '[process_gecko_data] UserLifetimeTotals update user=%s rows=%s',
+                user.id, totals_rows,
+            )
 
         update_hourly_steps(
             user,

@@ -471,8 +471,7 @@ class UserLifetimeTotalsView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
-        obj, _ = models.UserLifetimeTotals.objects.get_or_create(user=self.request.user)
-        return obj
+        return models.UserLifetimeTotals.objects.get(user=self.request.user)
 
 
 class GeckoScoreStateView(generics.RetrieveUpdateAPIView):
