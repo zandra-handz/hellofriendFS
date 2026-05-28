@@ -296,11 +296,12 @@ class FriendGeckoDataDetail(generics.RetrieveAPIView):
     serializer_class = serializers.GeckoDataSerializer
     permission_classes = [IsAuthenticated]
     lookup_url_kwarg = 'friend_id'
+    lookup_field = 'friend_id'
 
     def get_queryset(self):
         user = self.request.user
         friend_id = self.kwargs['friend_id']
-        return models.Friend.objects.filter(user=user, id=friend_id)
+        return models.GeckoData.objects.filter(user=user, friend_id=friend_id)
 
 
 
