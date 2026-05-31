@@ -1222,7 +1222,7 @@ async fn handle_send_read_status_to_gecko(
             "concentrating",
             ReadStatus::StillReading as u16,
         ),
-        Some(2) => ("Read em all!", "Proud", ReadStatus::AllRead as u16),
+        Some(2) => ("Read em all!", "proud", ReadStatus::AllRead as u16),
         _ => ("Hrrrrrmmm hmmmmmmmm", "neutral", Filler::Hrrm as u16),
     };
 
