@@ -6,6 +6,9 @@ from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from django.utils.timezone import now
 from django.utils import timezone
+
+import math
+import re
 from . import constants
 
 
@@ -108,6 +111,7 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
             'memory_type', 'memory_type_label',
             'active_hours_type', 'active_hours_type_label',
             'story_type', 'story_type_label',
+            'color_gecko_body_0', 'color_gecko_outline_0',
             'stamina', 'max_active_hours', 'max_duration_till_revival',
             'max_score_multiplier', 'max_streak_length_seconds',
             'active_hours', 'gecko_created_on',
@@ -119,6 +123,7 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
             'total_steps', 'total_distance', 'total_duration', 'total_gecko_points',
             'last_steak_expiry',
             'personality_type', 'memory_type', 'active_hours_type', 'story_type',
+            'color_gecko_body_0', 'color_gecko_outline_0',
             'stamina', 'max_active_hours', 'max_duration_till_revival',
             'max_score_multiplier', 'max_streak_length_seconds',
             'active_hours', 'gecko_created_on',
@@ -182,11 +187,200 @@ class GeckoScoreStateSerializer(serializers.ModelSerializer):
 
 
 
+# class GeckoScoreStateConfigsSerializer(serializers.ModelSerializer):
+#     personality_type_label = serializers.CharField(source='get_personality_type_display', read_only=True)
+#     memory_type_label = serializers.CharField(source='get_memory_type_display', read_only=True)
+#     active_hours_type_label = serializers.CharField(source='get_active_hours_type_display', read_only=True)
+#     story_type_label = serializers.CharField(source='get_story_type_display', read_only=True)
+
+#     active_hours = serializers.ListField(
+#         child=serializers.IntegerField(min_value=0, max_value=23),
+#         max_length=24,
+#         allow_empty=True,
+#         required=False,
+#     )
+#     local_hour = serializers.IntegerField(
+#         min_value=0, max_value=23, write_only=True, required=False
+#     )
+
+#     available_choices = serializers.SerializerMethodField()
+#     thresholds = serializers.SerializerMethodField()
+
+#     class Meta:
+#         model = models.GeckoScoreState
+#         fields = [
+#             'personality_type', 'personality_type_label',
+#             'memory_type', 'memory_type_label',
+#             'active_hours_type', 'active_hours_type_label',
+#             'active_hours',
+#             'story_type', 'story_type_label',
+#             'color_gecko_body_0', 'color_gecko_outline_0',
+#             'available_choices',
+#             'thresholds',
+#             'local_hour',
+#             'max_duration_till_revival',
+#             'use_game_type_capsules_only',
+#             'created_on', 'updated_on',
+          
+#         ]
+#         read_only_fields = ['created_on', 'stamina', 'updated_on']
+
+#     def get_available_choices(self, obj):
+#         return {
+#             'personality_types': [{'value': v, 'label': l} for v, l in models.Personality.choices],
+#             'memory_types': [{'value': v, 'label': l} for v, l in models.Memory.choices],
+#             'active_hours_types': [{'value': v, 'label': l} for v, l in models.ActivityHours.choices],
+#             'story_types': [{'value': v, 'label': l} for v, l in models.Story.choices],
+#         }
+
+#     def get_thresholds(self, obj):
+#         return {
+#             'max_active_hours': obj.max_active_hours,
+#         }
+
+#     def validate(self, attrs):
+#         changing_hours = (
+#             'active_hours' in attrs
+#             or ('active_hours_type' in attrs and self.instance is not None
+#                 and attrs['active_hours_type'] != self.instance.active_hours_type)
+#         )
+#         # if changing_hours and self.instance is not None:
+#         #     self.instance.recompute_energy()
+#             # if self.instance.energy < 1.0:
+#             #     raise serializers.ValidationError(
+#             #         {'active_hours': 'Gecko must be fully rested to change active hours.'}
+#             #     )
+
+#         mode = attrs.get(
+#             'active_hours_type',
+#             getattr(self.instance, 'active_hours_type', None),
+#         )
+
+#         local_hour = attrs.get('local_hour')
+#         if local_hour is None:
+#             local_hour = self.context.get('local_hour')
+#         if local_hour is None:
+#             local_hour = timezone.now().hour
+
+#         max_hours = getattr(self.instance, 'max_active_hours', None) \
+#             or models.GeckoScoreState._meta.get_field('max_active_hours').default
+
+#         mode_changed = (
+#             self.instance is not None
+#             and 'active_hours_type' in attrs
+#             and attrs['active_hours_type'] != self.instance.active_hours_type
+#         )
+
+#         if 'active_hours' in attrs:
+#             hours = attrs['active_hours']
+#         elif self.instance is None:
+#             hours = self._defaults_for_mode(mode, max_hours)
+#         elif mode_changed:
+#             existing = list(self.instance.active_hours or [])
+#             if existing and self._hours_error(existing, mode, max_hours) is None:
+#                 hours = existing
+#             else:
+#                 hours = self._defaults_for_mode(mode, max_hours)
+#         else:
+#             hours = None
+
+#         if hours is not None:
+#             error = self._hours_error(hours, mode, max_hours)
+#             if error:
+#                 raise serializers.ValidationError({'active_hours': error})
+#             attrs['active_hours'] = list(dict.fromkeys(hours))
+
+#         attrs.pop('local_hour', None)
+#         return attrs
+
+#     def _defaults_for_mode(self, mode, max_hours):
+#         n = min(max(int(max_hours), 0), 24)
+#         if mode == models.ActivityHours.DAY:
+#             start = 12 - n // 2
+#             return [(start + i) % 24 for i in range(n)]
+#         if mode == models.ActivityHours.NIGHT:
+#             start = (0 - n // 2) % 24
+#             return [(start + i) % 24 for i in range(n)]
+#         if mode == models.ActivityHours.RANDOM:
+#             if n == 0:
+#                 return []
+#             step = 24 / n
+#             return sorted({int(round(i * step)) % 24 for i in range(n)})
+#         return []
+
+#     def _hours_error(self, hours, mode, max_hours):
+#         if len(hours) != len(set(hours)):
+#             return 'Hours must be unique.'
+#         if len(hours) > max_hours:
+#             return f'Cannot exceed {max_hours} active hours.'
+
+#         if mode in (models.ActivityHours.DAY, models.ActivityHours.NIGHT):
+#             if self._has_multiple_windows(hours):
+#                 return 'Day/Night modes require a single contiguous block.'
+#             if hours:
+#                 center = self._circular_center(hours)
+#                 d_noon = self._circular_distance(center, 12)
+#                 d_midnight = self._circular_distance(center, 0)
+#                 if mode == models.ActivityHours.DAY and d_noon > d_midnight:
+#                     return 'Day mode requires the block to be centered closer to noon than midnight.'
+#                 if mode == models.ActivityHours.NIGHT and d_midnight > d_noon:
+#                     return 'Night mode requires the block to be centered closer to midnight than noon.'
+#         elif mode == models.ActivityHours.RANDOM:
+#             return None
+#         else:
+#             if self._has_multiple_windows(hours):
+#                 return 'This mode requires a single contiguous block.'
+#         return None
+
+#     @staticmethod
+#     def _circular_center(hours):
+#         angles = [h * (2 * math.pi / 24) for h in hours]
+#         mean_sin = sum(math.sin(a) for a in angles) / len(angles)
+#         mean_cos = sum(math.cos(a) for a in angles) / len(angles)
+#         mean_angle = math.atan2(mean_sin, mean_cos)
+#         if mean_angle < 0:
+#             mean_angle += 2 * math.pi
+#         return mean_angle * 24 / (2 * math.pi)
+
+#     @staticmethod
+#     def _circular_distance(a, b):
+#         d = abs(a - b) % 24
+#         return min(d, 24 - d)
+
+#     @staticmethod
+#     def _has_multiple_windows(hours):
+#         if len(hours) <= 1:
+#             return False
+#         s = sorted(hours)
+#         gaps = sum(
+#             1 for i in range(len(s))
+#             if (s[(i + 1) % len(s)] - s[i]) % 24 != 1
+#         )
+#         return gaps > 1
+
+
+ 
+
+
+HEX_COLOR_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
+
+
 class GeckoScoreStateConfigsSerializer(serializers.ModelSerializer):
     personality_type_label = serializers.CharField(source='get_personality_type_display', read_only=True)
     memory_type_label = serializers.CharField(source='get_memory_type_display', read_only=True)
     active_hours_type_label = serializers.CharField(source='get_active_hours_type_display', read_only=True)
     story_type_label = serializers.CharField(source='get_story_type_display', read_only=True)
+
+    color_gecko_body_0 = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
+    color_gecko_outline_0 = serializers.CharField(
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
 
     active_hours = serializers.ListField(
         child=serializers.IntegerField(min_value=0, max_value=23),
@@ -209,15 +403,40 @@ class GeckoScoreStateConfigsSerializer(serializers.ModelSerializer):
             'active_hours_type', 'active_hours_type_label',
             'active_hours',
             'story_type', 'story_type_label',
+            'color_gecko_body_0', 'color_gecko_outline_0',
             'available_choices',
             'thresholds',
             'local_hour',
             'max_duration_till_revival',
             'use_game_type_capsules_only',
             'created_on', 'updated_on',
-          
         ]
         read_only_fields = ['created_on', 'stamina', 'updated_on']
+
+    def validate_color_gecko_body_0(self, value):
+        return self._normalize_hex_color(value)
+
+    def validate_color_gecko_outline_0(self, value):
+        return self._normalize_hex_color(value)
+
+    def _normalize_hex_color(self, value):
+        if value is None:
+            return None
+
+        value = value.strip()
+
+        if value == '':
+            return None
+
+        if not value.startswith('#'):
+            value = f'#{value}'
+
+        if not HEX_COLOR_RE.match(value):
+            raise serializers.ValidationError(
+                'Color must be a valid hex color like #FFAA00.'
+            )
+
+        return value
 
     def get_available_choices(self, obj):
         return {
@@ -235,15 +454,12 @@ class GeckoScoreStateConfigsSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         changing_hours = (
             'active_hours' in attrs
-            or ('active_hours_type' in attrs and self.instance is not None
-                and attrs['active_hours_type'] != self.instance.active_hours_type)
+            or (
+                'active_hours_type' in attrs
+                and self.instance is not None
+                and attrs['active_hours_type'] != self.instance.active_hours_type
+            )
         )
-        # if changing_hours and self.instance is not None:
-        #     self.instance.recompute_energy()
-            # if self.instance.energy < 1.0:
-            #     raise serializers.ValidationError(
-            #         {'active_hours': 'Gecko must be fully rested to change active hours.'}
-            #     )
 
         mode = attrs.get(
             'active_hours_type',
@@ -256,8 +472,10 @@ class GeckoScoreStateConfigsSerializer(serializers.ModelSerializer):
         if local_hour is None:
             local_hour = timezone.now().hour
 
-        max_hours = getattr(self.instance, 'max_active_hours', None) \
+        max_hours = (
+            getattr(self.instance, 'max_active_hours', None)
             or models.GeckoScoreState._meta.get_field('max_active_hours').default
+        )
 
         mode_changed = (
             self.instance is not None

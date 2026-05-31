@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 # from django.contrib.postgres.fields import ArrayField
 from django.db import models
+import re
 import uuid
 # import friends.models could cause circular import because this file imports users. using 'friends.ThoughtCapsulez' and 'friends.Image' below instead
 
@@ -733,6 +734,11 @@ class GeckoScoreState(models.Model):
     story_type = models.IntegerField(choices=Story.choices, default=Story.LEARNER)
 
 
+    color_gecko_body_0 = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for gecko body 0")
+    color_gecko_outline_0 = models.CharField(max_length=7, null=True, blank=True, help_text="Hex color code for gecko outline 0")
+    
+
+
     gecko_created_on = models.DateTimeField(null=True, blank=True)
 
     # setting for the gecko game to filter out non-game type capsules on front end
@@ -742,6 +748,22 @@ class GeckoScoreState(models.Model):
     updated_on = models.DateTimeField(auto_now=True)
 
 
+    # put in scorestateconfig serializer instead
+    # def clean(self):
+
+    #     color_pattern = re.compile(r'^#[0-9A-Fa-f]{6}$')
+
+    #     if self.color_gecko_body_0:
+    #         if not self.color_gecko_body_0.startswith('#'):
+    #             self.color_gecko_body_0 = f'#{self.color_gecko_body_0}'
+    #         if not color_pattern.match(self.color_gecko_body_0):
+    #             self.color_gecko_body_0 = None
+    #     if self.color_gecko_outline_0:
+    #         if not self.color_gecko_outline_0.startswith('#'):
+    #             self.color_gecko_outline_0 = f'#{self.color_gecko_outline_0}'
+    #         if not color_pattern.match(self.color_gecko_outline_0):
+    #             self.color_gecko_outline_0 = None
+ 
 
     # might not ever use active hours
     def build_default_active_hours(self):
