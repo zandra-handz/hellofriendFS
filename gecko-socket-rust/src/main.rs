@@ -737,6 +737,13 @@ async fn handle_set_friend(state: &AppState, client_id: &str, data: Option<Value
                     )
                     .await;
 
+                    // Mismatched host must not remain bound to the shared room.
+                    // If a prior matching bind had joined them into the
+                    // partner's room, pull them back out now.
+                    if let Some(room) = &c.partner_room {
+                        leave_room(state, room, client_id).await;
+                    }
+
                     send_to_client(
                         state,
                         client_id,
@@ -764,6 +771,18 @@ async fn handle_set_friend(state: &AppState, client_id: &str, data: Option<Value
                 .get("friend_dark_color")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
+        }
+    }
+
+    // A successful bind means the host's FE friend matches the sesh, so bind
+    // them into the partner's shared room now — this is the only path that
+    // joins a host into that room, so a mismatched host (rejected above) never
+    // connects to or receives frames in it. Guests join during hydrate.
+    if let Some(c) = get_client(state, client_id).await {
+        if host_presence_allowed(&c) {
+            if let Some(room) = &c.partner_room {
+                join_room(state, room, client_id).await;
+            }
         }
     }
 
@@ -1263,7 +1282,7 @@ async fn handle_update_gecko_position(state: &AppState, client_id: &str, data: O
 
     let clients = state.clients.read().await;
     let Some(c) = clients.get(client_id) else { return };
-    if c.friend_id.is_none() {
+    if c.friend_id.is_none() || !host_presence_allowed(c) {
         return;
     }
     let user_id = c.user_id;
@@ -1296,7 +1315,7 @@ async fn handle_update_host_gecko_position(
 
     let clients = state.clients.read().await;
     let Some(c) = clients.get(client_id) else { return };
-    if !c.is_host || c.friend_id.is_none() {
+    if !c.is_host || !host_presence_allowed(c) {
         return;
     }
     let user_id = c.user_id;
@@ -1374,6 +1393,9 @@ async fn handle_update_capsule_progress(
 
     let clients = state.clients.read().await;
     let Some(c) = clients.get(client_id) else { return };
+    if !host_presence_allowed(c) {
+        return;
+    }
     let user_id = c.user_id;
     let shared_room = c.shared_room.clone();
 
@@ -1543,7 +1565,7 @@ async fn handle_send_all_host_capsules(
 
     let clients = state.clients.read().await;
     let Some(c) = clients.get(client_id) else { return };
-    if !c.is_host || c.friend_id.is_none() {
+    if !c.is_host || !host_presence_allowed(c) {
         return;
     }
     let user_id = c.user_id;
@@ -1949,8 +1971,22 @@ async fn apply_hydrate_value(
         }
     }
 
+    // Only bind a host into the partner's shared room once their FE-bound
+    // friend matches the sesh (host_presence_allowed). Hosts confirm via
+    // set_friend, which performs the join on a successful match. At hydrate a
+    // host has no friend_id yet, so they intentionally don't join here. Guests
+    // are always allowed and join immediately.
     if let Some(room) = &partner_room {
-        join_room(state, room, client_id).await;
+        let allowed = {
+            let clients = state.clients.read().await;
+            clients
+                .get(client_id)
+                .map(host_presence_allowed)
+                .unwrap_or(false)
+        };
+        if allowed {
+            join_room(state, room, client_id).await;
+        }
     }
 
     debug!(
