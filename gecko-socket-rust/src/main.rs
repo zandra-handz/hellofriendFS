@@ -121,6 +121,11 @@ struct Client {
     position_slots: Arc<PositionSlots>,
     friend_id: Option<u64>,
     is_host: bool,
+    // Guest-side analog of the host's friend_id bind. The guest's FE reports
+    // whether they're currently on the sesh (guest) screen; presence and room
+    // membership are gated on this exactly as the host is gated on
+    // friend_id == sesh_friend_id. See sesh_presence_allowed.
+    guest_on_screen: bool,
     partner_id: Option<u64>,
     partner_username: Option<String>,
     partner_friend_id: Option<u64>,
@@ -347,6 +352,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 position_slots: position_slots.clone(),
                 friend_id: None,
                 is_host: false,
+                guest_on_screen: false,
                 partner_id: None,
                 partner_username: None,
                 partner_friend_id: None,
@@ -401,14 +407,14 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 clients
                     .values()
                     .find(|c| c.user_id == partner_id)
-                    .filter(|c| host_presence_allowed(c))
+                    .filter(|c| sesh_presence_allowed(c))
                     .map(|c| (c.user_id, c.friend_light_color.clone(), c.friend_dark_color.clone()))
             };
 
             // Gate initial presence on host bind state. Hosts must confirm
             // via set_friend before we tell either side they're "online and
             // in the sesh." For guests this is always true.
-            if host_presence_allowed(&client) {
+            if sesh_presence_allowed(&client) {
                 if let Some((pid, light, dark)) = partner_snapshot {
                     send_to_client(
                         &bg_state,
@@ -602,6 +608,7 @@ async fn handle_incoming(state: &AppState, client_id: &str, value: Value) {
         }
 
         "set_friend" => handle_set_friend(state, client_id, data).await,
+        "set_guest_on_screen" => handle_set_guest_on_screen(state, client_id, data).await,
         "join_live_sesh" => handle_join_live_sesh(state, client_id).await,
         "leave_live_sesh" => handle_leave_live_sesh(state, client_id).await,
         "request_peer_presence" => handle_request_peer_presence(state, client_id).await,
@@ -779,7 +786,7 @@ async fn handle_set_friend(state: &AppState, client_id: &str, data: Option<Value
     // joins a host into that room, so a mismatched host (rejected above) never
     // connects to or receives frames in it. Guests join during hydrate.
     if let Some(c) = get_client(state, client_id).await {
-        if host_presence_allowed(&c) {
+        if sesh_presence_allowed(&c) {
             if let Some(room) = &c.partner_room {
                 join_room(state, room, client_id).await;
             }
@@ -792,6 +799,125 @@ async fn handle_set_friend(state: &AppState, client_id: &str, data: Option<Value
         OutgoingMessage {
             action: "set_friend_ok".to_string(),
             data: json!({ "friend_id": friend_id }),
+        },
+    )
+    .await;
+}
+
+/// Guest-side analog of handle_set_friend. The guest never sends a friend_id —
+/// they only ever have one accepted sesh, so "am I looking at it" is a boolean.
+/// `true` mirrors the host's matching-friend case (bind into the partner room);
+/// `false` mirrors the host's wrong-friend case (clear stale presence on both
+/// sides, leave the partner room). No Django round-trips happen here.
+async fn handle_set_guest_on_screen(state: &AppState, client_id: &str, data: Option<Value>) {
+    let payload = data.unwrap_or_else(|| json!({}));
+    let Some(is_on_screen) = payload.get("is_on_guest_screen").and_then(|v| v.as_bool()) else {
+        send_to_client(
+            state,
+            client_id,
+            OutgoingMessage {
+                action: "set_guest_on_screen_failed".to_string(),
+                data: json!({ "reason": "invalid_payload" }),
+            },
+        )
+        .await;
+        return;
+    };
+
+    // The on-screen boolean is the guest-side bind. A host's screen state is
+    // tracked through friend_id (set_friend), so reject this action for hosts
+    // rather than silently mutating their state.
+    if let Some(c) = get_client(state, client_id).await {
+        if c.is_host {
+            send_to_client(
+                state,
+                client_id,
+                OutgoingMessage {
+                    action: "set_guest_on_screen_failed".to_string(),
+                    data: json!({ "reason": "not_a_guest" }),
+                },
+            )
+            .await;
+            return;
+        }
+    }
+
+    {
+        let mut clients = state.clients.write().await;
+        if let Some(client) = clients.get_mut(client_id) {
+            client.guest_on_screen = is_on_screen;
+        }
+    }
+
+    if !is_on_screen {
+        // Guest navigated off their sesh screen. Mirror the host's wrong-friend
+        // path: clear any presence we painted on either side and pull the guest
+        // out of the partner's shared room so no frames flow to or from them.
+        if let Some(c) = get_client(state, client_id).await {
+            if let Some(pid) = c.partner_id {
+                send_to_client(
+                    state,
+                    client_id,
+                    OutgoingMessage {
+                        action: "peer_presence".to_string(),
+                        data: json!({
+                            "user_id": pid,
+                            "online": false,
+                        }),
+                    },
+                )
+                .await;
+            }
+            broadcast_to_room(
+                state,
+                &c.shared_room,
+                Some(c.user_id),
+                OutgoingMessage {
+                    action: "peer_presence".to_string(),
+                    data: json!({
+                        "user_id": c.user_id,
+                        "online": false,
+                        "friend_light_color": null,
+                        "friend_dark_color": null,
+                    }),
+                },
+            )
+            .await;
+
+            if let Some(room) = &c.partner_room {
+                leave_room(state, room, client_id).await;
+            }
+        }
+
+        send_to_client(
+            state,
+            client_id,
+            OutgoingMessage {
+                action: "set_guest_on_screen_ok".to_string(),
+                data: json!({ "is_on_guest_screen": false }),
+            },
+        )
+        .await;
+        return;
+    }
+
+    // On-screen: bind the guest into the partner's shared room. This is the
+    // only path that joins a guest into that room, so an off-screen guest never
+    // receives or emits sesh frames — mirroring the successful set_friend join.
+    if let Some(c) = get_client(state, client_id).await {
+        if sesh_presence_allowed(&c) {
+            if let Some(room) = &c.partner_room {
+                join_room(state, room, client_id).await;
+            }
+        }
+    }
+
+    send_to_client(
+        state,
+        client_id,
+        OutgoingMessage {
+            action: "set_guest_on_screen_ok".to_string(),
+            data: json!({ "is_on_guest_screen": true }),
         },
     )
     .await;
@@ -848,7 +974,7 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
         )
         .await;
 
-        if host_presence_allowed(&client) {
+        if sesh_presence_allowed(&client) {
             broadcast_peer_presence_online_to_room(
                 &bg_state,
                 &client.shared_room,
@@ -950,6 +1076,7 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
         if let Some(c) = clients.get_mut(client_id) {
             c.partner_room = None;
             c.is_host = false;
+            c.guest_on_screen = false;
         }
     }
 
@@ -990,7 +1117,7 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
 
     // Host on a non-matching friend screen — pretend partner is offline so
     // the UI doesn't paint sesh state onto the wrong friend.
-    if !host_presence_allowed(&client) {
+    if !sesh_presence_allowed(&client) {
         send_to_client(
             state,
             client_id,
@@ -1019,7 +1146,7 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
         // doesn't match their sesh (they're on a different friend's screen),
         // we should report them offline so this side doesn't paint them as
         // "in the sesh" when they aren't.
-        if !host_presence_allowed(&partner) {
+        if !sesh_presence_allowed(&partner) {
             debug!(
                 target: "peer_pres",
                 "partner={} connected but presence-gated (host on wrong friend), replying offline to user={}",
@@ -1282,7 +1409,7 @@ async fn handle_update_gecko_position(state: &AppState, client_id: &str, data: O
 
     let clients = state.clients.read().await;
     let Some(c) = clients.get(client_id) else { return };
-    if c.friend_id.is_none() || !host_presence_allowed(c) {
+    if c.friend_id.is_none() || !sesh_presence_allowed(c) {
         return;
     }
     let user_id = c.user_id;
@@ -1315,7 +1442,7 @@ async fn handle_update_host_gecko_position(
 
     let clients = state.clients.read().await;
     let Some(c) = clients.get(client_id) else { return };
-    if !c.is_host || !host_presence_allowed(c) {
+    if !c.is_host || !sesh_presence_allowed(c) {
         return;
     }
     let user_id = c.user_id;
@@ -1352,7 +1479,7 @@ async fn handle_update_guest_gecko_position(
 
     let clients = state.clients.read().await;
     let Some(c) = clients.get(client_id) else { return };
-    if c.is_host {
+    if c.is_host || !sesh_presence_allowed(c) {
         return;
     }
     let user_id = c.user_id;
@@ -1393,7 +1520,7 @@ async fn handle_update_capsule_progress(
 
     let clients = state.clients.read().await;
     let Some(c) = clients.get(client_id) else { return };
-    if !host_presence_allowed(c) {
+    if !sesh_presence_allowed(c) {
         return;
     }
     let user_id = c.user_id;
@@ -1565,7 +1692,7 @@ async fn handle_send_all_host_capsules(
 
     let clients = state.clients.read().await;
     let Some(c) = clients.get(client_id) else { return };
-    if !c.is_host || !host_presence_allowed(c) {
+    if !c.is_host || !sesh_presence_allowed(c) {
         return;
     }
     let user_id = c.user_id;
@@ -1971,17 +2098,17 @@ async fn apply_hydrate_value(
         }
     }
 
-    // Only bind a host into the partner's shared room once their FE-bound
-    // friend matches the sesh (host_presence_allowed). Hosts confirm via
-    // set_friend, which performs the join on a successful match. At hydrate a
-    // host has no friend_id yet, so they intentionally don't join here. Guests
-    // are always allowed and join immediately.
+    // Bind into the partner's shared room only once the client is sesh-present
+    // (sesh_presence_allowed). Hosts confirm via set_friend and guests via
+    // set_guest_on_screen, each of which performs the join on success. At
+    // hydrate neither a host (no friend_id yet) nor a guest (not on-screen yet)
+    // is present, so they intentionally don't join here.
     if let Some(room) = &partner_room {
         let allowed = {
             let clients = state.clients.read().await;
             clients
                 .get(client_id)
-                .map(host_presence_allowed)
+                .map(sesh_presence_allowed)
                 .unwrap_or(false)
         };
         if allowed {
@@ -2094,11 +2221,11 @@ async fn leave_room(state: &AppState, room_name: &str, client_id: &str) {
 }
 
 /// Like broadcast_to_room, but only delivers to recipients where
-/// host_presence_allowed is true — i.e., guests, and hosts whose FE-bound
-/// friend matches the sesh. Used for ONLINE peer_presence frames so a host
-/// on a non-matching friend screen never sees their partner painted as
-/// "online and in the sesh." OFFLINE frames should keep using
-/// broadcast_to_room so they can clear stale state unconditionally.
+/// sesh_presence_allowed is true — i.e., on-screen guests and hosts whose
+/// FE-bound friend matches the sesh. Used for ONLINE peer_presence frames so a
+/// host on a non-matching friend screen (or an off-screen guest) never sees
+/// their partner painted as "online and in the sesh." OFFLINE frames should
+/// keep using broadcast_to_room so they can clear stale state unconditionally.
 async fn broadcast_peer_presence_online_to_room(
     state: &AppState,
     room_name: &str,
@@ -2125,7 +2252,7 @@ async fn broadcast_peer_presence_online_to_room(
             if Some(client.user_id) == exclude_user_id {
                 continue;
             }
-            if !host_presence_allowed(client) {
+            if !sesh_presence_allowed(client) {
                 continue;
             }
             let _ = client.tx.try_send(encoded.clone());
@@ -2133,13 +2260,15 @@ async fn broadcast_peer_presence_online_to_room(
     }
 }
 
-/// Presence is allowed for a host only when their FE-bound friend matches
-/// the sesh's friend (i.e., they're on the matching friend's screen). Guests
-/// don't send set_friend — they're committed to the sesh they accepted — so
-/// presence always flows for them.
-fn host_presence_allowed(c: &Client) -> bool {
+/// A client is "in the sesh" (presence flows, frames are delivered) only when
+/// their FE confirms they're on the correct screen. A host is bound when their
+/// FE friend matches the sesh (friend_id == sesh_friend_id), confirmed via
+/// set_friend. A guest is bound when their FE reports they're on the sesh
+/// screen (guest_on_screen), confirmed via set_guest_on_screen. The two are
+/// exact analogs — neither side is present until its FE confirms.
+fn sesh_presence_allowed(c: &Client) -> bool {
     if !c.is_host {
-        return true;
+        return c.guest_on_screen;
     }
     c.friend_id.is_some() && c.friend_id == c.sesh_friend_id
 }
