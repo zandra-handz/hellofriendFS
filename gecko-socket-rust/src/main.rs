@@ -1214,12 +1214,12 @@ async fn handle_send_read_status_to_gecko(
     let (message, emotion, unique_emotion_code) = match code {
         Some(0) => (
             "Hi! I'm going to start reading this, if ya don't mind!",
-            "Cheerful",
+            "cheerful",
             ReadStatus::Hi as u16,
         ),
         Some(1) => (
             "Still have some to read...",
-            "Concentrating",
+            "concentrating",
             ReadStatus::StillReading as u16,
         ),
         Some(2) => ("Read em all!", "Proud", ReadStatus::AllRead as u16),

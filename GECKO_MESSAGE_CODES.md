@@ -41,8 +41,8 @@ Handler: `handle_send_read_status_to_gecko`
 
 | message_code (in) | message text | emotion | unique_emotion_code (out) | enum variant |
 |---|---|---|---|---|
-| 0 | Hi! I'm going to start reading this, if ya don't mind! | Cheerful | 1 | `ReadStatus::Hi` |
-| 1 | Still have some to read... | Concentrating | 2 | `ReadStatus::StillReading` |
+| 0 | Hi! I'm going to start reading this, if ya don't mind! | cheerful | 1 | `ReadStatus::Hi` |
+| 1 | Still have some to read... | concentrating | 2 | `ReadStatus::StillReading` |
 | 2 | Read em all! | Proud | 3 | `ReadStatus::AllRead` |
 | _ (fallback) | Hrrrrrmmm hmmmmmmmm | neutral | 999 | `Filler::Hrrm` |
 
