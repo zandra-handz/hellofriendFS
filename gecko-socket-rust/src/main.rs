@@ -134,6 +134,8 @@ struct Client {
     friend_light_color: Option<String>,
     friend_dark_color: Option<String>,
     gecko_message: Option<String>,
+    gecko_emotion: Option<String>,
+    gecko_unique_emotion_code: Option<u16>,
     gecko_message_kind: Option<String>,
     gecko_message_ref_id: Option<String>,
     gecko_message_timestamp: Option<i64>,
@@ -176,6 +178,36 @@ struct PushRoomBody {
 struct DisconnectUserBody {
     user_id: UserId,
 }
+
+
+#[repr(u16)]
+#[derive(Clone, Copy)]
+enum ReadStatus {
+    Hi = 1,
+    StillReading = 2,
+    AllRead = 3, 
+}
+
+
+#[repr(u16)]
+#[derive(Clone, Copy)]
+enum Filler {
+    Hrrm = 999
+}
+
+
+
+#[repr(u16)]
+#[derive(Clone, Copy)]
+enum LosingWarning {
+    Huh        = 4,
+    Digging    = 5,
+    Losing     = 6,
+    Stolen     = 7,
+    FalseAlarm = 8,
+}
+
+
 
 #[tokio::main]
 async fn main() {
@@ -328,6 +360,8 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 friend_light_color: None,
                 friend_dark_color: None,
                 gecko_message: None,
+                gecko_emotion: None,
+                gecko_unique_emotion_code: None,
                 gecko_message_kind: None,
                 gecko_message_ref_id: None,
                 gecko_message_timestamp: None,
@@ -1042,6 +1076,8 @@ async fn handle_get_gecko_message(state: &AppState, client_id: &str) {
             data: json!({
                 "from_user": client.user_id,
                 "message": client.gecko_message,
+                "emotion": client.gecko_emotion,
+                "unique_emotion_code": client.gecko_unique_emotion_code,
                 "kind": client.gecko_message_kind,
                 "ref_id": client.gecko_message_ref_id,
                 "timestamp": client.gecko_message_timestamp,
@@ -1061,6 +1097,14 @@ async fn handle_send_front_end_text_to_gecko(
         .get("message")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
+    let emotion = payload
+        .get("emotion")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+    let unique_emotion_code = payload
+        .get("unique_emotion_code")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as u16);
     let kind = payload
         .get("kind")
         .and_then(|v| v.as_str())
@@ -1078,6 +1122,8 @@ async fn handle_send_front_end_text_to_gecko(
         let mut clients = state.clients.write().await;
         if let Some(client) = clients.get_mut(client_id) {
             client.gecko_message = message.clone();
+            client.gecko_emotion = emotion.clone();
+            client.gecko_unique_emotion_code = unique_emotion_code.clone();
             client.gecko_message_kind = kind.clone();
             client.gecko_message_ref_id = ref_id.clone();
             client.gecko_message_timestamp = timestamp;
@@ -1095,6 +1141,8 @@ async fn handle_send_front_end_text_to_gecko(
             data: json!({
                 "from_user": client.user_id,
                 "message": message,
+                "emotion": emotion,
+                "unique_emotion_code": unique_emotion_code,
                 "kind": kind,
                 "ref_id": ref_id,
                 "timestamp": timestamp,
@@ -1111,29 +1159,48 @@ async fn handle_send_losing_warning_to_gecko(
     data: Option<Value>,
 ) {
     let payload = data.unwrap_or_else(|| json!({}));
-    let code = payload.get("message_code").and_then(|v | v.as_i64());
+    let code = payload.get("message_code").and_then(|v| v.as_i64());
     let kind = payload.get("kind").cloned();
     let ref_id = payload.get("ref_id").cloned();
 
-
-    let message = match code {
-        Some(0) => "Huh? What was that??",
-        Some(1) => "They're digging up one of our moments! Gotta do something!",
-        Some(2) => "My man we are losin' the fight here!! They're gonna be able to read it!",
-        Some(3) => "MOMENT STOLEN!",
-        Some(4) => "Whew! False alarm. No moment taken - we're in the clear.",
-        _ => "????",
-    }
-    .to_string();
+    // `message_code` is the FE-sent trigger and its handling is unchanged.
+    // `unique_emotion_code` is a separate, globally-unique emotion code we emit,
+    // sourced from the LosingWarning enum (Filler::Hrrm is the fallback).
+    let (message, emotion, unique_emotion_code) = match code {
+        Some(0) => ("Huh? What was that??", "confused", LosingWarning::Huh as u16),
+        Some(1) => (
+            "They're digging up one of our moments! Gotta do something!",
+            "alarmed",
+            LosingWarning::Digging as u16,
+        ),
+        Some(2) => (
+            "My man we are losin' the fight here!! They're gonna be able to read it!",
+            "panic",
+            LosingWarning::Losing as u16,
+        ),
+        Some(3) => ("MOMENT STOLEN!", "devastated", LosingWarning::Stolen as u16),
+        Some(4) => (
+            "Whew! False alarm. No moment taken - we're in the clear.",
+            "relieved",
+            LosingWarning::FalseAlarm as u16,
+        ),
+        _ => ("????", "neutral", Filler::Hrrm as u16),
+    };
 
     handle_send_front_end_text_to_gecko(
         state,
         client_id,
-        Some(json!({ "message": message, "kind": kind, "ref_id": ref_id })),
+        Some(json!({
+            "message": message,
+            "emotion": emotion,
+            "unique_emotion_code": unique_emotion_code,
+            "kind": kind,
+            "ref_id": ref_id,
+        })),
     )
     .await;
-
 }
+
 async fn handle_send_read_status_to_gecko(
     state: &AppState,
     client_id: &str,
@@ -1144,21 +1211,33 @@ async fn handle_send_read_status_to_gecko(
     let kind = payload.get("kind").cloned();
     let ref_id = payload.get("ref_id").cloned();
 
-    let message = match code {
-        Some(0) => "Hi! I'm going to start reading this, if ya don't mind!",
-        Some(1) => "Still have some to read...",
-        Some(2) => "Read em all!",
-        _ => "Hrrrrrmmm hmmmmmmmm",
-    }
-    .to_string();
+    let (message, emotion, unique_emotion_code) = match code {
+        Some(0) => (
+            "Hi! I'm going to start reading this, if ya don't mind!",
+            "Cheerful",
+            ReadStatus::Hi as u16,
+        ),
+        Some(1) => (
+            "Still have some to read...",
+            "Concentrating",
+            ReadStatus::StillReading as u16,
+        ),
+        Some(2) => ("Read em all!", "Proud", ReadStatus::AllRead as u16),
+        _ => ("Hrrrrrmmm hmmmmmmmm", "neutral", Filler::Hrrm as u16),
+    };
 
     handle_send_front_end_text_to_gecko(
         state,
         client_id,
-        Some(json!({ "message": message, "kind": kind, "ref_id": ref_id })),
+        Some(json!({
+            "message": message,
+            "emotion": emotion,
+            "unique_emotion_code": unique_emotion_code,
+            "kind": kind,
+            "ref_id": ref_id,
+        })),
     )
     .await;
-
 }
 
 async fn handle_get_gecko_screen_position(state: &AppState, client_id: &str) {
