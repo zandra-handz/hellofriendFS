@@ -276,6 +276,14 @@ class UserFriendCurrentLiveSesh(models.Model):
     # rows below so all games in this 24hr accept share the same session_id.
     session_id = models.UUIDField(null=True, blank=True)
 
+    # Per-user gecko game wins for the CURRENT session (this 24hr accept).
+    # One counter per side (this row is OneToOne per user), so host and guest
+    # never contend — mirrors the UserFriendLiveSeshPoints side-row pattern.
+    # Bumped with F()+1 at win-finalize; reset to 0 in the accept defaults
+    # whenever a new session_id is stamped. The shared "wins scoreboard" is a
+    # read across both participants' rows keyed by session_id.
+    gecko_wins_this_session = models.PositiveIntegerField(default=0)
+
     # to be chosen by guest when they accept the invite
     gecko_play_mode = models.IntegerField(choices=GeckoPlayMode.choices, default=GeckoPlayMode.DIG)
 

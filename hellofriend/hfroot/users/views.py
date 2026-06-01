@@ -1221,6 +1221,8 @@ def rust_live_sesh_context(request):
             "friend_id",
             "gecko_play_mode",
             "current_log",
+            "session_id",
+            "gecko_wins_this_session",
             "friend__theme_color_light",
             "friend__theme_color_dark",
             "other_user__username",
@@ -1244,6 +1246,9 @@ def rust_live_sesh_context(request):
             "my_points": 0,
             "partner_points": 0,
             "scoreboard": {},
+            "my_wins": 0,
+            "partner_wins": 0,
+            "wins_scoreboard": {},
         }
         sesh_cache.write(user_id, empty)
         return Response(empty)
@@ -1269,6 +1274,13 @@ def rust_live_sesh_context(request):
     my_points = scoreboard.get(user_id, 0)
     partner_points = scoreboard.get(sesh.other_user_id, 0)
 
+    # Shared per-session wins, keyed by session_id across both participants'
+    # rows. This user's own count is free off the row already fetched above;
+    # the partner's needs one indexed read (join/reconnect path only, not hot).
+    wins_scoreboard = _read_session_wins_scoreboard(sesh.session_id)
+    my_wins = wins_scoreboard.get(user_id, sesh.gecko_wins_this_session)
+    partner_wins = wins_scoreboard.get(sesh.other_user_id, 0)
+
     payload = {
         "user_id": user_id,
         "partner_id": sesh.other_user_id,
@@ -1276,6 +1288,9 @@ def rust_live_sesh_context(request):
         "my_points": my_points,
         "partner_points": partner_points,
         "scoreboard": scoreboard,
+        "my_wins": my_wins,
+        "partner_wins": partner_wins,
+        "wins_scoreboard": wins_scoreboard,
         "friend_id": sesh.friend_id,
         "sesh_friend_id": sesh.friend_id,
         "friend_light_color": sesh.friend.theme_color_light if sesh.friend else None,
@@ -1782,6 +1797,7 @@ def accept_live_sesh_invite(request, invite_id):
                 'expires_at': expires_at,
                 'current_log': None,
                 'session_id': session_id,
+                'gecko_wins_this_session': 0,
             },
         )
 
@@ -1796,6 +1812,7 @@ def accept_live_sesh_invite(request, invite_id):
                 'expires_at': expires_at,
                 'current_log': host_sesh.current_log,
                 'session_id': session_id,
+                'gecko_wins_this_session': 0,
             },
         )
 
@@ -1980,7 +1997,22 @@ class GeckoGameWinsGivenList(generics.ListAPIView):
             .order_by('-id')
         )
 
- 
+
+def _read_session_wins_scoreboard(session_id):
+    """Shared gecko-wins scoreboard for a live sesh: {user_id: wins} across
+    both participants' UserFriendCurrentLiveSesh rows, keyed by session_id.
+
+    Mirrors the points scoreboard read (a read across both side rows). Returns
+    {} when session_id is falsy (FE omitted it / no shared accrual).
+    """
+    if not session_id:
+        return {}
+    return {
+        r['user_id']: r['gecko_wins_this_session']
+        for r in models.UserFriendCurrentLiveSesh.objects
+        .filter(session_id=session_id)
+        .values('user_id', 'gecko_wins_this_session')
+    }
 
 
 
@@ -2086,7 +2118,18 @@ class GeckoGameWinPendingDetail(APIView):
         self._clear_locked(pending)
         source_capsule.delete()
 
-        return deleted_capsule_id
+        # Bump THIS user's per-session win counter (their own OneToOne row, no
+        # cross-user contention) then read back the shared wins scoreboard.
+        wins_scoreboard = {}
+        if session_id:
+            models.UserFriendCurrentLiveSesh.objects.filter(
+                user_id=pending.user_id, session_id=session_id,
+            ).update(
+                gecko_wins_this_session=F('gecko_wins_this_session') + 1,
+            )
+            wins_scoreboard = _read_session_wins_scoreboard(session_id)
+
+        return deleted_capsule_id, wins_scoreboard
 
     
     def _notify_user(self, user_id, event_type, data):
@@ -2186,7 +2229,7 @@ class GeckoGameWinPendingDetail(APIView):
             if isinstance(finalize_result, Response):
                 return finalize_result
 
-            deleted_capsule_id = finalize_result
+            deleted_capsule_id, wins_scoreboard = finalize_result
             self._notify_user(
                 sender_id,
                 'gecko_win_accepted',
@@ -2198,12 +2241,27 @@ class GeckoGameWinPendingDetail(APIView):
                 },
             )
 
+            # Live wins scoreboard refresh — separate event so the FE adds a
+            # listener alongside gecko_win_accepted (no event-string overload).
+            # Only this user's count changed; the partner gets the new shared
+            # map pushed, the accepter reads it off the HTTP response below.
+            if wins_scoreboard:
+                self._notify_user(
+                    sender_id,
+                    'gecko_wins_update',
+                    {
+                        'scoreboard': wins_scoreboard,
+                        'session_id': request.data.get('session_id'),
+                    },
+                )
+
             logger.warning("[GWP.post] 200 finalized pending_id=%s", pending_id)
             return Response(
                 {
                     'detail': 'finalized',
                     'pending_id': pending_id,
                     'accepted': True,
+                    'wins_scoreboard': wins_scoreboard,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -2428,8 +2486,10 @@ class GeckoGameMatchWinPendingDetail(APIView):
                 session_id=request.data.get('session_id'),
             )
 
-            if finalize_result is not None:
+            if isinstance(finalize_result, Response):
                 return finalize_result
+
+            wins_scoreboard = finalize_result
 
             self._notify_user(
                 pending.host_id,
@@ -2449,11 +2509,22 @@ class GeckoGameMatchWinPendingDetail(APIView):
                 },
             )
 
+            # Both counters moved — push the shared wins scoreboard to each
+            # side (separate event from gecko_win_match_finalized).
+            if wins_scoreboard:
+                wins_payload = {
+                    'scoreboard': wins_scoreboard,
+                    'session_id': request.data.get('session_id'),
+                }
+                self._notify_user(pending.host_id, 'gecko_wins_update', wins_payload)
+                self._notify_user(pending.guest_id, 'gecko_wins_update', wins_payload)
+
             return Response(
                 {
                     'detail': 'match_finalized',
                     'pending_id': pending.id,
                     'accepted': True,
+                    'wins_scoreboard': wins_scoreboard,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -2531,7 +2602,21 @@ class GeckoGameMatchWinPendingDetail(APIView):
             id__in=[host_capsule.id, guest_capsule.id]
         ).delete()
 
-        return None
+        # Both sides won a capsule — bump each participant's own per-session
+        # counter in one UPDATE (separate rows, no contention), then read back
+        # the shared wins scoreboard. Returns the {user_id: wins} map on
+        # success (callers distinguish errors via isinstance(..., Response)).
+        wins_scoreboard = {}
+        if session_id:
+            models.UserFriendCurrentLiveSesh.objects.filter(
+                user_id__in=[pending.host_id, pending.guest_id],
+                session_id=session_id,
+            ).update(
+                gecko_wins_this_session=F('gecko_wins_this_session') + 1,
+            )
+            wins_scoreboard = _read_session_wins_scoreboard(session_id)
+
+        return wins_scoreboard
 
     def _notify_user(self, user_id, event_type, data):
         from .rust_push import notify_user
