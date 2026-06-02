@@ -2250,7 +2250,7 @@ class GeckoGameWinPendingDetail(APIView):
                     sender_id,
                     'gecko_wins_update',
                     {
-                        'scoreboard': wins_scoreboard,
+                        'wins_scoreboard': wins_scoreboard,
                         'session_id': request.data.get('session_id'),
                     },
                 )
@@ -2513,7 +2513,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
             # side (separate event from gecko_win_match_finalized).
             if wins_scoreboard:
                 wins_payload = {
-                    'scoreboard': wins_scoreboard,
+                    'wins_scoreboard': wins_scoreboard,
                     'session_id': request.data.get('session_id'),
                 }
                 self._notify_user(pending.host_id, 'gecko_wins_update', wins_payload)

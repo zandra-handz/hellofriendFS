@@ -133,6 +133,10 @@ struct Client {
     sesh_friend_id: Option<u64>,
     my_points: u64,
     partner_points: u64,
+    // Per-session gecko game win counts, hydrated from Django alongside points
+    // and refreshed live via gecko_wins_update pushes.
+    my_wins: u64,
+    partner_wins: u64,
     own_room: RoomName,
     shared_room: RoomName,
     partner_room: Option<RoomName>,
@@ -360,6 +364,8 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 sesh_friend_id: None,
                 my_points: 0,
                 partner_points: 0,
+                my_wins: 0,
+                partner_wins: 0,
                 own_room: own_room.clone(),
                 shared_room: shared_room.clone(),
                 partner_room: None,
@@ -969,6 +975,8 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
                     "partner_friend_name": client.partner_friend_name,
                     "my_points": client.my_points,
                     "partner_points": client.partner_points,
+                    "my_wins": client.my_wins,
+                    "partner_wins": client.partner_wins,
                 }),
             },
         )
@@ -2065,6 +2073,12 @@ async fn apply_hydrate_value(
         .and_then(|v| v.as_u64())
         .unwrap_or(0);
 
+    let my_wins = value.get("my_wins").and_then(|v| v.as_u64()).unwrap_or(0);
+    let partner_wins = value
+        .get("partner_wins")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+
     let partner_room = partner_id.map(|pid| format!("gecko_shared_with_friend_{}", pid));
 
     {
@@ -2079,6 +2093,8 @@ async fn apply_hydrate_value(
                 c.partner_friend_name = partner_friend_name;
                 c.my_points = my_points;
                 c.partner_points = partner_points;
+                c.my_wins = my_wins;
+                c.partner_wins = partner_wins;
                 c.partner_room = partner_room.clone();
                 // Do NOT seed c.friend_id from hydrate for hosts. Hosts must
                 // confirm via set_friend so we can verify they're on the
