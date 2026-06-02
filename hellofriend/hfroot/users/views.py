@@ -2241,16 +2241,19 @@ class GeckoGameWinPendingDetail(APIView):
                 },
             )
 
-            # Live wins scoreboard refresh — separate event so the FE adds a
-            # listener alongside gecko_win_accepted (no event-string overload).
-            # Only this user's count changed; the partner gets the new shared
-            # map pushed, the accepter reads it off the HTTP response below.
+            # Live wins refresh — separate event (FE adds a listener alongside
+            # gecko_win_accepted, no event-string overload). Sent as
+            # per-recipient scalars (my_wins/partner_wins) to match the points
+            # shape, so the FE just sets two values with no id-matching. The
+            # partner gets it pushed; the accepter reads it off the HTTP
+            # response below (their own perspective).
             if wins_scoreboard:
                 self._notify_user(
                     sender_id,
                     'gecko_wins_update',
                     {
-                        'wins_scoreboard': wins_scoreboard,
+                        'my_wins': wins_scoreboard.get(sender_id, 0),
+                        'partner_wins': wins_scoreboard.get(request.user.id, 0),
                         'session_id': request.data.get('session_id'),
                     },
                 )
@@ -2261,7 +2264,8 @@ class GeckoGameWinPendingDetail(APIView):
                     'detail': 'finalized',
                     'pending_id': pending_id,
                     'accepted': True,
-                    'wins_scoreboard': wins_scoreboard,
+                    'my_wins': wins_scoreboard.get(request.user.id, 0),
+                    'partner_wins': wins_scoreboard.get(sender_id, 0),
                 },
                 status=status.HTTP_200_OK,
             )
@@ -2509,22 +2513,40 @@ class GeckoGameMatchWinPendingDetail(APIView):
                 },
             )
 
-            # Both counters moved — push the shared wins scoreboard to each
-            # side (separate event from gecko_win_match_finalized).
+            # Both counters moved — push per-recipient scalars to each side
+            # (separate event from gecko_win_match_finalized, same my_wins/
+            # partner_wins shape as points so the FE just sets two values).
             if wins_scoreboard:
-                wins_payload = {
-                    'wins_scoreboard': wins_scoreboard,
-                    'session_id': request.data.get('session_id'),
-                }
-                self._notify_user(pending.host_id, 'gecko_wins_update', wins_payload)
-                self._notify_user(pending.guest_id, 'gecko_wins_update', wins_payload)
+                sid = request.data.get('session_id')
+                self._notify_user(
+                    pending.host_id,
+                    'gecko_wins_update',
+                    {
+                        'my_wins': wins_scoreboard.get(pending.host_id, 0),
+                        'partner_wins': wins_scoreboard.get(pending.guest_id, 0),
+                        'session_id': sid,
+                    },
+                )
+                self._notify_user(
+                    pending.guest_id,
+                    'gecko_wins_update',
+                    {
+                        'my_wins': wins_scoreboard.get(pending.guest_id, 0),
+                        'partner_wins': wins_scoreboard.get(pending.host_id, 0),
+                        'session_id': sid,
+                    },
+                )
 
+            is_host = request.user.id == pending.host_id
             return Response(
                 {
                     'detail': 'match_finalized',
                     'pending_id': pending.id,
                     'accepted': True,
-                    'wins_scoreboard': wins_scoreboard,
+                    'my_wins': wins_scoreboard.get(request.user.id, 0),
+                    'partner_wins': wins_scoreboard.get(
+                        pending.guest_id if is_host else pending.host_id, 0
+                    ),
                 },
                 status=status.HTTP_200_OK,
             )
