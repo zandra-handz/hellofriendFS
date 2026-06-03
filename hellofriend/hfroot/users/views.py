@@ -2258,6 +2258,13 @@ class GeckoGameWinPendingDetail(APIView):
                     },
                 )
 
+                # Reconnect rehydrates from gecko_sesh:{uid}; drop both sides'
+                # cached payload so the next hydrate re-pulls fresh win counts.
+                from . import sesh_cache
+                transaction.on_commit(
+                    lambda a=request.user.id, b=sender_id: sesh_cache.invalidate(a, b)
+                )
+
             logger.warning("[GWP.post] 200 finalized pending_id=%s", pending_id)
             return Response(
                 {
@@ -2535,6 +2542,13 @@ class GeckoGameMatchWinPendingDetail(APIView):
                         'partner_wins': wins_scoreboard.get(pending.host_id, 0),
                         'session_id': sid,
                     },
+                )
+
+                # Both counters moved — drop both sides' cached sesh payload so
+                # a reconnect rehydrates fresh win counts instead of stale ones.
+                from . import sesh_cache
+                transaction.on_commit(
+                    lambda a=pending.host_id, b=pending.guest_id: sesh_cache.invalidate(a, b)
                 )
 
             is_host = request.user.id == pending.host_id

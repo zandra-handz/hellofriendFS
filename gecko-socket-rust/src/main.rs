@@ -663,6 +663,10 @@ async fn handle_incoming(state: &AppState, client_id: &str, value: Value) {
             handle_get_24h_seed(state, client_id).await;
         }
 
+        // "get_gecko_wins" => {
+        //     handle_get_gecko_wins(state, client_id).await;
+        // }
+
         "get_score_state"
         | "update_gecko_data"
         | "flush"
@@ -1925,6 +1929,15 @@ async fn proxy_action_to_django(
         }
     }
 }
+
+// async fn handle_get_gecko_wins(state: &AppState, client_id: &str) {
+
+//     let client = get_client(state, client_id).await;
+//     let Some(client) = client else {return};
+//     let user_id = client.user_id;
+
+//     let cache_key = format!("")
+// }
 
 async fn handle_get_24h_seed(state: &AppState, client_id: &str) {
     // Hot path. Try Redis (sub-ms) first; only fall through to Django on a
