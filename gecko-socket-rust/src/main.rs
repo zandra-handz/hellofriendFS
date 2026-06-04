@@ -1308,6 +1308,27 @@ async fn handle_send_front_end_text_to_gecko(
         },
     )
     .await;
+
+    // Share only the gecko's emotion (not the message text) with the partner,
+    // using the same shared-room broadcast pattern as positions/presence. The
+    // message stays private to the sender; the emotion lets the partner mirror
+    // the gecko's mood. New push gets its own event_type so the FE adds a
+    // dedicated listener rather than overloading the gecko_message handler.
+    broadcast_to_room(
+        state,
+        &client.shared_room,
+        Some(client.user_id),
+        OutgoingMessage {
+            action: "peer_gecko_emotion".to_string(),
+            data: json!({
+                "from_user": client.user_id,
+                "emotion": client.gecko_emotion,
+                "unique_emotion_code": client.gecko_unique_emotion_code,
+                "timestamp": timestamp,
+            }),
+        },
+    )
+    .await;
 }
 
 

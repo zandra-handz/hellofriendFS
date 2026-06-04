@@ -11,6 +11,7 @@ class NotificationsConsumer(AsyncWebsocketConsumer):
     (live sesh invites, accepts, session end, etc). Does not load
     any heavy state on connect — pure fan-out.
     """
+    
 
     async def connect(self):
         user = self.scope['user']
