@@ -622,6 +622,7 @@ async fn handle_incoming(state: &AppState, client_id: &str, value: Value) {
         "join_live_sesh" => handle_join_live_sesh(state, client_id).await,
         "leave_live_sesh" => handle_leave_live_sesh(state, client_id).await,
         "request_peer_presence" => handle_request_peer_presence(state, client_id).await,
+        "request_level_change" => handle_request_level_change(state, client_id, data).await,
 
         "get_gecko_message" => handle_get_gecko_message(state, client_id).await,
         "send_front_end_text_to_gecko" => {
@@ -1228,6 +1229,131 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
             },
         )
         .await;
+    }
+}
+
+/// A host or guest changes the shared gecko game level mid-sesh. The level is
+/// live shared state (like positions/emotions), so Rust broadcasts the new
+/// value to the shared room immediately — both peers apply it with zero Django
+/// round-trip — and persists it to the DB in a spawned task so the change
+/// survives reconnect/rehydrate. Persistence never blocks this client's loop.
+async fn handle_request_level_change(state: &AppState, client_id: &str, data: Option<Value>) {
+    let payload = data.unwrap_or_else(|| json!({}));
+
+    // Valid levels mirror Django's GeckoGameLevel choices (1, 2).
+    let new_level = match payload.get("new_level").and_then(|v| v.as_u64()) {
+        Some(l @ (1 | 2)) => l as u16,
+        _ => {
+            send_to_client(
+                state,
+                client_id,
+                OutgoingMessage {
+                    action: "request_level_change_failed".to_string(),
+                    data: json!({ "reason": "invalid_level" }),
+                },
+            )
+            .await;
+            return;
+        }
+    };
+
+    let Some(client) = get_client(state, client_id).await else { return };
+
+    // Only an in-sesh participant (on-screen guest / matching-friend host) may
+    // change the level.
+    if !sesh_presence_allowed(&client) {
+        send_to_client(
+            state,
+            client_id,
+            OutgoingMessage {
+                action: "request_level_change_failed".to_string(),
+                data: json!({ "reason": "not_in_sesh" }),
+            },
+        )
+        .await;
+        return;
+    }
+
+    let user_id = client.user_id;
+    let shared_room = client.shared_room.clone();
+    let partner_id = client.partner_id;
+
+    // Keep Rust's in-memory level fresh for BOTH connected peers so subsequent
+    // peer_presence frames report the new level (hydrate only refreshes it on
+    // reconnect).
+    {
+        let mut clients = state.clients.write().await;
+        for c in clients.values_mut() {
+            if c.user_id == user_id || Some(c.user_id) == partner_id {
+                c.gecko_game_level = Some(new_level);
+            }
+        }
+    }
+
+    // Broadcast to the shared room with no exclusion: requester and partner
+    // both apply the authoritative new level. New event type so the FE attaches
+    // a dedicated listener rather than overloading an existing one.
+    broadcast_to_room(
+        state,
+        &shared_room,
+        None,
+        OutgoingMessage {
+            action: "level_update".to_string(),
+            data: json!({
+                "gecko_game_level": new_level,
+                "changed_by": user_id,
+            }),
+        },
+    )
+    .await;
+
+    // Persist to Django (both CurrentLiveSesh rows + cache invalidation) off the
+    // hot path so the message loop is never blocked on the round-trip.
+    let st = state.clone();
+    let cid = client_id.to_string();
+    tokio::spawn(async move {
+        persist_level_change_to_django(&st, &cid, new_level).await;
+    });
+}
+
+/// Fire-and-forget DB persistence for a level change. The FE has already been
+/// updated via the live broadcast, so we discard the Django response and only
+/// log failures — a dropped persist self-heals on the next successful change or
+/// is corrected by hydrate from the still-authoritative DB row.
+async fn persist_level_change_to_django(state: &AppState, client_id: &str, new_level: u16) {
+    let Some(client) = get_client(state, client_id).await else { return };
+
+    let body = json!({
+        "user_id": client.user_id,
+        "action": "request_level_change",
+        "data": { "new_level": new_level },
+    });
+
+    let body_bytes = match rmp_serde::to_vec_named(&body) {
+        Ok(b) => b,
+        Err(err) => {
+            error!("persist_level_change: msgpack encode failed err={}", err);
+            return;
+        }
+    };
+
+    let url = format!("{}/users/internal/gecko/socket-action/", state.django_base_url);
+    let _permit = state.django_concurrency.acquire().await.ok();
+    let response = state
+        .http
+        .post(url)
+        .header("X-Rust-Internal-Secret", &state.internal_secret)
+        .header("Content-Type", "application/msgpack")
+        .header("Accept", "application/msgpack")
+        .body(body_bytes)
+        .send()
+        .await;
+
+    if let Err(err) = response {
+        warn!(
+            "persist_level_change: django persist failed user={} err={}",
+            client.user_id, err
+        );
     }
 }
 

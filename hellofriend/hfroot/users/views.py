@@ -1617,6 +1617,36 @@ def _gecko_socket_action_dispatch(user_id, action, data):
 
         return Response({"action": "points_awarded", "data": awarded})
 
+    if action == "request_level_change":
+        # The Rust socket has already broadcast the new level to both peers'
+        # FE (level_update); this branch only makes it durable so it survives
+        # reconnect/rehydrate. No socket push from here — that would duplicate
+        # the live broadcast.
+        user, err = _load_user()
+        if err:
+            return err
+        from .gecko_level_helpers import apply_level_change
+        new_level = data.get("new_level") if isinstance(data, dict) else None
+        try:
+            result = apply_level_change(user, new_level)
+        except Exception:
+            logger.exception(
+                "[gecko_socket_action] request_level_change failed user=%s",
+                user_id,
+            )
+            return Response({
+                "action": "request_level_change_failed",
+                "data": {"reason": "internal_error"},
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if result.get("status") != "ok":
+            return Response({
+                "action": "request_level_change_failed",
+                "data": result,
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"action": "level_change_persisted", "data": result})
+
     if action == "request_capsule_matches":
         from .gecko_match_helpers import handle_request_capsule_matches
         return Response(handle_request_capsule_matches(user_id))
