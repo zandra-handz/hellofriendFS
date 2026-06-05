@@ -248,6 +248,10 @@ class GeckoPlayMode(models.IntegerChoices):
     DIG = 1, "Dig",
     INTUIT = 2, "Intuit"
 
+class GeckoGameLevel(models.IntegerChoices):
+    LEVEL_ONE = 1, "Level 1",
+    LEVEL_TWO = 2, "Level 2"
+
 
 # ephemeral context holder, no session data is ultimately stored here
 class UserFriendCurrentLiveSesh(models.Model):
@@ -286,6 +290,7 @@ class UserFriendCurrentLiveSesh(models.Model):
 
     # to be chosen by guest when they accept the invite
     gecko_play_mode = models.IntegerField(choices=GeckoPlayMode.choices, default=GeckoPlayMode.DIG)
+    gecko_game_level = models.IntegerField(choices=GeckoGameLevel.choices, default=GeckoGameLevel.LEVEL_ONE)
 
     current_log = models.ForeignKey(
         'users.UserFriendLiveSeshLog',

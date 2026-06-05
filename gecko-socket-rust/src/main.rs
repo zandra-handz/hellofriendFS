@@ -142,6 +142,7 @@ struct Client {
     partner_room: Option<RoomName>,
     friend_light_color: Option<String>,
     friend_dark_color: Option<String>,
+    gecko_game_level: Option<u16>,
     gecko_message: Option<String>,
     gecko_emotion: Option<String>,
     gecko_unique_emotion_code: Option<u16>,
@@ -371,6 +372,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 partner_room: None,
                 friend_light_color: None,
                 friend_dark_color: None,
+                gecko_game_level: None,
                 gecko_message: None,
                 gecko_emotion: None,
                 gecko_unique_emotion_code: None,
@@ -414,14 +416,14 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                     .values()
                     .find(|c| c.user_id == partner_id)
                     .filter(|c| sesh_presence_allowed(c))
-                    .map(|c| (c.user_id, c.friend_light_color.clone(), c.friend_dark_color.clone()))
+                    .map(|c| (c.user_id, c.friend_light_color.clone(), c.friend_dark_color.clone(), c.gecko_game_level))
             };
 
             // Gate initial presence on host bind state. Hosts must confirm
             // via set_friend before we tell either side they're "online and
             // in the sesh." For guests this is always true.
             if sesh_presence_allowed(&client) {
-                if let Some((pid, light, dark)) = partner_snapshot {
+                if let Some((pid, light, dark, level)) = partner_snapshot {
                     send_to_client(
                         &bg_state,
                         &bg_client_id,
@@ -432,6 +434,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                                 "online": true,
                                 "friend_light_color": light,
                                 "friend_dark_color": dark,
+                                "gecko_game_level": level,
                             }),
                         },
                     )
@@ -449,6 +452,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                             "online": true,
                             "friend_light_color": client.friend_light_color,
                             "friend_dark_color": client.friend_dark_color,
+                            "gecko_game_level": client.gecko_game_level,
                         }),
                     },
                 )
@@ -749,6 +753,7 @@ async fn handle_set_friend(state: &AppState, client_id: &str, data: Option<Value
                                 "online": false,
                                 "friend_light_color": null,
                                 "friend_dark_color": null,
+                                "gecko_game_level": null,
                             }),
                         },
                     )
@@ -889,6 +894,7 @@ async fn handle_set_guest_on_screen(state: &AppState, client_id: &str, data: Opt
                         "online": false,
                         "friend_light_color": null,
                         "friend_dark_color": null,
+                        "gecko_game_level": null,
                     }),
                 },
             )
@@ -998,6 +1004,7 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
                         "online": true,
                         "friend_light_color": client.friend_light_color,
                         "friend_dark_color": client.friend_dark_color,
+                        "gecko_game_level": client.gecko_game_level,
                     }),
                 },
             )
@@ -1031,6 +1038,7 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
                 "online": false,
                 "friend_light_color": null,
                 "friend_dark_color": null,
+                "gecko_game_level": null,
             }),
         },
     )
@@ -1196,6 +1204,7 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
                     "online": true,
                     "friend_light_color": partner.friend_light_color,
                     "friend_dark_color": partner.friend_dark_color,
+                    "gecko_game_level": partner.gecko_game_level,
                 }),
             },
         )
@@ -2087,6 +2096,11 @@ async fn apply_hydrate_value(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
+    let gecko_game_level = value
+        .get("gecko_game_level")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as u16);
+
     let partner_username = value
         .get("partner_username")
         .and_then(|v| v.as_str())
@@ -2144,6 +2158,9 @@ async fn apply_hydrate_value(
                 if friend_dark_color.is_some() {
                     c.friend_dark_color = friend_dark_color;
                 }
+                if gecko_game_level.is_some() {
+                    c.gecko_game_level = gecko_game_level;
+                }
             }
         }
     }
@@ -2199,6 +2216,7 @@ async fn disconnect_cleanup(state: &AppState, client_id: &str) {
                     "online": false,
                     "friend_light_color": null,
                     "friend_dark_color": null,
+                    "gecko_game_level": null,
                 }),
             },
         )
