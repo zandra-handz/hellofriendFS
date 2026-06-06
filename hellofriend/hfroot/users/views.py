@@ -2048,6 +2048,33 @@ def _read_session_wins_scoreboard(session_id):
     }
 
 
+def _award_gecko_game_win_points(awards):
+    """Award GECKO_GAME_WIN_CODE points once to each listed participant.
+
+    `awards` is an iterable of (user_id, friend_id|None). Call inside the
+    finalize transaction; award_event_points defers its socket push via
+    on_commit, so it only fires if the win commits. A points failure is logged
+    and swallowed so it can never roll back the win itself.
+    """
+    from django.contrib.auth import get_user_model
+    from .event_award_helpers import award_event_points, GECKO_GAME_WIN_CODE
+
+    User = get_user_model()
+    users_by_id = User.objects.in_bulk([uid for uid, _ in awards])
+    for uid, fid in awards:
+        winner = users_by_id.get(uid)
+        if winner is None:
+            continue
+        try:
+            award_event_points(
+                winner,
+                code=GECKO_GAME_WIN_CODE,
+                friend_id=fid,
+                event_type="gecko_game_win_points",
+            )
+        except Exception:
+            logger.exception("[gecko_win] award_event_points failed user=%s", uid)
+
 
 class GeckoGameWinPendingDetail(APIView):
     """
@@ -2131,6 +2158,14 @@ class GeckoGameWinPendingDetail(APIView):
             linked_user_id=pending.sender_id,
         ).first()
 
+        # Reverse Friend row (sender's view of the recipient) for the sender's
+        # per-friend points attribution. The win itself is one-sided, but both
+        # participants are awarded points.
+        sender_friend = Friend.objects.filter(
+            user_id=pending.sender_id,
+            linked_user_id=pending.user_id,
+        ).first()
+
         models.GeckoGameWin.objects.create(
             user_id=pending.user_id,
             user_won_from_id=pending.sender_id,
@@ -2145,7 +2180,13 @@ class GeckoGameWinPendingDetail(APIView):
             matched_capsule_id=None,
             session_id=session_id,
         )
- 
+
+        # Award points to BOTH participants (winner + the user they won from).
+        _award_gecko_game_win_points([
+            (pending.user_id, friend.id if friend else None),
+            (pending.sender_id, sender_friend.id if sender_friend else None),
+        ])
+
         deleted_capsule_id = str(source_capsule.id)
 
         self._clear_locked(pending)
@@ -2663,6 +2704,12 @@ class GeckoGameMatchWinPendingDetail(APIView):
             matched_capsule_id=guest_capsule.id,
             session_id=session_id,
         )
+
+        # Both sides won; award points to each participant once.
+        _award_gecko_game_win_points([
+            (pending.host_id, host_friend.id if host_friend else None),
+            (pending.guest_id, guest_friend.id if guest_friend else None),
+        ])
 
         pending.finalized_on = timezone.now()
         pending.save(update_fields=['finalized_on', 'updated_on'])

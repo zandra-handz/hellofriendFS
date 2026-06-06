@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # ScoreRule.code values for discrete-event awards. Must match a row created
 # via `python manage.py create_score_rule --code N --label ... --points ...`.
 HELLO_CREATED_CODE = 3
+GECKO_GAME_WIN_CODE = 4  # ScoreRule label "AWARD_GECKO_GAME_WIN"
 
 
 def award_event_points(
@@ -31,11 +32,13 @@ def award_event_points(
     code: int,
     past_meet=None,
     friend_id: Optional[int] = None,
+    event_type: str = "hello_points",
 ) -> Optional[GeckoPointsLedger]:
     """
     Award the points associated with `code` to `user`. multiplier is always 1
-    for events (streak does not apply). On commit, pushes a `points_awarded`
-    event to the user's own socket(s) so the FE can update without refetch.
+    for events (streak does not apply). On commit, pushes an `event_type`
+    socket event (default "hello_points") to the user's own socket(s) so the FE
+    can update without refetch.
 
     Returns the created ledger row, or None if `code` is unknown.
     """
@@ -90,7 +93,7 @@ def award_event_points(
         # rolls back. notify_user is fire-and-forget; if no socket is open,
         # the message goes nowhere and that's fine.
         transaction.on_commit(
-            lambda: _safe_notify(user.id, "hello_points", payload)
+            lambda: _safe_notify(user.id, event_type, payload)
         )
 
     return ledger_row
