@@ -2127,6 +2127,21 @@ class GeckoGameWinPendingDetail(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Ungameable capsule (type "Not gameable", or unset): there's nothing to
+        # win here, so don't hand the capsule back to view. Clear the pending so
+        # it stops coming back on refetch. The FE branches on this `status` and
+        # shows the "No win here! :(" message.
+        from friends.models import GeckoGameType
+        if (
+            pending.gecko_game_type is None
+            or pending.gecko_game_type == GeckoGameType.NONE
+        ):
+            self._clear_locked(pending)
+            return Response(
+                {'status': 'not_gameable', 'message': 'No win here! :('},
+                status=status.HTTP_200_OK,
+            )
+
         return Response(
             serializers.GeckoGameWinPendingSerializer(pending).data,
             status=status.HTTP_200_OK,
@@ -2293,6 +2308,21 @@ class GeckoGameWinPendingDetail(APIView):
                 return Response(
                     {'detail': 'declined'},
                     status=status.HTTP_200_OK,
+                )
+
+            # Ungameable capsule — refuse to finalize a win for a type that
+            # can't be gamed ("Not gameable", or unset). Clear the dead pending
+            # so it stops coming back. Mirrors the GET not_gameable branch.
+            from friends.models import GeckoGameType
+            if (
+                pending.gecko_game_type is None
+                or pending.gecko_game_type == GeckoGameType.NONE
+            ):
+                self._clear_locked(pending)
+                logger.warning("[GWP.post] 409 not_gameable pending_id=%s", pending_id)
+                return Response(
+                    {'status': 'not_gameable', 'message': 'No win here! :('},
+                    status=status.HTTP_409_CONFLICT,
                 )
 
             finalize_result = self._finalize_locked(
