@@ -105,6 +105,7 @@ const BINARY_OUTBOUND_ACTIONS: &[&str] = &[
 #[derive(Clone)]
 struct AppState {
     clients: Arc<RwLock<HashMap<ClientId, Client>>>,
+    user_clients: Arc<RwLock<HashMap<UserId, HashSet<ClientId>>>>,
     rooms: Arc<RwLock<HashMap<RoomName, Arc<HashSet<ClientId>>>>>,
     http: reqwest::Client,
     internal_secret: String,
@@ -243,6 +244,7 @@ async fn main() {
     let state = AppState {
         clients: Arc::new(RwLock::new(HashMap::new())),
         rooms: Arc::new(RwLock::new(HashMap::new())),
+        user_clients: Arc::new(RwLock::new(HashMap::new())),
         http: reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
         .connect_timeout(std::time::Duration::from_secs(5))
@@ -382,6 +384,12 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 // last_seen: Instant::now(),
             },
         );
+
+        let mut user_clients = state.user_clients.write().await;
+        user_clients
+            .entry(user_id)
+            .or_default()
+            .insert(client_id.clone());
     }
 
     join_room(&state, &own_room, &client_id).await;
@@ -411,12 +419,20 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
             let Some(partner_id) = client.partner_id else { return };
 
             let partner_snapshot = {
-                let clients = bg_state.clients.read().await;
-                clients
-                    .values()
-                    .find(|c| c.user_id == partner_id)
-                    .filter(|c| sesh_presence_allowed(c))
-                    .map(|c| (c.user_id, c.friend_light_color.clone(), c.friend_dark_color.clone(), c.gecko_game_level))
+                let ids = {
+                    let user_clients = bg_state.user_clients.read().await;
+                    user_clients.get(&partner_id).cloned()
+                };
+                match ids {
+                    Some(ids) => {
+                        let clients = bg_state.clients.read().await;
+                        ids.iter()
+                            .find_map(|id| clients.get(id))
+                            .filter(|c| sesh_presence_allowed(c))
+                            .map(|c| (c.user_id, c.friend_light_color.clone(), c.friend_dark_color.clone(), c.gecko_game_level))
+                    }
+                    None => None,
+                }
             };
 
             // Gate initial presence on host bind state. Hosts must confirm
@@ -1155,11 +1171,17 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
     }
 
     let partner = {
-        let clients = state.clients.read().await;
-        clients
-            .values()
-            .find(|c| c.user_id == partner_id)
-            .cloned()
+        let ids = {
+            let user_clients = state.user_clients.read().await;
+            user_clients.get(&partner_id).cloned()
+        };
+        match ids {
+            Some(ids) => {
+                let clients = state.clients.read().await;
+                ids.iter().find_map(|id| clients.get(id).cloned())
+            }
+            None => None,
+        }
     };
 
     if let Some(partner) = partner {
@@ -2322,6 +2344,7 @@ async fn apply_hydrate_value(
 
 async fn disconnect_cleanup(state: &AppState, client_id: &str) {
     let client = get_client(state, client_id).await;
+    let user_id = client.as_ref().map(|c| c.user_id);
 
     if let Some(client) = client {
 
@@ -2352,6 +2375,16 @@ async fn disconnect_cleanup(state: &AppState, client_id: &str) {
     {
         let mut clients = state.clients.write().await;
         clients.remove(client_id);
+
+        if let Some(user_id) = user_id {
+            let mut user_clients = state.user_clients.write().await;
+            if let Some(set) = user_clients.get_mut(&user_id) {
+                set.remove(client_id);
+                if set.is_empty() {
+                    user_clients.remove(&user_id);
+                }
+            }
+        }
     }
 
     {
@@ -2365,12 +2398,19 @@ async fn disconnect_cleanup(state: &AppState, client_id: &str) {
 
 async fn evict_existing_user(state: &AppState, user_id: UserId) {
     let to_evict: Vec<(ClientId, Tx)> = {
-        let clients = state.clients.read().await;
-        clients
-            .iter()
-            .filter(|(_, c)| c.user_id == user_id)
-            .map(|(id, c)| (id.clone(), c.tx.clone()))
-            .collect()
+        let ids = {
+            let user_clients = state.user_clients.read().await;
+            user_clients.get(&user_id).cloned()
+        };
+        match ids {
+            Some(ids) => {
+                let clients = state.clients.read().await;
+                ids.iter()
+                    .filter_map(|id| clients.get(id).map(|c| (id.clone(), c.tx.clone())))
+                    .collect()
+            }
+            None => Vec::new(),
+        }
     };
 
     for (cid, tx) in to_evict {
@@ -2612,12 +2652,17 @@ async fn internal_push_user(
     }
 
     let txs: Vec<Tx> = {
-        let clients = state.clients.read().await;
-        clients
-            .values()
-            .filter(|c| c.user_id == body.user_id)
-            .map(|c| c.tx.clone())
-            .collect()
+        let ids = {
+            let user_clients = state.user_clients.read().await;
+            user_clients.get(&body.user_id).cloned()
+        };
+        match ids {
+            Some(ids) => {
+                let clients = state.clients.read().await;
+                ids.iter().filter_map(|id| clients.get(id).map(|c| c.tx.clone())).collect()
+            }
+            None => Vec::new(),
+        }
     };
 
     if txs.is_empty() {
@@ -2708,12 +2753,17 @@ async fn internal_disconnect_user(
     }
 
     let txs: Vec<Tx> = {
-        let clients = state.clients.read().await;
-        clients
-            .values()
-            .filter(|c| c.user_id == body.user_id)
-            .map(|c| c.tx.clone())
-            .collect()
+        let ids = {
+            let user_clients = state.user_clients.read().await;
+            user_clients.get(&body.user_id).cloned()
+        };
+        match ids {
+            Some(ids) => {
+                let clients = state.clients.read().await;
+                ids.iter().filter_map(|id| clients.get(id).map(|c| c.tx.clone())).collect()
+            }
+            None => Vec::new(),
+        }
     };
 
     let count = txs.len();
