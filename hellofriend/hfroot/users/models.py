@@ -250,7 +250,9 @@ class GeckoPlayMode(models.IntegerChoices):
 
 class GeckoGameLevel(models.IntegerChoices):
     LEVEL_ONE = 1, "Level 1",
-    LEVEL_TWO = 2, "Level 2"
+    LEVEL_TWO = 2, "Level 2",
+    LEVEL_THREE = 3, "Level 3",
+    LEVEL_FOUR = 4, "Level 4"
 
 
 # ephemeral context holder, no session data is ultimately stored here

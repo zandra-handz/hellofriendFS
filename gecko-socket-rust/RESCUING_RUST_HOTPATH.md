@@ -2,7 +2,21 @@
 
 Cleanup pass on `gecko-socket-rust/src/main.rs` to free CPU on the 1 vCPU droplet. Hot path = the gecko-coord broadcasts that fire many times per second per session: `update_gecko_position`, `update_host_gecko_position`, `update_guest_gecko_position`, `update_capsule_progress`, plus `broadcast_to_room` itself.
 
-Work the list top-to-bottom. Each item is a self-contained change.
+## Status (audited 2026-06-06 against main.rs)
+
+**Items 0–5 are all implemented.** What's documented below as "Do" was the original
+plan; the **What shipped** note on each item records what's actually in the code,
+which sometimes differs from (and improves on) the proposal.
+
+The only work left is the **item 3 stretch goal** (forward raw msgpack bytes, skip the
+`Value` round-trip) — and that's gated on profiling, not yet justified. See
+[Remaining work](#remaining-work) at the bottom.
+
+There's also an optimization in the code that predates / isn't in this list — the
+`PositionSlots` latest-wins coalescer; see [Bonus](#bonus-positionslots-coalescer).
+
+> ⚠️ Line numbers throughout drift as the file changes — they're hints, grep the
+> symbol names. The audit confirmed the *symbols* exist; the numbers may be stale.
 
 ---
 
@@ -14,87 +28,85 @@ Work the list top-to-bottom. Each item is a self-contained change.
 ---
 
 ## 1. Stop cloning the whole `Client` on every coord update
-**Where:** `get_client()` at main.rs:1321, called from every `handle_update_*` handler.
+**Status:** ✅ done.
 
-`get_client()` returns a fully-cloned `Client` — 8 `Option<String>`s + two `RoomName`s — when the hot-path callers only need `(user_id, friend_id, is_host, shared_room)`.
+`get_client()` returns a fully-cloned `Client` — when the hot-path callers only need `(user_id, friend_id, is_host, shared_room)`.
 
-**Do:** add a small helper that returns just what the hot path needs while holding the read lock once. Something like:
-
-```rust
-struct CoordCtx {
-    user_id: UserId,
-    friend_id: Option<u64>,
-    is_host: bool,
-    shared_room: RoomName, // still one clone, unavoidable for broadcast
-}
-
-async fn coord_ctx(state: &AppState, client_id: &str) -> Option<CoordCtx> { ... }
-```
-
-Replace `get_client(...).await` in:
-- `handle_update_gecko_position`
-- `handle_update_host_gecko_position`
-- `handle_update_guest_gecko_position`
-- `handle_update_capsule_progress`
-- `handle_send_all_host_capsules`
-
-Leave `get_client` for the cold paths that genuinely need the full struct (`handle_join_live_sesh`, `handle_request_peer_presence`, `disconnect_cleanup`, etc.).
+**What shipped:** all five hot-path handlers (`handle_update_gecko_position`,
+`handle_update_host_gecko_position`, `handle_update_guest_gecko_position`,
+`handle_update_capsule_progress`, `handle_send_all_host_capsules`) take a
+`state.clients.read()` guard, `clients.get(client_id)`, and read just the fields
+they need off the borrow — no full-`Client` clone. The proposed `CoordCtx` helper
+was not built; instead they keep the read guard live and hand `&clients` straight
+to the broadcast helper (see item 2), which is strictly better. `get_client` is
+still used on the cold paths (`handle_join_live_sesh`, `handle_request_peer_presence`,
+`disconnect_cleanup`, etc.).
 
 ---
 
 ## 2. Collapse the two RwLock acquires per broadcast
-**Where:** `broadcast_to_room` at main.rs:1333.
+**Status:** ✅ done via option (a).
 
-Per coord frame today: `get_client()` takes `clients.read()`, drops it. `broadcast_to_room` then takes `rooms.read()`, drops it, then `clients.read()` again. 3 lock ops/frame. On 1 vCPU under contention this adds up.
+Old path was 3 lock ops/frame: `clients.read()` (dropped), then `rooms.read()`, then `clients.read()` again.
 
-**Options, pick one:**
-
-a) Inline the broadcast into the handlers and reuse one `clients.read()` guard across the room+clients lookup. The hot-path helper from item 1 can return inside an existing read guard.
-
-b) Swap `Arc<RwLock<HashMap<...>>>` for `dashmap::DashMap` on `clients` and `rooms`. Per-shard locking, no global writers blocking readers. Drop-in-ish but touches every access site.
-
-Recommend (a) first since it's smaller; reach for (b) if profiling still shows lock contention with hundreds of concurrent sessions.
+**What shipped:** option (a). The hot-path handlers hold one `clients.read()` guard
+and pass `&clients` into `broadcast_position_to_room` / `broadcast_to_room_with_clients`
+(main.rs ~2559 / ~2581), which only add a single `rooms.read()`. Net: 2 lock ops/frame,
+no redundant second `clients.read()`. Option (b) (DashMap) was **not** done — correctly,
+since the doc gated it on profiling still showing contention. Revisit (b) only if a
+profile at hundreds of concurrent sessions shows the global `RwLock` as the bottleneck.
 
 ---
 
 ## 3. Stop parse->rebuild->re-serialize on every coord frame
-**Where:** `handle_update_host_gecko_position` (main.rs:832), and the same pattern in the guest/capsule variants.
+**Status:** ✅ done (in-place mutation). Stretch goal still open — see [Remaining work](#remaining-work).
 
-Today: incoming msgpack -> `serde_json::Value` (`handle_incoming` line 312) -> handler does `payload.get("steps").cloned()` etc. for ~9 fields, building a brand-new `json!{...}` -> `rmp_serde::to_vec_named` re-serializes the rebuilt map.
+Old pattern rebuilt a brand-new `json!{...}` from ~9 `.cloned()` fields every frame, then re-serialized that fresh map.
 
-**Do:** for pure relay actions, mutate the incoming `Value` in place — inject `from_user` / `friend_id` into the existing `data` object and forward it as-is. Skeleton:
+**What shipped:** every coord handler now mutates the incoming `Value` in place and
+forwards it as-is — no clone-and-rebuild. e.g. `handle_update_host_gecko_position`:
 
 ```rust
 let mut payload = data.unwrap_or_else(|| json!({}));
+// ...read user_id/friend_id/shared_room off the clients read guard...
 if let Value::Object(map) = &mut payload {
-    map.insert("from_user".into(), json!(ctx.user_id));
-    map.insert("friend_id".into(), json!(ctx.friend_id));
+    map.entry("steps".to_string()).or_insert_with(|| json!([]));
+    // ...defaults for the other fields via .entry().or_insert_with()...
+    map.insert("from_user".to_string(), json!(user_id));
+    map.insert("friend_id".to_string(), json!(friend_id));
 }
-broadcast_to_room(state, &ctx.shared_room, Some(ctx.user_id),
-    OutgoingMessage { action: "host_gecko_coords".into(), data: payload }).await;
+let encoded = encode_outgoing(&OutgoingMessage { action: "host_gecko_coords".into(), data: payload })?;
+broadcast_position_to_room(state, &clients, &shared_room, user_id, "host_gecko_coords", encoded).await;
 ```
 
-Saves ~9 `Value::clone()`s and a fresh map allocation per frame. Biggest CPU win on the list, but the most invasive — do it after items 1 + 2 are merged so you can profile the delta.
-
-Stretch goal: skip parsing inbound coord msgpack to `Value` entirely and forward the raw bytes with a small header tweak. Only worth it if profiling shows `rmp_serde::from_slice` is hot.
+Saved the ~9 clones + fresh map alloc per frame. **Still per-frame:** the
+`rmp_serde::from_slice` decode on the way in and the `encode_outgoing`
+(`to_vec_named`) re-encode on the way out — that's what the stretch goal targets.
 
 ---
 
 ## 4. Don't await Django HTTP calls inline on the recv task
-**Where:**
-- `handle_join_live_sesh` at main.rs:495 awaits `hydrate_live_sesh_context` and then `proxy_check_host_link_and_load`.
-- `handle_socket` at main.rs:258 awaits `hydrate_live_sesh_context` before the recv loop starts.
+**Status:** ✅ done.
 
-Every one of these blocks the websocket recv task on a Django round-trip (potentially seconds, since gunicorn/uvicorn workers contend for the same 1 vCPU). The connect path at line 265 already does the right thing with `tokio::spawn`.
+Blocking the websocket recv task on a Django round-trip (potentially seconds, since gunicorn/uvicorn workers contend for the same 1 vCPU) stalls that connection.
 
-**Do:** wrap both calls in `tokio::spawn` with a `state.clone()` + `client_id.clone()`. Send any resulting "ready" / "ok" frames from inside the spawned task via `send_to_client`, which already takes `&AppState`.
-
-Caveat: if the client expects `join_live_sesh_ok` *before* `capsule_matches_ready`, preserve that ordering inside the spawned task — don't fan out into two parallel spawns.
+**What shipped:**
+- The `handle_socket` connect-time hydrate runs inside a `tokio::spawn` (main.rs ~405,
+  uses a `bg_state`/`bg_client_id` clone) — recv loop is not blocked on it.
+- `handle_join_live_sesh` (main.rs ~959) is fully wrapped in a single `tokio::spawn`.
+  Ordering is preserved inside that one spawn — `join_live_sesh_ok` is sent before
+  `proxy_check_host_link_and_load` runs — exactly the caveat's requirement, and it
+  was *not* split into parallel spawns.
 
 ---
 
 ## 5. Index clients by `user_id` to kill linear scans
-**Status:** implemented (steps 1-9 in code, `cargo check` clean). Loadtest validation (step 10.2/10.3) still pending.
+**Status:** ✅ done in code (`cargo check` clean). Loadtest validation (step 10.2/10.3) still pending. Full implementation record kept below.
+
+> Note for scale context: at ~200 concurrent users the O(N)→O(1) change is
+> microseconds — not a measurable CPU win. Its value is removing the O(N²)
+> connect-storm cliff and shortening lock-hold times. Bank it as headroom; don't
+> expect the loadtest p50 to move at this N.
 
 Several operations answer "which client(s) belong to user X?" by scanning the
 *entire* `clients` map. With N concurrent users that's O(N) per operation, and
@@ -296,9 +308,46 @@ Part B insert/remove sync harder than steady-state coord traffic does.
 
 ---
 
-## Validation plan
+## Bonus: `PositionSlots` coalescer
 
-After each item:
-1. `cargo build --release` clean.
-2. Run the loadtester (`loadtest/`) with the same scenario as the baseline; record CPU on the droplet (or local) and p50/p99 broadcast latency.
-3. If a change doesn't show up in the numbers, revert and move on rather than carrying dead complexity.
+Not on the original list, but in the code and worth recording. `broadcast_position_to_room`
+(main.rs ~2559) does **not** push coord frames onto the ordered mpsc. Instead it routes
+each recipient through `client.position_slots.put(action, encoded)` — a latest-wins slot
+per action. If a recipient's consumer falls behind, a newer coord frame *overwrites* the
+stale pending one rather than queueing behind it.
+
+Why it matters at scale: bounded per-client memory and no head-of-line buildup when a
+slow client can't keep up with ~2,000 frames/s aggregate. For real-time position this is
+correct (you only ever care about the latest position), and it's arguably a bigger
+throughput safeguard at 200 users than anything else on this list. Non-position relays
+(`all_host_capsules`, `capsule_progress`) still go through `broadcast_to_room_with_clients`
+→ the ordered `try_send`, which is right — those aren't latest-wins.
+
+---
+
+## Remaining work
+
+Everything on the numbered list (0–5) is implemented. One open item:
+
+**Item 3 stretch goal — forward raw msgpack bytes.** Each coord frame still pays an
+`rmp_serde::from_slice` (decode to `Value`) on ingress and an `encode_outgoing`
+(`to_vec_named`) on egress. At ~2,000 frames/s on 1 vCPU that's the remaining hot-path
+CPU. The fix is to forward the inbound bytes with a minimal header tweak instead of the
+`Value` round-trip.
+
+**Do not start this blind — it's gated on profiling.** First:
+1. `cargo build --release`, run `loadtest/` at ~200 users (and a 2× headroom run).
+2. Profile and confirm `rmp_serde::from_slice` / `to_vec_named` actually dominate the
+   coord path. If they don't, this is dead complexity — stop here, the list is done.
+3. If they do dominate, the relay handlers need the from_user/friend_id injection to
+   happen without a full `Value` parse (e.g. patch the encoded map, or carry the
+   injected fields in an envelope), which is the invasive part — design it then.
+
+## Validation plan (per change)
+
+1. `cargo build --release` clean. (Note: the dev box has hit paging-file OOM during
+   full release codegen — `cargo check` for type-level validation, close other apps or
+   raise the Windows page file for the release build.)
+2. Run `loadtest/` with the baseline scenario; record CPU on the droplet (or local) and
+   p50/p99 broadcast latency.
+3. If a change doesn't show up in the numbers, revert rather than carry dead complexity.

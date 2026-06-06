@@ -1262,9 +1262,9 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
 async fn handle_request_level_change(state: &AppState, client_id: &str, data: Option<Value>) {
     let payload = data.unwrap_or_else(|| json!({}));
 
-    // Valid levels mirror Django's GeckoGameLevel choices (1, 2).
+    // Valid levels mirror Django's GeckoGameLevel choices (1, 2, 3, 4).
     let new_level = match payload.get("new_level").and_then(|v| v.as_u64()) {
-        Some(l @ (1 | 2)) => l as u16,
+        Some(l @ (1 | 2 | 3 | 4)) => l as u16,
         _ => {
             send_to_client(
                 state,
