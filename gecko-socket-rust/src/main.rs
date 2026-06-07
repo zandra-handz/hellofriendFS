@@ -696,6 +696,7 @@ async fn handle_incoming(state: &AppState, client_id: &str, value: Value) {
         | "send_match_request"
         | "propose_gecko_win"
         | "propose_gecko_match_win"
+        | "propose_moment_share"
         | "send_validate_win_request"
         | "send_validate_match_win_request" => {
             proxy_action_to_django(state, client_id, &action, data).await;

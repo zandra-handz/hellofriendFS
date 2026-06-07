@@ -2136,9 +2136,15 @@ class GeckoGameWinPendingDetail(APIView):
             pending.gecko_game_type is None
             or pending.gecko_game_type == GeckoGameType.NONE
         ):
+            # Grab the capsule id before clearing nulls it out.
+            capsule_id = pending.sender_capsule_id
             self._clear_locked(pending)
             return Response(
-                {'status': 'not_gameable', 'message': 'No win here! :('},
+                {
+                    'status': 'not_gameable',
+                    'message': 'No win here! :(',
+                    'sender_capsule_id': capsule_id,
+                },
                 status=status.HTTP_200_OK,
             )
 
