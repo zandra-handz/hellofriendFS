@@ -214,6 +214,38 @@ def handle_propose_gecko_win(user, capsule_id) -> Dict[str, Any]:
     }
 
 
+def handle_propose_moment_share(user, capsule_id) -> Dict[str, Any]:
+    """
+    Guest-initiated "ask the host to share this in person".
+
+    Sent by the guest from the "No win here!" screen. Nothing to win, nothing to
+    share digitally — this just pings the host with the capsule id so they can
+    share the moment in person. No DB write, just a one-shot push.
+    """
+    sesh = _active_sesh(user.id)
+    if not sesh:
+        return {"action": "propose_moment_share_failed", "data": {"reason": "no_active_sesh"}}
+
+    if not capsule_id:
+        return {"action": "propose_moment_share_failed", "data": {"reason": "missing_capsule_id"}}
+
+    partner_id = sesh.other_user_id
+
+    rust_push.notify_user(
+        partner_id,
+        "moment_share_proposed",
+        {
+            "from_user_id": user.id,
+            "capsule_id": str(capsule_id),
+        },
+    )
+
+    return {
+        "action": "propose_moment_share_ok",
+        "data": {"capsule_id": str(capsule_id)},
+    }
+
+
 def handle_propose_gecko_match_win(user, requested_type) -> Dict[str, Any]:
     """
     Stateless port of the consumer's propose_gecko_match_win handler. Recomputes

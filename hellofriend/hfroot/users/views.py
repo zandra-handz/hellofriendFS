@@ -1673,6 +1673,23 @@ def _gecko_socket_action_dispatch(user_id, action, data):
             ack = {"action": "propose_gecko_win_failed", "data": {"reason": "db_error"}}
         return Response(ack)
 
+    if action == "propose_moment_share":
+        user, err = _load_user()
+        if err:
+            return err
+        from .gecko_match_helpers import handle_propose_moment_share
+        capsule_id = data.get("capsule_id") if isinstance(data, dict) else None
+        try:
+            ack = handle_propose_moment_share(user, capsule_id)
+        except Exception:
+            logger.exception(
+                "[gecko_socket_action] propose_moment_share error user=%s capsule_id=%s",
+                user_id,
+                capsule_id,
+            )
+            ack = {"action": "propose_moment_share_failed", "data": {"reason": "db_error"}}
+        return Response(ack)
+
     if action == "propose_gecko_match_win":
         user, err = _load_user()
         if err:
