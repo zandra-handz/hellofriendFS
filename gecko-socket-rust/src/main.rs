@@ -1075,7 +1075,6 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
                     "friend_id": client.friend_id,
                     "position": [0, 0],
                     "steps": [],
-                    "steps_len": 0,
                     "first_fingers": [],
                     "held_moments": [],
                     "held_moments_len": 0,
@@ -1098,6 +1097,7 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
                     "from_user": client.user_id,
                     "position": [0, 0],
                     "steps": [],
+                    "first_fingers": [],
                     "energy": 0.0,
                     "timestamp": null,
                 }),
@@ -1680,6 +1680,7 @@ async fn handle_update_guest_gecko_position(
     if let Value::Object(map) = &mut payload {
         map.entry("position".to_string()).or_insert_with(|| json!([0, 0]));
         map.entry("steps".to_string()).or_insert_with(|| json!([]));
+        map.entry("first_fingers".to_string()).or_insert_with(|| json!([]));
         map.entry("energy".to_string()).or_insert_with(|| json!(1.0));
         map.insert("from_user".to_string(), json!(user_id));
     }
