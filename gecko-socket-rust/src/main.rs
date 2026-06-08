@@ -659,6 +659,7 @@ async fn handle_incoming(state: &AppState, client_id: &str, value: Value) {
         "update_guest_gecko_position" => {
             handle_update_guest_gecko_position(state, client_id, data).await
         }
+        "portal_update" => handle_portal_update(state, client_id, data).await,       
         "update_capsule_progress" => {
             handle_update_capsule_progress(state, client_id, data).await
         }
@@ -1693,6 +1694,41 @@ async fn handle_update_guest_gecko_position(
     broadcast_position_to_room(state, &clients, &shared_room, user_id, "guest_gecko_coords", encoded).await;
 }
 
+async fn handle_portal_update(state: &AppState, client_id: &str, data: Option<Value>) {
+    let mut payload = data.unwrap_or_else(|| json!({}));
+
+    let Some(client) = get_client(state, client_id).await else { return };
+
+    // Host owns portal randomness. Guests should only receive/apply.
+    if !client.is_host || !sesh_presence_allowed(&client) {
+        return;
+    }
+
+    let user_id = client.user_id;
+    let shared_room = client.shared_room.clone();
+
+    if let Value::Object(map) = &mut payload {
+        map.insert("from_user".to_string(), json!(user_id));
+
+        map.entry("slot".to_string()).or_insert_with(|| json!(0));
+        map.entry("id".to_string()).or_insert_with(|| json!(0));
+        map.entry("spawnedAt".to_string()).or_insert_with(|| json!(0));
+        map.entry("expiresAt".to_string()).or_insert_with(|| json!(0));
+        map.entry("hotspotIndex".to_string()).or_insert_with(|| json!(-1));
+        map.entry("position".to_string()).or_insert_with(|| json!(null));
+    }
+
+    broadcast_to_room(
+        state,
+        &shared_room,
+        Some(user_id),
+        OutgoingMessage {
+            action: "portal_update".to_string(),
+            data: payload,
+        },
+    )
+    .await;
+}
 async fn handle_update_capsule_progress(
     state: &AppState,
     client_id: &str,
