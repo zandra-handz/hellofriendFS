@@ -1076,6 +1076,7 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
                     "position": [0, 0],
                     "steps": [],
                     "first_fingers": [],
+                    "body_points": [],
                     "held_moments": [],
                     "held_moments_len": 0,
                     "moments": [],
@@ -1098,6 +1099,7 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
                     "position": [0, 0],
                     "steps": [],
                     "first_fingers": [],
+                    "body_points": [],
                     "energy": 0.0,
                     "timestamp": null,
                 }),
@@ -1645,6 +1647,7 @@ async fn handle_update_host_gecko_position(
         map.entry("position".to_string()).or_insert_with(|| json!([0, 0]));
         map.entry("steps".to_string()).or_insert_with(|| json!([]));
         map.entry("first_fingers".to_string()).or_insert_with(|| json!([]));
+        map.entry("body_points".to_string()).or_insert_with(|| json!([]));
         map.entry("held_moments".to_string()).or_insert_with(|| json!([]));
         map.entry("moments".to_string()).or_insert_with(|| json!([]));
         map.entry("energy".to_string()).or_insert_with(|| json!(1.0));
@@ -1681,6 +1684,7 @@ async fn handle_update_guest_gecko_position(
         map.entry("position".to_string()).or_insert_with(|| json!([0, 0]));
         map.entry("steps".to_string()).or_insert_with(|| json!([]));
         map.entry("first_fingers".to_string()).or_insert_with(|| json!([]));
+        map.entry("body_points".to_string()).or_insert_with(|| json!([]));
         map.entry("energy".to_string()).or_insert_with(|| json!(1.0));
         map.insert("from_user".to_string(), json!(user_id));
     }
