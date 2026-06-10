@@ -1214,7 +1214,7 @@ def rust_live_sesh_context(request):
     sesh = (
         models.UserFriendCurrentLiveSesh.objects
         .filter(user_id=user_id, expires_at__gt=timezone.now())
-        .select_related("friend", "other_user")
+        .select_related("friend", "other_user", "user__geckoscorestate")
         .only(
             "other_user_id",
             "is_host",
@@ -1227,6 +1227,8 @@ def rust_live_sesh_context(request):
             "friend__theme_color_light",
             "friend__theme_color_dark",
             "other_user__username",
+            "user__geckoscorestate__color_gecko_body_0",
+            "user__geckoscorestate__color_gecko_outline_0",
         )
         .first()
     )
@@ -1283,6 +1285,17 @@ def rust_live_sesh_context(request):
     my_wins = wins_scoreboard.get(user_id, sesh.gecko_wins_this_session)
     partner_wins = wins_scoreboard.get(sesh.other_user_id, 0)
 
+    # This user's OWN gecko colors (prefetched via select_related above). The
+    # Rust socket stores them on this client and relays them to the partner in
+    # peer_presence frames, so each side draws the OTHER player's gecko in the
+    # right colors. A user without a GeckoScoreState row reports null.
+    try:
+        score_state = sesh.user.geckoscorestate
+    except models.GeckoScoreState.DoesNotExist:
+        score_state = None
+    color_gecko_body_0 = score_state.color_gecko_body_0 if score_state else None
+    color_gecko_outline_0 = score_state.color_gecko_outline_0 if score_state else None
+
     payload = {
         "user_id": user_id,
         "partner_id": sesh.other_user_id,
@@ -1302,6 +1315,8 @@ def rust_live_sesh_context(request):
         "partner_username": sesh.other_user.username if sesh.other_user else None,
         "partner_friend_id": partner_friend["id"] if partner_friend else None,
         "partner_friend_name": partner_friend["name"] if partner_friend else None,
+        "color_gecko_body_0": color_gecko_body_0,
+        "color_gecko_outline_0": color_gecko_outline_0,
     }
     sesh_cache.write(user_id, payload)
     return Response(payload)
