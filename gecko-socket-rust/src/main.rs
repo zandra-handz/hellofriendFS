@@ -138,12 +138,22 @@ struct Client {
     // and refreshed live via gecko_wins_update pushes.
     my_wins: u64,
     partner_wins: u64,
+    // Combined host+guest win/level-progress tally for the session. Hydrated
+    // from Django; surfaced in the join_live_sesh_ok snapshot.
+    total_progress_points: u64,
     own_room: RoomName,
     shared_room: RoomName,
     partner_room: Option<RoomName>,
     friend_light_color: Option<String>,
     friend_dark_color: Option<String>,
     gecko_game_level: Option<u16>,
+    // "How old is this game" — cumulative seconds played with the current
+    // partner plus the previous session's bounds. Hydrated from Django at
+    // accept/connect; symmetric per-pair, so only surfaced in this client's own
+    // join_live_sesh_ok snapshot (no partner relay, unlike gecko_game_level).
+    total_play_time: u64,
+    last_session_start: Option<String>,
+    last_session_end: Option<String>,
     gecko_body_color: Option<String>,
     gecko_outline_color: Option<String>,
     gecko_message: Option<String>,
@@ -371,12 +381,16 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 partner_points: 0,
                 my_wins: 0,
                 partner_wins: 0,
+                total_progress_points: 0,
                 own_room: own_room.clone(),
                 shared_room: shared_room.clone(),
                 partner_room: None,
                 friend_light_color: None,
                 friend_dark_color: None,
                 gecko_game_level: None,
+                total_play_time: 0,
+                last_session_start: None,
+                last_session_end: None,
                 gecko_body_color: None,
                 gecko_outline_color: None,
                 gecko_message: None,
@@ -433,7 +447,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                         ids.iter()
                             .find_map(|id| clients.get(id))
                             .filter(|c| sesh_presence_allowed(c))
-                            .map(|c| (c.user_id, c.friend_light_color.clone(), c.friend_dark_color.clone(), c.gecko_game_level, c.gecko_body_color.clone(), c.gecko_outline_color.clone()))
+                            .map(|c| (c.user_id, c.friend_light_color.clone(), c.friend_dark_color.clone(), c.gecko_game_level, c.gecko_body_color.clone(), c.gecko_outline_color.clone(), c.total_play_time))
                     }
                     None => None,
                 }
@@ -443,7 +457,10 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
             // via set_friend before we tell either side they're "online and
             // in the sesh." For guests this is always true.
             if sesh_presence_allowed(&client) {
-                if let Some((pid, light, dark, level, gecko_body, gecko_outline)) = partner_snapshot {
+                // total_play_time rides every peer_presence frame alongside
+                // gecko_game_level so the FE picks up the current game's age
+                // from the same presence signal it already reads.
+                if let Some((pid, light, dark, level, gecko_body, gecko_outline, total_play_time)) = partner_snapshot {
                     send_to_client(
                         &bg_state,
                         &bg_client_id,
@@ -457,6 +474,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                                 "gecko_game_level": level,
                                 "color_gecko_body_0": gecko_body,
                                 "color_gecko_outline_0": gecko_outline,
+                                "total_play_time": total_play_time,
                             }),
                         },
                     )
@@ -477,6 +495,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                             "gecko_game_level": client.gecko_game_level,
                             "color_gecko_body_0": client.gecko_body_color,
                             "color_gecko_outline_0": client.gecko_outline_color,
+                            "total_play_time": client.total_play_time,
                         }),
                     },
                 )
@@ -783,6 +802,7 @@ async fn handle_set_friend(state: &AppState, client_id: &str, data: Option<Value
                                 "gecko_game_level": null,
                                 "color_gecko_body_0": null,
                                 "color_gecko_outline_0": null,
+                                "total_play_time": null,
                             }),
                         },
                     )
@@ -926,6 +946,7 @@ async fn handle_set_guest_on_screen(state: &AppState, client_id: &str, data: Opt
                         "gecko_game_level": null,
                         "color_gecko_body_0": null,
                         "color_gecko_outline_0": null,
+                        "total_play_time": null,
                     }),
                 },
             )
@@ -1018,6 +1039,10 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
                     "partner_points": client.partner_points,
                     "my_wins": client.my_wins,
                     "partner_wins": client.partner_wins,
+                    "total_play_time": client.total_play_time,
+                    "last_session_start": client.last_session_start,
+                    "last_session_end": client.last_session_end,
+                    "total_progress_points": client.total_progress_points,
                 }),
             },
         )
@@ -1038,6 +1063,8 @@ async fn handle_join_live_sesh(state: &AppState, client_id: &str) {
                         "gecko_game_level": client.gecko_game_level,
                         "color_gecko_body_0": client.gecko_body_color,
                         "color_gecko_outline_0": client.gecko_outline_color,
+                        // Game-age tally alongside gecko_game_level (see connect).
+                        "total_play_time": client.total_play_time,
                     }),
                 },
             )
@@ -1074,6 +1101,7 @@ async fn handle_leave_live_sesh(state: &AppState, client_id: &str) {
                 "gecko_game_level": null,
                 "color_gecko_body_0": null,
                 "color_gecko_outline_0": null,
+                "total_play_time": null,
             }),
         },
     )
@@ -1250,6 +1278,10 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
                     "gecko_game_level": partner.gecko_game_level,
                     "color_gecko_body_0": partner.gecko_body_color,
                     "color_gecko_outline_0": partner.gecko_outline_color,
+                    // Game-age tally alongside gecko_game_level. Symmetric per
+                    // session, so the partner's value equals this client's own —
+                    // the FE reads it here on its request_peer_presence focus poll.
+                    "total_play_time": partner.total_play_time,
                 }),
             },
         )
@@ -2309,6 +2341,21 @@ async fn apply_hydrate_value(
         .and_then(|v| v.as_u64())
         .map(|n| n as u16);
 
+    let total_play_time = value
+        .get("total_play_time")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+
+    let last_session_start = value
+        .get("last_session_start")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
+    let last_session_end = value
+        .get("last_session_end")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
+
     let gecko_body_color = value
         .get("color_gecko_body_0")
         .and_then(|v| v.as_str())
@@ -2345,6 +2392,11 @@ async fn apply_hydrate_value(
         .and_then(|v| v.as_u64())
         .unwrap_or(0);
 
+    let total_progress_points = value
+        .get("total_progress_points")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+
     let partner_room = partner_id.map(|pid| format!("gecko_shared_with_friend_{}", pid));
 
     {
@@ -2361,6 +2413,7 @@ async fn apply_hydrate_value(
                 c.partner_points = partner_points;
                 c.my_wins = my_wins;
                 c.partner_wins = partner_wins;
+                c.total_progress_points = total_progress_points;
                 c.partner_room = partner_room.clone();
                 // Do NOT seed c.friend_id from hydrate for hosts. Hosts must
                 // confirm via set_friend so we can verify they're on the
@@ -2379,6 +2432,9 @@ async fn apply_hydrate_value(
                 if gecko_game_level.is_some() {
                     c.gecko_game_level = gecko_game_level;
                 }
+                c.total_play_time = total_play_time;
+                c.last_session_start = last_session_start;
+                c.last_session_end = last_session_end;
                 if gecko_body_color.is_some() {
                     c.gecko_body_color = gecko_body_color;
                 }
@@ -2444,6 +2500,7 @@ async fn disconnect_cleanup(state: &AppState, client_id: &str) {
                     "gecko_game_level": null,
                     "color_gecko_body_0": null,
                     "color_gecko_outline_0": null,
+                    "total_play_time": null,
                 }),
             },
         )

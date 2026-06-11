@@ -1070,7 +1070,9 @@ class UserFriendCurrentLiveSeshSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'friend', 'is_host', 'other_user', 'other_user_username',
             'session_start', 'expires_at', 'session_id', 'gecko_game_level',
-            'gecko_play_mode', 'gecko_play_mode_label', 'created_on', 'updated_on'
+            'gecko_play_mode', 'gecko_play_mode_label',
+            'total_play_time', 'last_session_start', 'last_session_end',
+            'created_on', 'updated_on'
         ]
 
 

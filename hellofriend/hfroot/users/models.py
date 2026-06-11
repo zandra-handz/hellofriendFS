@@ -293,7 +293,9 @@ class UserFriendCurrentLiveSesh(models.Model):
     # to be chosen by guest when they accept the invite
     gecko_play_mode = models.IntegerField(choices=GeckoPlayMode.choices, default=GeckoPlayMode.DIG)
     gecko_game_level = models.IntegerField(choices=GeckoGameLevel.choices, default=GeckoGameLevel.LEVEL_ONE)
-
+    total_play_time    = models.PositiveIntegerField(default=0)   # cumulative seconds with current other_user
+    last_session_start = models.DateTimeField(null=True, blank=True)
+    last_session_end   = models.DateTimeField(null=True, blank=True)
     current_log = models.ForeignKey(
         'users.UserFriendLiveSeshLog',
         on_delete=models.SET_NULL,

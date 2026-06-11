@@ -1224,6 +1224,10 @@ def rust_live_sesh_context(request):
             "current_log",
             "session_id",
             "gecko_wins_this_session",
+            "total_play_time",
+            "last_session_start",
+            "last_session_end",
+            "total_progress_points",
             "friend__theme_color_light",
             "friend__theme_color_dark",
             "other_user__username",
@@ -1244,6 +1248,9 @@ def rust_live_sesh_context(request):
             "friend_dark_color": None,
             "gecko_play_mode": None,
             "gecko_game_level": None,
+            "total_play_time": 0,
+            "last_session_start": None,
+            "last_session_end": None,
             "partner_username": None,
             "partner_friend_id": None,
             "partner_friend_name": None,
@@ -1253,6 +1260,7 @@ def rust_live_sesh_context(request):
             "my_wins": 0,
             "partner_wins": 0,
             "wins_scoreboard": {},
+            "total_progress_points": 0,
         }
         sesh_cache.write(user_id, empty)
         return Response(empty)
@@ -1306,12 +1314,16 @@ def rust_live_sesh_context(request):
         "my_wins": my_wins,
         "partner_wins": partner_wins,
         "wins_scoreboard": wins_scoreboard,
+        "total_progress_points": sesh.total_progress_points,
         "friend_id": sesh.friend_id,
         "sesh_friend_id": sesh.friend_id,
         "friend_light_color": sesh.friend.theme_color_light if sesh.friend else None,
         "friend_dark_color": sesh.friend.theme_color_dark if sesh.friend else None,
         "gecko_play_mode": sesh.gecko_play_mode,
         "gecko_game_level": sesh.gecko_game_level,
+        "total_play_time": sesh.total_play_time,
+        "last_session_start": sesh.last_session_start.isoformat() if sesh.last_session_start else None,
+        "last_session_end": sesh.last_session_end.isoformat() if sesh.last_session_end else None,
         "partner_username": sesh.other_user.username if sesh.other_user else None,
         "partner_friend_id": partner_friend["id"] if partner_friend else None,
         "partner_friend_name": partner_friend["name"] if partner_friend else None,
@@ -1863,6 +1875,15 @@ def accept_live_sesh_invite(request, invite_id):
                 'current_log': None,
                 'session_id': session_id,
                 'gecko_wins_this_session': 0,
+                # New session_id = fresh game. Reset the play-time tally; it
+                # accrues from 0 as flushGeckoData windows land in
+                # process_gecko_data. Nothing has been played yet, so the
+                # last_session_* bounds start null.
+                'total_play_time': 0,
+                'last_session_start': None,
+                'last_session_end': None,
+                # Combined win/progress tally also resets per session.
+                'total_progress_points': 0,
             },
         )
 
@@ -1878,6 +1899,11 @@ def accept_live_sesh_invite(request, invite_id):
                 'current_log': host_sesh.current_log,
                 'session_id': session_id,
                 'gecko_wins_this_session': 0,
+                # Reset to match the host row above — fresh session, 0 played.
+                'total_play_time': 0,
+                'last_session_start': None,
+                'last_session_end': None,
+                'total_progress_points': 0,
             },
         )
 
@@ -2254,6 +2280,12 @@ class GeckoGameWinPendingDetail(APIView):
             ).update(
                 gecko_wins_this_session=F('gecko_wins_this_session') + 1,
             )
+            # Combined level-progress tally on BOTH rows (host + guest). One
+            # win => +1. Filtered by the two participants + session_id.
+            models.UserFriendCurrentLiveSesh.objects.filter(
+                user_id__in=[pending.user_id, pending.sender_id],
+                session_id=session_id,
+            ).update(total_progress_points=F('total_progress_points') + 1)
             wins_scoreboard = _read_session_wins_scoreboard(session_id)
 
         return deleted_capsule_id, wins_scoreboard
@@ -2396,6 +2428,7 @@ class GeckoGameWinPendingDetail(APIView):
                     {
                         'my_wins': wins_scoreboard.get(sender_id, 0),
                         'partner_wins': wins_scoreboard.get(request.user.id, 0),
+                        'total_progress_points': sum(wins_scoreboard.values()),
                         'session_id': request.data.get('session_id'),
                     },
                 )
@@ -2673,6 +2706,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                     {
                         'my_wins': wins_scoreboard.get(pending.host_id, 0),
                         'partner_wins': wins_scoreboard.get(pending.guest_id, 0),
+                        'total_progress_points': sum(wins_scoreboard.values()),
                         'session_id': sid,
                     },
                 )
@@ -2682,6 +2716,7 @@ class GeckoGameMatchWinPendingDetail(APIView):
                     {
                         'my_wins': wins_scoreboard.get(pending.guest_id, 0),
                         'partner_wins': wins_scoreboard.get(pending.host_id, 0),
+                        'total_progress_points': sum(wins_scoreboard.values()),
                         'session_id': sid,
                     },
                 )
@@ -2798,6 +2833,12 @@ class GeckoGameMatchWinPendingDetail(APIView):
             ).update(
                 gecko_wins_this_session=F('gecko_wins_this_session') + 1,
             )
+            # Match = both sides won => +2 to the combined level-progress tally
+            # on BOTH rows. Same two-participant + session_id filter as above.
+            models.UserFriendCurrentLiveSesh.objects.filter(
+                user_id__in=[pending.host_id, pending.guest_id],
+                session_id=session_id,
+            ).update(total_progress_points=F('total_progress_points') + 2)
             wins_scoreboard = _read_session_wins_scoreboard(session_id)
 
         return wins_scoreboard

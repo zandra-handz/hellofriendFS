@@ -91,6 +91,78 @@ sudo systemctl status gunicorn
 
 After any code change, config change, or shell-level env change — **restart gunicorn** or it'll keep serving the old process.
 
+## nginx
+
+### Site is down after a restart but gunicorn is fine
+
+Symptom: you restart, gunicorn comes back, but the whole site is unreachable for hours. The cause is usually that **nginx silently failed its config test and systemd never started it.** Check:
+
+```bash
+sudo systemctl status nginx
+sudo journalctl -u nginx -n 50 --no-pager
+sudo nginx -t
+```
+
+Look for:
+
+```
+nginx[######]: [emerg] host not found in upstream
+   "hf-imagespaces.nyc3.cdn.digitaloceanspaces.com"
+   in /etc/nginx/sites-enabled/staging.badrainbowz.com:34
+nginx: configuration file /etc/nginx/nginx.conf test failed
+```
+
+This means nginx refused to start because it couldn't DNS-resolve the DO Spaces CDN upstream **at config-load time.** The `ExecStartPre=/usr/sbin/nginx -t` failed, so systemd left nginx dead. It is not OOM and not a gunicorn crash — gunicorn stops/starts cleanly on its own.
+
+### Why a static upstream hostname is a landmine
+
+When nginx is given a static hostname in `proxy_pass`/`upstream`, it resolves it **once, at config-load time.** A momentary DNS hiccup at that instant produces `[emerg] host not found in upstream` and nginx won't start **at all** — taking down the entire site, not just CDN proxying. Any future restart/reboot during a DNS blip = total outage. (Later, once DNS resolves, a manual `sudo systemctl restart nginx` "just works" — masking the root cause.)
+
+### Durable fix: resolve the CDN host at request time
+
+Make nginx defer the lookup to a resolver at request time by using a **variable** in `proxy_pass`. First inspect the current block:
+
+```bash
+sudo sed -n '20,45p' /etc/nginx/sites-enabled/staging.badrainbowz.com
+```
+
+Then rewrite roughly as:
+
+```nginx
+# in the http or server block
+resolver 127.0.0.53 valid=30s;   # systemd-resolved; or 8.8.8.8 1.1.1.1
+
+location /<spaces-path>/ {
+    set $spaces "hf-imagespaces.nyc3.cdn.digitaloceanspaces.com";
+    proxy_pass https://$spaces$request_uri;   # variable => runtime DNS
+    proxy_set_header Host $spaces;
+}
+```
+
+The key move is the **variable** in `proxy_pass`. With a variable, nginx defers the DNS lookup to the resolver at request time, so a DNS blip just fails that one CDN request instead of refusing to boot. Catch: a variable `proxy_pass` drops the URI, so append `$request_uri` (or use a `rewrite`) to preserve the path.
+
+### After ANY restart, confirm both services are actually up
+
+A failed nginx start is silent. Get in the habit of:
+
+```bash
+systemctl is-active nginx gunicorn
+```
+
+Both services are `enabled` so they survive reboot — but "enabled" doesn't mean "started successfully this time."
+
+## Hardening
+
+### Add swap (one time)
+
+A 1GB box with `Swap: 0B` and only ~85Mi truly free is one traffic spike away from a real OOM kill. Check with `free -h`, then:
+
+```bash
+sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile
+sudo mkswap /swapfile && sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
 ## Recovery recipes
 
 ### Login returns 401 after changes

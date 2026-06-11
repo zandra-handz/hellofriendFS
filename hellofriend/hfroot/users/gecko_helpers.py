@@ -218,7 +218,8 @@
 from datetime import timedelta
 
 from django.db import transaction
-from django.db.models import F, Sum
+from django.db.models import F, Sum, Value
+from django.db.models.functions import Coalesce, Greatest
 from django.utils import timezone as _tz
 from django.utils.dateparse import parse_datetime
 
@@ -382,6 +383,28 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
             '[process_gecko_data] GeckoData update user=%s friend_id=%s rows_updated=%s',
             user.id, friend_id, updated_rows,
         )
+
+        # "How old is the current game" tally. Each FE-saved window (this very
+        # process_gecko_data call, fired by flushGeckoData on the 60s interval /
+        # background / nav-away / presence-cut / save-and-exit) carries a
+        # [started_on, ended_on] span; delta_duration is its length in seconds.
+        # We accrue that span onto the user's CURRENT live-sesh row so the row
+        # holds the running play-time for THIS session (the accept stamps it
+        # back to 0, so it naturally resets per session_id). Distinct from
+        # GeckoData.total_duration above, which is the friend's lifetime walking
+        # total across all sessions. last_session_start keeps the first window's
+        # start (Coalesce — only set while null); last_session_end advances to
+        # the latest window end (Greatest — ignores the null seed). Bulk
+        # .update() so we don't trip the live-sesh save() log churn.
+        if delta_duration and parsed_start and parsed_end:
+            users_models.UserFriendCurrentLiveSesh.objects.filter(
+                user_id=user.id,
+            ).update(
+                total_play_time=F('total_play_time') + delta_duration,
+                last_session_start=Coalesce(F('last_session_start'), Value(parsed_start)),
+                last_session_end=Greatest(F('last_session_end'), Value(parsed_end)),
+                updated_on=_tz.now(),
+            )
 
         # Lifetime totals live on UserLifetimeTotals (split off GeckoScoreState
         # to keep hot streak/energy writes off the same row as monotonic
