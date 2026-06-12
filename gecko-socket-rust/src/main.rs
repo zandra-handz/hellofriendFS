@@ -2425,10 +2425,12 @@ async fn apply_hydrate_value(state: &AppState, client_id: &str, user_id: UserId,
         .and_then(|v| v.as_u64())
         .map(|n| n as u16);
 
+    // The play time IS UserFriendCurrentLiveSesh.total_play_time. Never default
+    // to 0: a hydrate that omits the field must leave the existing value alone,
+    // not zero the clock. So keep it as Option and only write when present.
     let total_play_time = value
         .get("total_play_time")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
+        .and_then(|v| v.as_u64());
 
     let last_session_start = value
         .get("last_session_start")
@@ -2514,7 +2516,9 @@ async fn apply_hydrate_value(state: &AppState, client_id: &str, user_id: UserId,
                 if gecko_game_level.is_some() {
                     c.gecko_game_level = gecko_game_level;
                 }
-                c.total_play_time = total_play_time;
+                if let Some(total_play_time) = total_play_time {
+                    c.total_play_time = total_play_time;
+                }
                 c.last_session_start = last_session_start;
                 c.last_session_end = last_session_end;
                 if gecko_body_color.is_some() {
