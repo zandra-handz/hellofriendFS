@@ -294,6 +294,7 @@ class UserFriendCurrentLiveSesh(models.Model):
     gecko_play_mode = models.IntegerField(choices=GeckoPlayMode.choices, default=GeckoPlayMode.DIG)
     gecko_game_level = models.IntegerField(choices=GeckoGameLevel.choices, default=GeckoGameLevel.LEVEL_ONE)
     total_play_time    = models.PositiveIntegerField(default=0)   # cumulative seconds with current other_user
+    total_progress_points = models.PositiveIntegerField(default=0)  # cumulative level-progress tally; +1 per win, +2 per match
     last_session_start = models.DateTimeField(null=True, blank=True)
     last_session_end   = models.DateTimeField(null=True, blank=True)
     current_log = models.ForeignKey(
