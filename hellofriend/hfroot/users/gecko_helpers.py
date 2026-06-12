@@ -405,6 +405,16 @@ def process_gecko_data(user, friend_id, steps=0, distance=0,
                 last_session_end=Greatest(F('last_session_end'), Value(parsed_end)),
                 updated_on=_tz.now(),
             )
+            # total_play_time just advanced on THIS user's row. Reconnect /
+            # join_live_sesh rehydrates from the gecko_sesh:{uid} cache first
+            # (Rust reads Redis before falling through to Django), so drop this
+            # user's cached payload or the next join ships a stale play-time.
+            # Only this user accrues here — the partner's row is untouched, so
+            # we don't force a partner re-hydrate. The points path below may
+            # also invalidate (uid, pid); the duplicate on_commit is harmless.
+            transaction.on_commit(
+                lambda uid=user.id: sesh_cache.invalidate(uid)
+            )
 
         # Lifetime totals live on UserLifetimeTotals (split off GeckoScoreState
         # to keep hot streak/energy writes off the same row as monotonic
