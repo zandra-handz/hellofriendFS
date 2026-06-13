@@ -1254,24 +1254,6 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
         return;
     }
 
-    // The presence REPLY below carries the PARTNER's level. The requester's OWN
-    // level (shared, and what they may have just changed over HTTP) otherwise
-    // never reaches their FE — so feed it back here via level_update, which the
-    // FE applies without touching colors. Fires for any valid sesh, even if the
-    // partner is offline.
-    send_to_client(
-        state,
-        client_id,
-        OutgoingMessage {
-            action: "level_update".to_string(),
-            data: json!({
-                "gecko_game_level": client.gecko_game_level,
-                "changed_by": client.user_id,
-            }),
-        },
-    )
-    .await;
-
     let partner = {
         let ids = {
             let user_clients = state.user_clients.read().await;
@@ -1327,6 +1309,13 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
         } else {
             json!(null)
         };
+        // Shared level reported from the HOST's copy (authoritative), not the
+        // subject's — so a stale guest copy never reaches the requester.
+        let sesh_level = if client.is_host {
+            client.gecko_game_level
+        } else {
+            partner.gecko_game_level
+        };
         send_to_client(
             state,
             client_id,
@@ -1337,7 +1326,7 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
                     "online": true,
                     "friend_light_color": partner.friend_light_color,
                     "friend_dark_color": partner.friend_dark_color,
-                    "gecko_game_level": partner.gecko_game_level,
+                    "gecko_game_level": sesh_level,
                     "color_gecko_body_0": partner.gecko_body_color,
                     "color_gecko_outline_0": partner.gecko_outline_color,
                     // FE reads this on its request_peer_presence focus poll.
@@ -1394,6 +1383,10 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
                 data: json!({
                     "user_id": partner_id,
                     "online": false,
+                    // Partner offline, but the level is the SHARED sesh value —
+                    // report the requester's own copy so the host still sees the
+                    // level it set instead of the FE nulling it on this reply.
+                    "gecko_game_level": client.gecko_game_level,
                 }),
             },
         )
