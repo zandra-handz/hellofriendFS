@@ -71,8 +71,16 @@ def apply_level_change(user, new_level: Any, require_host: bool = False) -> Dict
             | Q(user_id=other_id, other_user_id=user.id)
         ).update(gecko_game_level=new_level, updated_on=now)
 
-        # Invalidate only after commit so a concurrent reconnect can never
-        # repopulate Redis from a pre-commit read.
-        transaction.on_commit(lambda: sesh_cache.invalidate(user.id, other_id))
+        # Patch the new level straight into BOTH participants' cached blobs
+        # after commit, so a socket hydrate reads it warm with no DB round-trip
+        # (both sides share gecko_game_level). on_commit ordering means the
+        # cache is only touched once the row write is durable, so a concurrent
+        # reconnect can never read a pre-commit value. Patch is a no-op on a
+        # cold blob — connect-time hydrate then falls back to the (fresh) DB.
+        def _sync_cache():
+            sesh_cache.patch(user.id, gecko_game_level=new_level)
+            sesh_cache.patch(other_id, gecko_game_level=new_level)
+
+        transaction.on_commit(_sync_cache)
 
     return {"status": "ok", "gecko_game_level": new_level, "partner_id": other_id}

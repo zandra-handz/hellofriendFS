@@ -27,6 +27,25 @@ def invalidate(*user_ids):
         _client.delete(*keys)
 
 
+def patch(user_id, **fields):
+    """
+    Update specific fields in a user's cached live-sesh blob in place, so a warm
+    socket hydrate reads the new value with no DB hit. No-op if the blob is
+    absent — connect-time hydrate then falls back to Django/DB, which is already
+    fresh. Never writes a partial blob (that would break the Rust hydrate, which
+    expects the full field set).
+    """
+    raw = _client.get(key(user_id))
+    if raw is None:
+        return
+    try:
+        blob = json.loads(raw)
+    except (TypeError, ValueError):
+        return
+    blob.update(fields)
+    _client.setex(key(user_id), TTL_SECONDS, json.dumps(blob))
+
+
 def read(user_id):
     raw = _client.get(key(user_id))
     if raw is None:

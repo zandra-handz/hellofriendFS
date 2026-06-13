@@ -688,7 +688,26 @@ class GeckoScoreStateConfigsView(generics.RetrieveUpdateAPIView):
             local_hour = timezone.now().hour
         context["local_hour"] = local_hour
         return context
-    
+
+    def perform_update(self, serializer):
+        # When the user changes their gecko colors, mirror them into their own
+        # cached live-sesh blob so a socket hydrate reads the new colors warm
+        # (no DB hit). Only their OWN key — colors live in that user's blob and
+        # Rust relays them to the partner via peer_presence. Patch only the
+        # color fields that were actually in this request (the serializer also
+        # handles personality/active-hours/etc., which aren't in the blob).
+        from . import sesh_cache
+        with transaction.atomic():
+            obj = serializer.save()
+            color_fields = {
+                f: getattr(obj, f)
+                for f in ('color_gecko_body_0', 'color_gecko_outline_0')
+                if f in serializer.validated_data
+            }
+            if color_fields:
+                uid = obj.user_id
+                transaction.on_commit(lambda: sesh_cache.patch(uid, **color_fields))
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
