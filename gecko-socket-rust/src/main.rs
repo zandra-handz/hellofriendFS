@@ -1328,6 +1328,39 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
             },
         )
         .await;
+
+        // Symmetric refresh: also push the REQUESTER's own level/colors to the
+        // partner. The on-screen user polls request_peer_presence, so this is
+        // the moment to propagate a value the requester just hydrated (e.g. a
+        // level/color changed over HTTP while the partner was disconnected or
+        // hasn't re-hydrated) to the partner too — not only requester-learns-
+        // partner. Same peer_presence shape, so the FE's existing handler
+        // applies it with no new listener. exclude=requester so only the
+        // partner receives it.
+        let requester_play_time = if client.is_host {
+            json!(client.total_play_time)
+        } else {
+            json!(null)
+        };
+        broadcast_to_room(
+            state,
+            &client.shared_room,
+            Some(client.user_id),
+            OutgoingMessage {
+                action: "peer_presence".to_string(),
+                data: json!({
+                    "user_id": client.user_id,
+                    "online": true,
+                    "friend_light_color": client.friend_light_color,
+                    "friend_dark_color": client.friend_dark_color,
+                    "gecko_game_level": client.gecko_game_level,
+                    "color_gecko_body_0": client.gecko_body_color,
+                    "color_gecko_outline_0": client.gecko_outline_color,
+                    "total_play_time": requester_play_time,
+                }),
+            },
+        )
+        .await;
     } else {
         debug!(
             target: "peer_pres",
