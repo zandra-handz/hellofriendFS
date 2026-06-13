@@ -82,6 +82,8 @@ urlpatterns = [
         name="rust-gecko-socket-action",
     ),
 
+    # update the live sesh level (host only), called before entering the game screen
+    path('live-sesh/current/level/', views.update_live_sesh_level, name='live-sesh-current-level'),
     path('live-sesh/current/', views.get_current_live_sesh, name='live-sesh-current'),
     path('live-sesh/current/cancel/', views.cancel_current_live_sesh, name='live-sesh-current-cancel'),       
     path('live-sesh/invites/', views.get_live_sesh_invites, name='live-sesh-invites'),

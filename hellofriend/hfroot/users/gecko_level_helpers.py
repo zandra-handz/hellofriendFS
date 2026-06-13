@@ -27,11 +27,16 @@ from . import models, sesh_cache
 logger = logging.getLogger(__name__)
 
 
-def apply_level_change(user, new_level: Any) -> Dict[str, Any]:
+def apply_level_change(user, new_level: Any, require_host: bool = False) -> Dict[str, Any]:
     """
     Persist a host/guest gecko game-level change to BOTH participants' live-sesh
     rows and drop their hydrate caches. Returns a status dict; the caller turns
     a non-"ok" status into a request_level_change_failed ack.
+
+    When `require_host` is True (HTTP endpoint, called before entering the game
+    screen), the change is rejected with a "not_host" status unless the caller's
+    row is the host side. The socket path leaves this False so either
+    participant may drive the live change.
     """
     valid_levels = set(dict(models.GeckoGameLevel.choices).keys())
     try:
@@ -45,11 +50,14 @@ def apply_level_change(user, new_level: Any) -> Dict[str, Any]:
     sesh = (
         models.UserFriendCurrentLiveSesh.objects
         .filter(user_id=user.id, expires_at__gt=now)
-        .only("other_user_id")
+        .only("other_user_id", "is_host")
         .first()
     )
     if not sesh:
         return {"status": "no_active_sesh"}
+
+    if require_host and not sesh.is_host:
+        return {"status": "not_host"}
 
     other_id = sesh.other_user_id
 

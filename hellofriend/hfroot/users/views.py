@@ -1767,6 +1767,32 @@ def get_current_live_sesh(request):
     )
 
 
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_live_sesh_level(request):
+    """
+    Set the gecko game level on the caller's current live sesh, before either
+    side enters the game screen. Host only: the live-sesh row was created at
+    invite-accept, so it already exists here; we just make the new level durable
+    on BOTH participants' rows (via apply_level_change) so it hydrates when they
+    join. No socket push — nobody is on the game socket yet.
+    """
+    user = request.user
+    new_level = request.data.get('gecko_game_level', request.data.get('new_level'))
+
+    from .gecko_level_helpers import apply_level_change
+    result = apply_level_change(user, new_level, require_host=True)
+
+    status_by_result = {
+        'ok': status.HTTP_200_OK,
+        'invalid_level': status.HTTP_400_BAD_REQUEST,
+        'no_active_sesh': status.HTTP_404_NOT_FOUND,
+        'not_host': status.HTTP_403_FORBIDDEN,
+    }
+    http_status = status_by_result.get(result.get('status'), status.HTTP_400_BAD_REQUEST)
+    return Response(result, status=http_status)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_live_sesh_invites(request):
@@ -1790,10 +1816,16 @@ def get_live_sesh_invites(request):
         for choice in models.GeckoPlayMode
     ]
 
+    gecko_game_levels = [
+        {"value": choice.value, "label": choice.label}
+        for choice in models.GeckoGameLevel
+    ]
+
     return Response({
         'sent': serializers.UserFriendLiveSeshInviteSerializer(sent_qs, many=True).data,
         'pending': serializers.UserFriendLiveSeshInviteSerializer(pending_qs, many=True).data,
         'play_modes': play_modes,
+        'gecko_game_levels': gecko_game_levels,
     }, status=status.HTTP_200_OK)
 
 
