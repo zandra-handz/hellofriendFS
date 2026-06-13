@@ -386,7 +386,7 @@ async fn handle_socket(socket: WebSocket, user_id: UserId, state: AppState) {
                 total_play_time: 0,
                 last_session_start: None,
                 last_session_end: None,
-                gecko_body_color: None,
+                gecko_body_color: None, 
                 gecko_outline_color: None,
                 gecko_message: None,
                 gecko_emotion: None,
@@ -1253,6 +1253,24 @@ async fn handle_request_peer_presence(state: &AppState, client_id: &str) {
         .await;
         return;
     }
+
+    // The presence REPLY below carries the PARTNER's level. The requester's OWN
+    // level (shared, and what they may have just changed over HTTP) otherwise
+    // never reaches their FE — so feed it back here via level_update, which the
+    // FE applies without touching colors. Fires for any valid sesh, even if the
+    // partner is offline.
+    send_to_client(
+        state,
+        client_id,
+        OutgoingMessage {
+            action: "level_update".to_string(),
+            data: json!({
+                "gecko_game_level": client.gecko_game_level,
+                "changed_by": client.user_id,
+            }),
+        },
+    )
+    .await;
 
     let partner = {
         let ids = {
